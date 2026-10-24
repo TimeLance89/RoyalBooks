@@ -32,7 +32,7 @@ def test_matched_mounts_still_do_not_claim_import():
     r = audit.inspect_snapshot(containers, mounts)
     assert r["status"] == "mounts_match_not_import_verified"
     assert r["changes_made"] is False
-    assert "Import" in r["notice"]
+    assert "buchimport" in r["notice"].lower()
     assert all(c["level"] == "ok" for c in r["checks"])
 
 
