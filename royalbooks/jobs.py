@@ -102,8 +102,16 @@ class JobStore:
             columns = {row[1] for row in db.execute("PRAGMA table_info(jobs)")}
             if "attempts" not in columns:
                 db.execute("ALTER TABLE jobs ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0")
-            db.execute("UPDATE jobs SET status='queued' WHERE status='downloading'")
-            db.execute("UPDATE jobs SET status='needs_review', error='Interrupted during ingest handoff' WHERE status='delivering'")
+            # Download attempts are counted on claim, including interrupted attempts.
+            db.execute("""UPDATE jobs SET status='failed', error='interrupted_attempt_limit',
+                        updated_at=CURRENT_TIMESTAMP
+                        WHERE status='downloading' AND attempts >= ?""", (MAX_ATTEMPTS,))
+            db.execute("""UPDATE jobs SET status='queued', error=NULL,
+                        updated_at=CURRENT_TIMESTAMP
+                        WHERE status='downloading' AND attempts < ?""", (MAX_ATTEMPTS,))
+            db.execute("""UPDATE jobs SET status='needs_review',
+                        error='Interrupted during ingest handoff',
+                        updated_at=CURRENT_TIMESTAMP WHERE status='delivering'""")
 
     def _db(self):
         db = sqlite3.connect(self.path, timeout=10)
@@ -125,6 +133,11 @@ class JobStore:
         with self._db() as db:
             db.execute("BEGIN IMMEDIATE")
             for status in statuses:
+                if status == "queued":
+                    # Guard against old databases containing already-exhausted queued jobs.
+                    db.execute("""UPDATE jobs SET status='failed', error='interrupted_attempt_limit',
+                                updated_at=CURRENT_TIMESTAMP
+                                WHERE status='queued' AND attempts >= ?""", (MAX_ATTEMPTS,))
                 row = db.execute("SELECT * FROM jobs WHERE status=? ORDER BY created_at LIMIT 1", (status,)).fetchone()
                 if row:
                     next_status = 'downloading' if status == 'queued' else 'delivering'

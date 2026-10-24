@@ -12,7 +12,7 @@ input[type=search]{flex:1;min-width:180px}button{background:#a73340;border-color
 footer{border-top:1px solid #333;margin-top:32px;padding-top:18px;font-size:13px}.pill{font-size:11px;color:#e5c58b}
 .controls{background:#1b1c23;border:1px solid #39363e;border-radius:12px;padding:18px;margin:20px 0}.controls h2{margin:0;font-size:18px}.controls label{font-size:13px;display:block;margin:12px 0 4px}.controls input[type=password]{width:min(100%,440px)}.jobs{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}.jobs td,.jobs th{border-bottom:1px solid #3a3840;padding:9px 6px;text-align:left}.subtle{background:#32313b;border-color:#53505a}.action{margin-top:10px;font-size:12px;padding:8px 10px}
 </style></head>
-<body><header><span class="accent">✦ ROYALBOOKS</span><span class="chip">PROVIDER-LAB · v0.3</span></header>
+<body><header><span class="accent">✦ ROYALBOOKS</span><span class="chip">PROVIDER-LAB · v0.3.1</span></header>
 <h1>Finde dein nächstes Buch.</h1><p class="muted">Quellen vergleichen, Trefferqualität prüfen und freigegebene EPUBs in deine Bibliothek übernehmen.</p>
 <form id="search"><input type="search" id="q" placeholder="Titel oder Autor, z. B. Kafka" required minlength="2" maxlength="120" aria-label="Suche"><select id="language" aria-label="Sprache"><option value="de">Deutsch</option><option value="en">Englisch</option><option value="all">Alle</option></select><button id="go">Suchen</button></form>
 <div id="message" role="status" class="muted">Bereit für die erste Suche.</div><section id="stats" class="stats" aria-label="Providerstatus"></section>
@@ -31,6 +31,20 @@ try{const r=await fetch('/api/jobs',{headers:{'X-API-Key':token}});if(!r.ok)thro
 $('job-message').textContent=result.ingest_configured?'Calibre-Übergabe ist konfiguriert.':'Kein Calibre-Importordner eingestellt. EPUBs bleiben zunächst auf dem Server.';
 $('job-rows').replaceChildren(...result.jobs.map(job=>{const row=document.createElement('tr');
 const info=text('td',job.error||((job.file_size||0)?job.file_size+' Bytes':'–'));
+const observations={
+ awaiting_ingest:'EPUB liegt noch im Importordner',
+ file_absent_unverified:'EPUB nicht mehr im Importordner – Import unbestätigt',
+ ingest_not_configured:'Calibre-Importordner nicht verbunden',
+ ingest_unavailable:'Calibre-Importordner nicht erreichbar',
+ staged_ready:'EPUB bereit zur Übergabe',
+ staged_missing:'Zwischengespeicherte EPUB fehlt',
+ manual_review_destination_present:'Manuelle Prüfung: Übergabedatei vorhanden',
+ manual_review_staged_present:'Manuelle Prüfung: zwischengespeicherte Datei vorhanden',
+ manual_review_unknown:'Manuelle Prüfung erforderlich'
+};
+if(job.handoff_observation){
+  info.append(text('p', observations[job.handoff_observation]||job.handoff_observation,'muted'));
+}
 if(job.status==='failed'&&['ReadTimeout','ConnectTimeout','ConnectError','ReadError','RemoteProtocolError','PoolTimeout','WriteTimeout','WriteError','http_429','http_500','http_502','http_503','http_504'].includes(job.error)&&job.attempts<3){
 const btn=text('button','Erneut versuchen','action');btn.type='button';btn.addEventListener('click',()=>retryJob(job));info.append(btn);
 }

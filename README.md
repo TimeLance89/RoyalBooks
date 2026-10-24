@@ -1,6 +1,6 @@
 # RoyalBooks – Book Discovery & Automation
 
-A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Docker hosts. **v0.3 development preview**, not a replacement for Calibre-Web Automated.
+A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Docker hosts. **v0.3.1 development preview**, not a replacement for Calibre-Web Automated.
 
 ## Features
 - Independent source adapters: **Open Library** (work-level metadata), **Gutendex** (Project Gutenberg catalog), **DNB/German National Library** (bibliographic MARC21 metadata), and optional **Google Books** (metadata only, requires API key).
@@ -8,10 +8,11 @@ A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Dock
 - Conservative catalog cross-references: ISBN-13/title/language edition candidates versus title/author/language work candidates. All original results are preserved; no automatic merging or assumed entitlement to a download.
 - **Opt-in read-only provider benchmark** with fixed multilingual cases, explicit language checks, source error counts and measured latency (see below).
 - Opt-in Gutenberg EPUB queue: a fresh catalog lookup, US public-domain flag check **plus explicit user confirmation of local rights**, host/redirect allowlisting, stream-size limits, archive validation and SHA-256 duplicate checks.
-- Manual retries only for explicitly classified transient errors, limited to three download attempts; ambiguous handoffs and permanent validation failures cannot be retried automatically.
+- Manual retries only for explicitly classified transient errors, limited to three download attempts **including interrupted attempts during repeated container restarts**; ambiguous handoffs and permanent validation failures cannot be retried automatically.
 - Revalidate the staged EPUB against its original SHA-256 digest before the Calibre handoff, and refuse to replace an already existing handoff file.
 - Persistent SQLite job statuses: `queued` → `downloading` → `staged` → `delivering` → `delivered`. Errors become `failed`; interrupted handoffs become `needs_review` to prevent accidental repeated imports.
 - Optional handoff to the **existing CWA ingest directory**, never writes to `metadata.db`. **`delivered` only means the file was handed off to CWA, not that CWA completed the import.**
+- Read-only handoff diagnostics distinguish files still in the import folder, files no longer there, and inaccessible folders. **A vanished file is not proof of a successful Calibre import.** Ambiguous handoffs remain blocked for manual review.
 - API token required for job creation and job listing. No cloud accounts, scraping, torrent downloads, DRM removal or arbitrary URL fetching.
 
 ## Ugreen NAS installation
@@ -27,7 +28,7 @@ Default configuration binds to **127.0.0.1**, so it is not visible on the LAN un
 - `GET /api/search?q=Kafka&language=de`: mixed catalog listings; metadata results ≠ downloads.
 - `GET /api/providers`: anonymized source quality counters (the last 200 attempts; no search terms stored).
 - `POST /api/jobs`: `X-API-Key: <token>`, JSON `{"provider":"gutendex","source_id":42,"rights_confirmed":true}`.
-- `GET /api/jobs`: API key required, last 100 jobs and staging/import configuration.
+- `GET /api/jobs`: API key required, last 100 jobs, ingest configuration, and `handoff_observation` for each staged/delivered/ambiguous job.
 - `POST /api/jobs/{id}/retry`: API key and `{ "rights_confirmed": true }` required; allowed only for transient failed jobs with fewer than three attempts, otherwise HTTP 409.
 - `GET /api/health`: health/version.
 

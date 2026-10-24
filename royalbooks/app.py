@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from royalbooks.jobs import JobStateError, JobStore, require_token, worker
+from royalbooks.handoff import observe_handoff
 from royalbooks.providers import Book, GoogleBooks, Gutendex, OpenLibrary, Provider
 from royalbooks.source_registry import configured_providers
 from royalbooks.matching import match_groups
@@ -37,7 +38,7 @@ async def lifespan(app: FastAPI):
             await task
 
 
-app = FastAPI(title='RoyalBooks', version='0.3.0', lifespan=lifespan)
+app = FastAPI(title='RoyalBooks', version='0.3.1', lifespan=lifespan)
 
 
 @app.get('/')
@@ -47,7 +48,7 @@ async def homepage():
 
 @app.get('/api/health')
 async def health():
-    return {'status': 'ok', 'version': '0.3.0'}
+    return {'status': 'ok', 'version': '0.3.1'}
 
 
 @app.get('/api/providers')
@@ -115,7 +116,14 @@ async def enqueue(request: QueueRequest, x_api_key: str | None = Header(default=
 @app.get('/api/jobs')
 async def list_jobs(x_api_key: str | None = Header(default=None)):
     _guard(x_api_key)
-    return {'jobs': app.state.jobs.list(), 'ingest_configured': bool(os.getenv('ROYALBOOKS_CWA_INGEST_PATH'))}
+    ingest_path = os.getenv('ROYALBOOKS_CWA_INGEST_PATH', '').strip()
+    ingest = Path(ingest_path) if ingest_path else None
+    staging = Path(app.state.jobs.path).parent / 'staging'
+    records = await asyncio.to_thread(app.state.jobs.list)
+    for job in records:
+        job['handoff_observation'] = await asyncio.to_thread(observe_handoff, job, staging, ingest)
+    return {'jobs': records, 'ingest_configured': bool(ingest_path),
+            'handoff_notice': 'A disappearing ingest file does not confirm a successful Calibre import.'}
 
 
 class RetryRequest(BaseModel):
