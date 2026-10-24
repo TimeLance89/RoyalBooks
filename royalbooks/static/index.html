@@ -1,77 +1,48 @@
 <!doctype html>
-<html lang="de">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RoyalBooks – Provider-Lab</title>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RoyalBooks · Quellenlabor</title>
 <style>
-:root{color-scheme:dark;font-family:system-ui,"Segoe UI",sans-serif;background:#111216;color:#f7f2eb}
-*{box-sizing:border-box}body{max-width:1080px;margin:0 auto;padding:30px 18px}
-header{display:flex;align-items:center;justify-content:space-between;gap:10px}
-h1{font-size:clamp(2rem,5vw,3.3rem);margin:20px 0 8px}
-p{line-height:1.5}.muted{color:#aaaab2}.gold{color:#edc16e}.chip{border:1px solid #574431;border-radius:20px;padding:6px 12px;font-size:12px}
-form{display:flex;flex-wrap:wrap;gap:10px;margin:25px 0}input,select,button{border-radius:9px;padding:13px;color:#fff;background:#24252b;border:1px solid #44454c;font-size:15px}
-input{flex:1;min-width:170px}button{background:#a42d40;border-color:#a42d40;cursor:pointer}button:disabled{opacity:.5}
-#stats{display:flex;flex-wrap:wrap;gap:9px;margin:18px 0}.stat{background:#25252d;border:1px solid #3b373d;padding:10px 14px;border-radius:8px;font-size:12px}
-#books{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
-.book{background:#1d1e25;border:1px solid #37373f;padding:15px;border-radius:12px;display:flex;gap:15px;min-height:170px}
-.cover{width:74px;height:110px;background:#36363e;object-fit:cover;border-radius:4px}
-.book h3{font-size:16px;margin:0 0 6px;line-height:1.3}.book p{margin:3px 0;font-size:13px}
-a{color:#edc16e;font-size:13px}.source{color:#e8bd77;font-size:12px}footer{border-top:1px solid #333;margin-top:38px;padding-top:15px;font-size:13px}
+:root{color-scheme:dark;font-family:system-ui,Segoe UI,sans-serif;background:#101116;color:#f3eee6}
+*{box-sizing:border-box}body{max-width:1100px;margin:auto;padding:34px 18px}header{display:flex;justify-content:space-between;align-items:center;gap:12px}
+h1{font-size:clamp(2rem,5vw,3rem);margin:12px 0}.muted{color:#aaa8a7}.accent{color:#e0b663}.chip{border:1px solid #514431;border-radius:15px;padding:4px 10px;font-size:12px}
+form{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0}input,select,button{background:#22232b;color:white;border:1px solid #49424a;border-radius:9px;padding:11px;font-size:14px}
+input[type=search]{flex:1;min-width:180px}button{background:#a73340;border-color:#a73340;cursor:pointer}button:disabled{opacity:.5}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(275px,1fr));gap:14px}.book{background:#202128;border:1px solid #34333a;border-radius:12px;padding:16px;display:flex;gap:15px;min-height:165px}
+.cover{width:72px;height:108px;object-fit:cover;background:#38363d;border-radius:5px}.book h3{font-size:16px;margin:0 0 6px;line-height:1.3}.book p{font-size:13px;margin:4px 0}.book a{font-size:13px;color:#e0b663}.stats{display:flex;gap:9px;flex-wrap:wrap;margin:18px 0}.stat{background:#292730;padding:10px 14px;border-radius:8px;font-size:13px}
+footer{border-top:1px solid #333;margin-top:32px;padding-top:18px;font-size:13px}.pill{font-size:11px;color:#e5c58b}
+.controls{background:#1b1c23;border:1px solid #39363e;border-radius:12px;padding:18px;margin:20px 0}.controls h2{margin:0;font-size:18px}.controls label{font-size:13px;display:block;margin:12px 0 4px}.controls input[type=password]{width:min(100%,440px)}.jobs{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}.jobs td,.jobs th{border-bottom:1px solid #3a3840;padding:9px 6px;text-align:left}.subtle{background:#32313b;border-color:#53505a}.action{margin-top:10px;font-size:12px;padding:8px 10px}
 </style></head>
-<body>
-<header><b class="gold">✦ ROYALBOOKS</b><span class="chip">PROVIDER-LAB · 0.1</span></header>
-<h1>Finde dein nächstes Buch.</h1>
-<p class="muted">Durchsuche mehrere Kataloge gleichzeitig. Wir zeigen ehrlich, welche Quelle nur Buchinformationen liefert und welche ein EPUB meldet.</p>
-<form id="search">
-<input id="q" placeholder="Buchtitel oder Autor, z. B. Kafka" required minlength="2" maxlength="120" aria-label="Buchsuche">
-<select id="language" aria-label="Sprache"><option value="de">Deutsch</option><option value="en">Englisch</option><option value="all">Alle Sprachen</option></select>
-<button id="go">Suchen</button>
-</form>
-<p class="muted" id="message" role="status">Bereit für die erste Suche.</p>
-<section id="stats" aria-label="Quellenstatistik"></section>
-<section id="books" aria-live="polite"></section>
-<footer class="muted">Diese erste Version bietet eine Katalogsuche, noch keine automatischen Downloads. Die US-Kennzeichnung „gemeinfrei“ ist nicht automatisch auf Deutschland übertragbar.</footer>
+<body><header><span class="accent">✦ ROYALBOOKS</span><span class="chip">PROVIDER-LAB · v0.2</span></header>
+<h1>Finde dein nächstes Buch.</h1><p class="muted">Quellen vergleichen, Trefferqualität prüfen und freigegebene EPUBs in deine Bibliothek übernehmen.</p>
+<form id="search"><input type="search" id="q" placeholder="Titel oder Autor, z. B. Kafka" required minlength="2" maxlength="120" aria-label="Suche"><select id="language" aria-label="Sprache"><option value="de">Deutsch</option><option value="en">Englisch</option><option value="all">Alle</option></select><button id="go">Suchen</button></form>
+<div id="message" role="status" class="muted">Bereit für die erste Suche.</div><section id="stats" class="stats" aria-label="Providerstatus"></section>
+<section id="books" class="cards" aria-live="polite"></section>
+<section class="controls"><h2>Automatische Übernahme</h2><p class="muted">Für Gutenberg-EPUBs mit geprüftem Quellenstatus. Prüfe zusätzlich, ob das Werk in deinem Land gemeinfrei ist. Dein API-Token wird nur bis zum Neuladen dieser Seite im Arbeitsspeicher gehalten.</p>
+<label for="token">API-Token aus deiner lokalen .env</label><input id="token" type="password" autocomplete="off" placeholder="ROYALBOOKS_API_TOKEN">
+<button id="refresh" class="subtle" type="button">Aufträge aktualisieren</button><div id="job-message" role="status" class="muted"></div><div style="overflow:auto"><table class="jobs"><thead><tr><th>Gutenberg-ID</th><th>Status</th><th>Details</th></tr></thead><tbody id="job-rows"></tbody></table></div></section>
+<footer class="muted">Die Übergabe an Calibre-Web Automated wird als „delivered“ angezeigt, nicht als bestätigter Bibliotheksimport. Keine unbekannten Downloadserver, keine Kopierschutz-Umgehung.</footer>
 <script>
-const el = (id) => document.getElementById(id);
-const make = (tag,value,cls) => { const node=document.createElement(tag);node.textContent=value;if(cls)node.className=cls;return node; };
-const safeUrl = (value) => { try { const url=new URL(value);return url.protocol==='https:'?url.href:null; } catch { return null; } };
-async function refreshStats() {
-  try {
-    const response=await fetch('/api/providers');
-    if (!response.ok) return;
-    const data=await response.json();
-    el('stats').replaceChildren(...data.providers.map(provider => {
-      const stat=data.recent_metrics.find(item=>item.provider===provider.name);
-      const caption=stat ? stat.found+' erfolgreiche Suchen / '+stat.errors+' Fehler (letzte '+stat.attempts+')' : 'noch nicht getestet';
-      return make('span',provider.name+' · '+caption,'stat');
-    }));
-  } catch {}
-}
-el('search').addEventListener('submit',async event => {
-  event.preventDefault();
-  el('go').disabled=true;
-  el('message').textContent='Suche läuft auf allen Quellen …';
-  el('books').replaceChildren();
-  try {
-    const params=new URLSearchParams({q:el('q').value.trim(),language:el('language').value});
-    const response=await fetch('/api/search?'+params);
-    if(!response.ok) throw Error('HTTP '+response.status);
-    const data=await response.json();
-    el('message').textContent=data.items.length+' Treffer · '+data.sources.map(s=>s.provider+': '+s.status+' ('+s.duration_ms+' ms)').join(' · ');
-    for (const book of data.items) {
-      const card=make('article','','book');
-      const cover=document.createElement('img');cover.className='cover';cover.alt='';cover.loading='lazy';
-      const image=safeUrl(book.cover_url);if(image)cover.src=image;
-      const info=document.createElement('div');
-      info.append(make('h3',book.title),make('p',book.authors.join(', ')||'Autor unbekannt','muted'),
-        make('p',book.source+' · '+(book.language||'Sprache unbekannt'),'source'),
-        make('p',book.epub_url?'EPUB gelistet · Rechte prüfen':'Nur Metadaten','muted'));
-      const link=safeUrl(book.info_url);
-      if(link){const a=make('a','Quelle ansehen ↗');a.href=link;a.target='_blank';a.rel='noopener noreferrer';info.append(a);}
-      card.append(cover,info);el('books').append(card);
-    }
-  } catch (error) { el('message').textContent='Suche fehlgeschlagen: '+error.message; }
-  finally { el('go').disabled=false;refreshStats(); }
-});
-refreshStats();
+const $=id=>document.getElementById(id);
+const text=(tag,value,cls)=>{const el=document.createElement(tag);el.textContent=value;if(cls)el.className=cls;return el};
+function safeUrl(raw){try{const u=new URL(raw);return u.protocol==='https:'?u.href:null}catch{return null}}
+async function loadStats(){try{const r=await fetch('/api/providers');if(!r.ok)return;const v=await r.json();$('stats').replaceChildren(...v.providers.map(p=>{const s=v.recent_metrics.find(x=>x.provider===p.name);return text('span',p.name+': '+(s ? s.found+' Treffer-Suchen / '+s.errors+' Fehler (letzte '+s.attempts+')' : 'noch ungetestet'),'stat')}))}catch{}}
+async function loadJobs(){const token=$('token').value;if(!token){$('job-message').textContent='API-Token eingeben, um die Aufträge zu sehen.';return}
+try{const r=await fetch('/api/jobs',{headers:{'X-API-Key':token}});if(!r.ok)throw Error('HTTP '+r.status);const result=await r.json();
+$('job-message').textContent=result.ingest_configured?'Calibre-Übergabe ist konfiguriert.':'Kein Calibre-Importordner eingestellt. EPUBs bleiben zunächst auf dem Server.';
+$('job-rows').replaceChildren(...result.jobs.map(job=>{const row=document.createElement('tr');row.append(text('td',String(job.source_id)),text('td',job.status),text('td',job.error||((job.file_size||0)?job.file_size+' Bytes':'–')));return row}))}catch(err){$('job-message').textContent='Aufträge nicht abrufbar: '+err.message}}
+$('refresh').addEventListener('click',loadJobs);
+async function addBook(book){if(!confirm('Hast du geprüft, dass du dieses Buch in deinem Land rechtmäßig herunterladen und speichern darfst?'))return;
+const token=$('token').value;if(!token){$('job-message').textContent='Bitte zuerst den API-Token eintragen.';return}
+try{const r=await fetch('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json','X-API-Key':token},body:JSON.stringify({provider:'gutendex',source_id:Number(book.source_id),rights_confirmed:true})});
+const data=await r.json();if(!r.ok)throw Error(data.detail||'HTTP '+r.status);$('job-message').textContent='Auftrag für '+book.title+' vorgemerkt.';loadJobs()}catch(err){$('job-message').textContent='Übernahme fehlgeschlagen: '+err.message}}
+$('job-message').scrollIntoView({block:'nearest'})}
+$('search').addEventListener('submit',async e=>{e.preventDefault();$('go').disabled=true;$('message').textContent='Provider werden parallel geprüft …';$('books').replaceChildren();
+try{const params=new URLSearchParams({q:$('q').value.trim(),language:$('language').value});const r=await fetch('/api/search?'+params);if(!r.ok)throw Error('HTTP '+r.status);const result=await r.json();
+$('message').textContent=result.items.length+' Treffer · '+result.sources.map(x=>x.provider+': '+x.status+' ('+x.duration_ms+' ms)').join(' · ');
+for(const item of result.items){const card=text('article','','book');const cover=document.createElement('img');cover.className='cover';cover.alt='';cover.loading='lazy';if(safeUrl(item.cover_url))cover.src=safeUrl(item.cover_url);
+const detail=document.createElement('div');detail.append(text('h3',item.title),text('p',item.authors.join(', ')||'Autor unbekannt','muted'),text('p',item.source+' · '+(item.language||'Sprache unbekannt'),'pill'),text('p',item.epub_url?'EPUB gelistet · Rechte prüfen':'Nur Buchdaten','muted'));
+if(safeUrl(item.info_url)){const a=text('a','Details zur Quelle ↗');a.href=safeUrl(item.info_url);a.target='_blank';a.rel='noopener noreferrer';detail.append(a)}
+if(item.source==='gutendex'&&item.epub_url){const button=text('button','Zur Bibliothek hinzufügen','action');button.type='button';button.addEventListener('click',()=>addBook(item));detail.append(button)}card.append(cover,detail);$('books').append(card)}
+}catch(err){$('message').textContent='Suche fehlgeschlagen: '+err.message}finally{$('go').disabled=false;loadStats()}});
+loadStats();
 </script></body></html>

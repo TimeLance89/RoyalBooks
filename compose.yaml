@@ -3,11 +3,16 @@ services:
     build: .
     restart: unless-stopped
     ports:
-      - "${ROYALBOOKS_PORT:-8094}:8094"
+      - "${ROYALBOOKS_BIND_IP:-127.0.0.1}:${ROYALBOOKS_PORT:-8094}:8094"
     environment:
       ROYALBOOKS_DB_PATH: /data/royalbooks.sqlite3
+      ROYALBOOKS_API_TOKEN: ${ROYALBOOKS_API_TOKEN:-}
+      ROYALBOOKS_CWA_INGEST_PATH: ${ROYALBOOKS_CWA_INGEST_PATH:+/cwa-ingest}
     volumes:
       - "${ROYALBOOKS_DATA_PATH:-./data}:/data"
+      # Set ROYALBOOKS_CWA_INGEST_PATH to the SAME host directory mounted into CWA.
+      # Without it, downloads remain staged on RoyalBooks and cannot reach Calibre.
+      - "${ROYALBOOKS_CWA_INGEST_PATH:-./data/disabled-ingest}:/cwa-ingest"
     read_only: true
     tmpfs:
       - /tmp
