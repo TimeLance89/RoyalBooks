@@ -7,6 +7,7 @@ services:
     environment:
       ROYALBOOKS_DB_PATH: /data/royalbooks.sqlite3
       ROYALBOOKS_API_TOKEN: ${ROYALBOOKS_API_TOKEN:-}
+      GOOGLE_BOOKS_API_KEY: ${GOOGLE_BOOKS_API_KEY:-}
       ROYALBOOKS_CWA_INGEST_PATH: ${ROYALBOOKS_CWA_INGEST_PATH:+/cwa-ingest}
     volumes:
       - "${ROYALBOOKS_DATA_PATH:-./data}:/data"

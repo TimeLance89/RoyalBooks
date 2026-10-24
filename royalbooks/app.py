@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from royalbooks.jobs import JobStore, require_token, worker
-from royalbooks.providers import Book, Gutendex, OpenLibrary, Provider
+from royalbooks.providers import Book, GoogleBooks, Gutendex, OpenLibrary, Provider
 from royalbooks.storage import MetricsStore
 
 
@@ -22,7 +22,10 @@ async def lifespan(app: FastAPI):
     path = os.getenv('ROYALBOOKS_DB_PATH', '/data/royalbooks.sqlite3')
     app.state.store = MetricsStore(path)
     app.state.jobs = JobStore(path)
-    app.state.providers = {p.name: p for p in [Gutendex(), OpenLibrary()]}
+    sources = [Gutendex(), OpenLibrary()]
+    if os.getenv('GOOGLE_BOOKS_API_KEY', '').strip():
+        sources.append(GoogleBooks(os.environ['GOOGLE_BOOKS_API_KEY'].strip()))
+    app.state.providers = {p.name: p for p in sources}
     data = Path(path).parent
     ingest_path = os.getenv('ROYALBOOKS_CWA_INGEST_PATH', '').strip()
     task = asyncio.create_task(worker(app.state.jobs, data, Path(ingest_path) if ingest_path else None))

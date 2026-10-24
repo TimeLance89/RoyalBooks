@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import asdict, dataclass
+import re
+from urllib.parse import quote
 from time import monotonic
 from typing import Any
 
@@ -25,6 +27,7 @@ class Book:
     info_url: str
     epub_url: str | None = None
     availability: str = "metadata_only"
+    isbn13: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -81,6 +84,60 @@ def _str_list(values: object) -> list[str]:
     return [v for v in values if isinstance(v, str)] if isinstance(values, list) else []
 
 
+def isbn13(identifiers: object) -> str | None:
+    if not isinstance(identifiers, list):
+        return None
+    for entry in identifiers:
+        number = entry.get('identifier') if isinstance(entry, dict) else entry
+        if not isinstance(number, str) or not re.fullmatch(r'97[89]\d{10}', number):
+            continue
+        digits = [int(x) for x in number]
+        if (sum(d * (1 if i % 2 == 0 else 3) for i, d in enumerate(digits[:-1])) + digits[-1]) % 10 == 0:
+            return number
+    return None
+
+
+class GoogleBooks(Provider):
+    name = 'google_books'
+    purpose = 'metadata'
+    min_interval = 1.0
+
+    def __init__(self, api_key: str):
+        super().__init__()
+        self.api_key = api_key
+
+    async def search(self, client: httpx.AsyncClient, query: str, language: str | None, limit: int) -> list[Book]:
+        params: dict[str, Any] = {'q': query, 'maxResults': min(limit, 40), 'printType': 'books', 'key': self.api_key}
+        if language:
+            params['langRestrict'] = language
+        data = await self.get_json(client, 'https://www.googleapis.com/books/v1/volumes', params)
+        books = []
+        for item in data.get('items', [])[:limit]:
+            if not isinstance(item, dict):
+                continue
+            source_id = item.get('id')
+            info = item.get('volumeInfo')
+            if not isinstance(info, dict) or not isinstance(source_id, str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,64}', source_id):
+                continue
+            title = info.get('title')
+            if not isinstance(title, str) or not title.strip():
+                continue
+            date = info.get('publishedDate', '')
+            year = int(date[:4]) if isinstance(date, str) and re.match(r'^\d{4}', date) else None
+            language_tag = info.get('language') if isinstance(info.get('language'), str) else None
+            covers = info.get('imageLinks')
+            cover = covers.get('thumbnail') if isinstance(covers, dict) else None
+            if isinstance(cover, str) and cover.startswith('http://books.google.com/'):
+                cover = 'https://' + cover.removeprefix('http://')
+            if not isinstance(cover, str) or not cover.startswith('https://books.google.com/'):
+                cover = None
+            books.append(Book(source=self.name, source_id=source_id, title=title.strip(),
+                authors=_str_list(info.get('authors')), language=language_tag, year=year,
+                cover_url=cover, info_url='https://books.google.com/books?id=' + quote(source_id, safe=''),
+                isbn13=isbn13(info.get('industryIdentifiers'))))
+        return books
+
+
 class Gutendex(Provider):
     name = "gutendex"
     purpose = "free_catalog"
@@ -120,7 +177,7 @@ class OpenLibrary(Provider):
     purpose = "metadata"
 
     async def search(self, client: httpx.AsyncClient, query: str, language: str | None, limit: int) -> list[Book]:
-        params: dict[str, Any] = {"q": query, "limit": limit, "fields": "key,title,author_name,first_publish_year,language,cover_i"}
+        params: dict[str, Any] = {"q": query, "limit": limit, "fields": "key,title,author_name,first_publish_year,language,cover_i,isbn"}
         if language:
             params["lang"] = language  # Ranking preference, not a strict filter.
         data = await self.get_json(client, "https://openlibrary.org/search.json", params)
@@ -142,6 +199,6 @@ class OpenLibrary(Provider):
                 title=item["title"], authors=_str_list(item.get("author_name")), language=language if language and lang else lang,
                 year=item.get("first_publish_year") if isinstance(item.get("first_publish_year"), int) else None,
                 cover_url=f"https://covers.openlibrary.org/b/id/{cover_id}-M.jpg" if isinstance(cover_id, int) else None,
-                info_url=f"https://openlibrary.org{key}",
+                info_url=f"https://openlibrary.org{key}", isbn13=isbn13(item.get("isbn")),
             ))
         return books
