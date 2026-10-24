@@ -27,6 +27,7 @@ const text=(tag,value,cls)=>{const el=document.createElement(tag);el.textContent
 function safeUrl(raw){try{const u=new URL(raw);return u.protocol==='https:'?u.href:null}catch{return null}}
 async function loadStats(){try{const r=await fetch('/api/providers');if(!r.ok)return;const v=await r.json();$('stats').replaceChildren(...v.providers.map(p=>{const s=v.recent_metrics.find(x=>x.provider===p.name);return text('span',p.name+': '+(s ? s.found+' Treffer-Suchen / '+s.errors+' Fehler (letzte '+s.attempts+')' : 'noch ungetestet'),'stat')}));
 if(v.catalog&&v.catalog.indexed) $('stats').append(text('span','Gutenberg offline: '+v.catalog.records+' Einträge · Stand '+v.catalog.updated_at,'stat'));
+if(v.format_catalog&&v.format_catalog.indexed) $('stats').append(text('span','Offizielle EPUB-Formatlinks: '+v.format_catalog.records+' · nicht live überprüft','stat'));
 else $('stats').append(text('span','Gutenberg Offline-Katalog: noch nicht importiert','stat'))}catch{}}
 async function loadJobs(){const token=$('token').value;if(!token){$('job-message').textContent='API-Token eingeben, um die Aufträge zu sehen.';return}
 try{const r=await fetch('/api/jobs',{headers:{'X-API-Key':token}});if(!r.ok)throw Error('HTTP '+r.status);const result=await r.json();
@@ -65,20 +66,20 @@ try{
 $('refresh').addEventListener('click',loadJobs);
 async function addBook(book){if(!confirm('Hast du geprüft, dass du dieses Buch in deinem Land rechtmäßig herunterladen und speichern darfst?'))return;
 const token=$('token').value;if(!token){$('job-message').textContent='Bitte zuerst den API-Token eintragen.';return}
-try{const r=await fetch('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json','X-API-Key':token},body:JSON.stringify({provider:'gutendex',source_id:Number(book.source_id),rights_confirmed:true})});
+try{const r=await fetch('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json','X-API-Key':token},body:JSON.stringify({provider:book.source,source_id:Number(book.source_id),rights_confirmed:true})});
 const data=await r.json();if(!r.ok)throw Error(data.detail||'HTTP '+r.status);$('job-message').textContent='Auftrag für '+book.title+' vorgemerkt.';loadJobs()}catch(err){$('job-message').textContent='Übernahme fehlgeschlagen: '+err.message}
 $('job-message').scrollIntoView({block:'nearest'})}
 $('search').addEventListener('submit',async e=>{e.preventDefault();$('go').disabled=true;$('message').textContent='Provider werden parallel geprüft …';$('books').replaceChildren();
 try{const params=new URLSearchParams({q:$('q').value.trim(),language:$('language').value});const r=await fetch('/api/search?'+params);if(!r.ok)throw Error('HTTP '+r.status);const result=await r.json();
 $('message').textContent=result.items.length+' Treffer · '+result.sources.map(x=>x.provider+': '+x.status+' ('+x.duration_ms+' ms)').join(' · ');
 for(const [index,item] of result.items.entries()){const card=text('article','','book');const cover=document.createElement('img');cover.className='cover';cover.alt='';cover.loading='lazy';if(safeUrl(item.cover_url))cover.src=safeUrl(item.cover_url);
-const detail=document.createElement('div');detail.append(text('h3',item.title),text('p',item.authors.join(', ')||'Autor unbekannt','muted'),text('p',item.source+' · '+(item.language||'Sprache unbekannt'),'pill'),text('p',item.epub_url?'EPUB gelistet · Rechte prüfen':(item.source==='gutenberg_catalog'?'Offizieller Offline-Katalog · EPUB nicht verifiziert':'Nur Buchdaten'),'muted'));
+const detail=document.createElement('div');detail.append(text('h3',item.title),text('p',item.authors.join(', ')||'Autor unbekannt','muted'),text('p',item.source+' · '+(item.language||'Sprache unbekannt'),'pill'),text('p',item.epub_url?'EPUB-Link im Katalog · noch nicht live geprüft · Rechte prüfen':(item.source==='gutenberg_catalog'?'Offizieller Offline-Katalog · EPUB nicht verifiziert':'Nur Buchdaten'),'muted'));
 const groups=(result.match_groups||[]).filter(g=>g.item_indexes.includes(index));
 if(groups.some(g=>g.kind==='edition_candidate')) detail.append(text('p','ISBN-Ausgabe stimmt mit anderer Quelle überein (Kandidat)','pill'));
 else if(groups.some(g=>g.kind==='work_candidate')) detail.append(text('p','Gleiches Werk vermutet – Ausgabe unklar','pill'));
 if(item.isbn13) detail.append(text('p','ISBN-13: '+item.isbn13,'muted'));
 if(safeUrl(item.info_url)){const a=text('a','Details zur Quelle ↗');a.href=safeUrl(item.info_url);a.target='_blank';a.rel='noopener noreferrer';detail.append(a)}
-if(item.source==='gutendex'&&item.epub_url){const button=text('button','Zur Bibliothek hinzufügen','action');button.type='button';button.addEventListener('click',()=>addBook(item));detail.append(button)}card.append(cover,detail);$('books').append(card)}
+if((item.source==='gutendex'||item.source==='gutenberg_catalog')&&item.epub_url){const button=text('button','Zur Bibliothek hinzufügen','action');button.type='button';button.addEventListener('click',()=>addBook(item));detail.append(button)}card.append(cover,detail);$('books').append(card)}
 }catch(err){$('message').textContent='Suche fehlgeschlagen: '+err.message}finally{$('go').disabled=false;loadStats()}});
 loadStats();
 </script></body></html>

@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from royalbooks.jobs import JobStateError, JobStore, require_token, worker
 from royalbooks.gutenberg_catalog import catalog_status
+from royalbooks.gutenberg_formats import format_status, lookup_epub
 from royalbooks.handoff import observe_handoff
 from royalbooks.providers import Book, GoogleBooks, Gutendex, OpenLibrary, Provider
 from royalbooks.source_registry import configured_providers
@@ -56,6 +57,7 @@ async def health():
 @app.get('/api/providers')
 async def providers():
     return {'catalog': catalog_status(os.getenv("ROYALBOOKS_DB_PATH", "/data/royalbooks.sqlite3")),
+            'format_catalog': format_status(os.getenv("ROYALBOOKS_DB_PATH", "/data/royalbooks.sqlite3")),
             'providers': [{'name': p.name, 'purpose': p.purpose} for p in app.state.providers.values()],
             'recent_metrics': app.state.store.stats()}
 
@@ -109,11 +111,15 @@ def _guard(token: str | None) -> None:
 @app.post('/api/jobs', status_code=202)
 async def enqueue(request: QueueRequest, x_api_key: str | None = Header(default=None)):
     _guard(x_api_key)
-    if request.provider != 'gutendex':
-        raise HTTPException(status_code=400, detail='only_gutendex_downloads_supported')
+    if request.provider not in {'gutendex', 'gutenberg_catalog'}:
+        raise HTTPException(status_code=400, detail='unsupported_download_provider')
     if not request.rights_confirmed:
         raise HTTPException(status_code=400, detail='local_rights_confirmation_required')
-    return {'job': app.state.jobs.add(request.source_id)}
+    if request.provider == 'gutenberg_catalog' and not await asyncio.to_thread(
+        lookup_epub, app.state.jobs.path, request.source_id
+    ):
+        raise HTTPException(status_code=409, detail='official_epub_metadata_missing')
+    return {'job': app.state.jobs.add(request.source_id, request.provider)}
 
 
 @app.get('/api/jobs')
