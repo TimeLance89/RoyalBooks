@@ -31,5 +31,9 @@ jobs:
         run: python -m royalbooks.benchmark
       - name: Simulated NAS/CWA handoff and safety tests (offline)
         run: pytest -q tests/test_preflight.py tests/test_e2e_simulation.py
+      - name: Real Docker mount audit unit tests (no Docker access)
+        run: |
+          pytest -q tests/test_nas_cwa_audit.py
+          python scripts/nas_cwa_audit.py --help
       - name: Build image
         run: docker build -t royalbooks:test .

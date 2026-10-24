@@ -21,6 +21,26 @@ A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Dock
 - Read-only handoff diagnostics distinguish files still in the import folder, files no longer there, and inaccessible folders. **A vanished file is not proof of a successful Calibre import.** Ambiguous handoffs remain blocked for manual review.
 - API token required for job creation and job listing. No cloud accounts, scraping, torrent downloads, DRM removal or arbitrary URL fetching.
 
+## NAS host audit: actual CWA / RoyalBooks Docker mounts
+
+This is the **first required step** for the real Ugreen NAS acceptance. Unlike the in-container preflight, the host-side audit reads the real Docker bind sources for BOTH applications. It is deliberately **read-only**, does not need a Docker socket inside RoyalBooks, and does not start containers or touch the existing Calibre database.
+
+From the RoyalBooks checkout on the NAS, run (requires Python 3 and read permission for Docker):
+
+~~~bash
+python3 scripts/nas_cwa_audit.py
+# Optional machine-readable diagnostics:
+python3 scripts/nas_cwa_audit.py --json
+# If there are multiple CWA instances:
+python3 scripts/nas_cwa_audit.py --cwa-container calibre-web-automated
+~~~
+
+The command prints the host directories currently mounted as **CWA** \`/cwa-book-ingest\` and \`/calibre-library\`. Put **those exact host paths** into RoyalBooks's local \`.env\` as \`ROYALBOOKS_CWA_INGEST_PATH\` and \`ROYALBOOKS_CWA_LIBRARY_PATH\`, then start RoyalBooks and run the audit again. **Do not publish .env or share tokens**. The audit does not read env variables, but its output includes host directory names; review them before sharing.
+
+A successful mount comparison is reported as \`mounts_match_not_import_verified\` – **not** as an import success. This only means both containers see the same host ingest directory and RoyalBooks's library mount is read-only. The host directory must also be writable by the effective RoyalBooks UID; after both containers are running use the separate **NAS-Einrichtung prüfen** button in RoyalBooks. Never mount \`/var/run/docker.sock\` into the RoyalBooks container and never change ownership of the CWA library just to make an audit pass.
+
+**Real end-to-end acceptance** requires a deliberately chosen, lawfully obtainable small EPUB, a verified completed download, its safe handoff to CWA, and an exact-library-presence check or manual inspection of CWA. Neither a vanished ingest file nor a passing mock test proves import success. Do not enable full automation until these checks pass on the NAS.
+
 ## NAS / CWA integration preflight (v0.7, offline)
 
 **RoyalBooks has NOT been tested against your actual NAS or CWA library.** Before enabling automatic handoff, check the physical host directories configured in **both** Compose stacks. Official CWA expects a dedicated host mount at `/cwa-book-ingest` and a separate library at `/calibre-library`; the ingest folder is emptied after processing. A folder that exists only in the RoyalBooks container does not prove CWA can see it.
