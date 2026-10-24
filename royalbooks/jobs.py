@@ -11,7 +11,7 @@ import uuid
 import zipfile
 from pathlib import Path, PurePosixPath
 from urllib.parse import urljoin, urlsplit
-from xml.etree import ElementTree
+from defusedxml import ElementTree
 
 import httpx
 
@@ -207,7 +207,7 @@ async def worker(store: JobStore, data_dir: Path, ingest: Path | None) -> None:
     staging = data_dir / 'staging'
     staging.mkdir(parents=True, exist_ok=True)
     async with httpx.AsyncClient(timeout=httpx.Timeout(20.0), follow_redirects=False,
-                                 headers={'User-Agent': 'RoyalBooks/0.2 (https://github.com/TimeLance89/RoyalBooks)'}) as client:
+                                 headers={'User-Agent': 'RoyalBooks/0.3 (https://github.com/TimeLance89/RoyalBooks)'}) as client:
         while True:
             if ingest is not None:
                 job = await asyncio.to_thread(store.claim, ('staged',))

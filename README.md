@@ -1,6 +1,6 @@
 # RoyalBooks – Book Discovery & Automation
 
-A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Docker hosts. **v0.2 development preview**, not a replacement for Calibre-Web Automated.
+A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Docker hosts. **v0.3 development preview**, not a replacement for Calibre-Web Automated.
 
 ## Features
 - Independent source adapters: **Open Library** (work-level metadata), **Gutendex** (Project Gutenberg catalog), **DNB/German National Library** (bibliographic MARC21 metadata), and optional **Google Books** (metadata only, requires API key).
@@ -8,6 +8,8 @@ A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Dock
 - Conservative catalog cross-references: ISBN-13/title/language edition candidates versus title/author/language work candidates. All original results are preserved; no automatic merging or assumed entitlement to a download.
 - **Opt-in read-only provider benchmark** with fixed multilingual cases, explicit language checks, source error counts and measured latency (see below).
 - Opt-in Gutenberg EPUB queue: a fresh catalog lookup, US public-domain flag check **plus explicit user confirmation of local rights**, host/redirect allowlisting, stream-size limits, archive validation and SHA-256 duplicate checks.
+- Manual retries only for explicitly classified transient errors, limited to three download attempts; ambiguous handoffs and permanent validation failures cannot be retried automatically.
+- Revalidate the staged EPUB against its original SHA-256 digest before the Calibre handoff, and refuse to replace an already existing handoff file.
 - Persistent SQLite job statuses: `queued` → `downloading` → `staged` → `delivering` → `delivered`. Errors become `failed`; interrupted handoffs become `needs_review` to prevent accidental repeated imports.
 - Optional handoff to the **existing CWA ingest directory**, never writes to `metadata.db`. **`delivered` only means the file was handed off to CWA, not that CWA completed the import.**
 - API token required for job creation and job listing. No cloud accounts, scraping, torrent downloads, DRM removal or arbitrary URL fetching.
@@ -26,6 +28,7 @@ Default configuration binds to **127.0.0.1**, so it is not visible on the LAN un
 - `GET /api/providers`: anonymized source quality counters (the last 200 attempts; no search terms stored).
 - `POST /api/jobs`: `X-API-Key: <token>`, JSON `{"provider":"gutendex","source_id":42,"rights_confirmed":true}`.
 - `GET /api/jobs`: API key required, last 100 jobs and staging/import configuration.
+- `POST /api/jobs/{id}/retry`: API key and `{ "rights_confirmed": true }` required; allowed only for transient failed jobs with fewer than three attempts, otherwise HTTP 409.
 - `GET /api/health`: health/version.
 
 ### Development
@@ -36,7 +39,7 @@ python -m pytest -q
 ROYALBOOKS_DB_PATH=./data/dev.sqlite3 uvicorn royalbooks.app:app --reload --port 8094
 ```
 
-Tests use offline/mock downloads and simulated CWA ingest. Actual network availability, German copyright status and real NAS/CWA import behavior **have not yet been verified**.
+Tests use offline/mock downloads and simulated CWA ingest. Actual network availability, German copyright status and real NAS/CWA import behavior **have not yet been verified**. A queued retry still checks the rights flag again and re-fetches metadata and EPUB; immutable source IDs cannot be retried if the failure was invalid, duplicate, forbidden or ambiguous. **Never interpret `delivered` as proof that CWA indexed a book.**
 
 ## Source benchmark (manual, read-only)
 
@@ -61,4 +64,4 @@ The DNB and Google Books adapters are metadata-only: a preview or search result 
 - [CWA Docker ingest volume](https://github.com/crocodilestick/Calibre-Web-Automated/blob/main/docker-compose.yml)
 
 ## Next milestone
-Confirm live benchmark results, improve edition-level mappings using authoritative edition records, add safe job retry controls and verified Calibre import status. Authenticate the whole UI before any public exposure.
+Confirm live benchmark results, improve edition-level mappings using authoritative edition records, add explicit safe recovery for ambiguous handoffs and independently verify Calibre import status. Authenticate the whole UI before any public exposure.
