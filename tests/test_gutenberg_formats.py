@@ -130,7 +130,7 @@ def test_empty_or_non_epub_archive_rolled_back(indexed,tmp_path):
     import_rdf_archive(rdf, db)
     broken = tmp_path / "no_epub.tar.bz2"
     make_tar(broken, [("rdf-files/42/pg42.rdf", rdf_document(formats=[
-        ("https://www.gutenberg.org/ebooks/42.txt", "text/plain", 20)])])
+        ("https://www.gutenberg.org/ebooks/42.txt", "text/plain", 20)]))])
     with pytest.raises(ValueError, match="no_epub_records"):
         import_rdf_archive(broken, db)
     assert lookup_epub(str(db), 42)
