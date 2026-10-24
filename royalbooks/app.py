@@ -8,11 +8,11 @@ from pathlib import Path
 from time import perf_counter
 
 import httpx
-from fastapi import FastAPI, Header, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query, Path as ApiPath
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from royalbooks.jobs import JobStore, require_token, worker
+from royalbooks.jobs import JobStateError, JobStore, require_token, worker
 from royalbooks.providers import Book, GoogleBooks, Gutendex, OpenLibrary, Provider
 from royalbooks.source_registry import configured_providers
 from royalbooks.matching import match_groups
@@ -116,3 +116,24 @@ async def enqueue(request: QueueRequest, x_api_key: str | None = Header(default=
 async def list_jobs(x_api_key: str | None = Header(default=None)):
     _guard(x_api_key)
     return {'jobs': app.state.jobs.list(), 'ingest_configured': bool(os.getenv('ROYALBOOKS_CWA_INGEST_PATH'))}
+
+
+class RetryRequest(BaseModel):
+    rights_confirmed: bool = False
+
+
+@app.post('/api/jobs/{job_id}/retry', status_code=202)
+async def retry_job(
+    request: RetryRequest,
+    job_id: str = ApiPath(min_length=32, max_length=32, pattern=r'^[0-9a-f]{32}$'),
+    x_api_key: str | None = Header(default=None),
+):
+    _guard(x_api_key)
+    if not request.rights_confirmed:
+        raise HTTPException(status_code=400, detail='local_rights_confirmation_required')
+    try:
+        updated = await asyncio.to_thread(app.state.jobs.retry_failed, job_id)
+        return {'job': updated}
+    except JobStateError as exc:
+        code = 404 if str(exc) == 'job_not_found' else 409
+        raise HTTPException(status_code=code, detail=str(exc)) from exc

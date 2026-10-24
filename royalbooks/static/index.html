@@ -29,7 +29,23 @@ async function loadStats(){try{const r=await fetch('/api/providers');if(!r.ok)re
 async function loadJobs(){const token=$('token').value;if(!token){$('job-message').textContent='API-Token eingeben, um die Aufträge zu sehen.';return}
 try{const r=await fetch('/api/jobs',{headers:{'X-API-Key':token}});if(!r.ok)throw Error('HTTP '+r.status);const result=await r.json();
 $('job-message').textContent=result.ingest_configured?'Calibre-Übergabe ist konfiguriert.':'Kein Calibre-Importordner eingestellt. EPUBs bleiben zunächst auf dem Server.';
-$('job-rows').replaceChildren(...result.jobs.map(job=>{const row=document.createElement('tr');row.append(text('td',String(job.source_id)),text('td',job.status),text('td',job.error||((job.file_size||0)?job.file_size+' Bytes':'–')));return row}))}catch(err){$('job-message').textContent='Aufträge nicht abrufbar: '+err.message}}
+$('job-rows').replaceChildren(...result.jobs.map(job=>{const row=document.createElement('tr');
+const info=text('td',job.error||((job.file_size||0)?job.file_size+' Bytes':'–'));
+if(job.status==='failed'&&['ReadTimeout','ConnectTimeout','ConnectError','ReadError','RemoteProtocolError','PoolTimeout','WriteTimeout','WriteError','http_429','http_500','http_502','http_503','http_504'].includes(job.error)&&job.attempts<3){
+const btn=text('button','Erneut versuchen','action');btn.type='button';btn.addEventListener('click',()=>retryJob(job));info.append(btn);
+}
+row.append(text('td',String(job.source_id)),text('td',job.status+' · Versuch '+job.attempts+'/3'),info);return row}))}catch(err){$('job-message').textContent='Aufträge nicht abrufbar: '+err.message}}
+async function retryJob(job){
+if(!confirm('Darf dieses Buch weiterhin rechtmäßig heruntergeladen werden, und möchtest du den Auftrag erneut starten?'))return;
+const token=$('token').value;if(!token){$('job-message').textContent='API-Token fehlt.';return}
+try{
+ const r=await fetch('/api/jobs/'+encodeURIComponent(job.id)+'/retry',{method:'POST',
+ headers:{'Content-Type':'application/json','X-API-Key':token},
+ body:JSON.stringify({rights_confirmed:true})});
+ const data=await r.json();if(!r.ok)throw Error(data.detail||'HTTP '+r.status);
+ $('job-message').textContent='Auftrag erneut eingereiht: '+job.source_id;loadJobs();
+}catch(err){$('job-message').textContent='Wiederholung gescheitert: '+err.message}
+}
 $('refresh').addEventListener('click',loadJobs);
 async function addBook(book){if(!confirm('Hast du geprüft, dass du dieses Buch in deinem Land rechtmäßig herunterladen und speichern darfst?'))return;
 const token=$('token').value;if(!token){$('job-message').textContent='Bitte zuerst den API-Token eintragen.';return}

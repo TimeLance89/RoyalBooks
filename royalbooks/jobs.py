@@ -15,11 +15,22 @@ from defusedxml import ElementTree
 
 import httpx
 
-from royalbooks.providers import Gutendex
+from royalbooks.providers import Gutendex, ProviderError
 
 MAX_BYTES = 32 * 1024 * 1024
 MAX_UNCOMPRESSED = 160 * 1024 * 1024
 TRUSTED_HOSTS = {"gutenberg.org", "www.gutenberg.org", "gutenberg.pglaf.org"}
+MAX_ATTEMPTS = 3
+RETRYABLE_ERRORS = {
+    "ReadTimeout", "ConnectTimeout", "ConnectError", "ReadError",
+    "RemoteProtocolError", "PoolTimeout", "WriteTimeout", "WriteError",
+    "http_429", "http_500", "http_502", "http_503", "http_504",
+}
+
+
+class JobStateError(Exception):
+    """Invalid or unsafe requested job state transition."""
+
 
 
 class AcquisitionError(Exception):
@@ -84,9 +95,13 @@ class JobStore:
             db.execute("""CREATE TABLE IF NOT EXISTS jobs (
                 id TEXT PRIMARY KEY, source TEXT NOT NULL, source_id INTEGER NOT NULL,
                 status TEXT NOT NULL, error TEXT, sha256 TEXT, file_size INTEGER,
+                attempts INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(source, source_id))""")
+            columns = {row[1] for row in db.execute("PRAGMA table_info(jobs)")}
+            if "attempts" not in columns:
+                db.execute("ALTER TABLE jobs ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0")
             db.execute("UPDATE jobs SET status='queued' WHERE status='downloading'")
             db.execute("UPDATE jobs SET status='needs_review', error='Interrupted during ingest handoff' WHERE status='delivering'")
 
@@ -113,8 +128,10 @@ class JobStore:
                 row = db.execute("SELECT * FROM jobs WHERE status=? ORDER BY created_at LIMIT 1", (status,)).fetchone()
                 if row:
                     next_status = 'downloading' if status == 'queued' else 'delivering'
-                    db.execute("UPDATE jobs SET status=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status=?",
-                               (next_status, row['id'], status))
+                    db.execute("""UPDATE jobs
+                        SET status=?, attempts=attempts+CASE WHEN ?='queued' THEN 1 ELSE 0 END,
+                        updated_at=CURRENT_TIMESTAMP WHERE id=? AND status=?""",
+                        (next_status, status, row['id'], status))
                     return dict(row)
         return None
 
@@ -127,8 +144,32 @@ class JobStore:
 
     def sha_exists(self, digest: str, current: str) -> bool:
         with self._db() as db:
-            return db.execute("SELECT 1 FROM jobs WHERE sha256=? AND id!=? AND status IN ('staged','delivered')",
+            return db.execute("""SELECT 1 FROM jobs WHERE sha256=? AND id!=?
+                 AND status IN ('staged','delivering','delivered','needs_review')""",
                               (digest, current)).fetchone() is not None
+
+    def get(self, job_id: str) -> dict | None:
+        with self._db() as db:
+            row = db.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
+            return dict(row) if row else None
+
+    def retry_failed(self, job_id: str) -> dict:
+        """Limited, atomic retry for transient failures; no ambiguous handoff repeats."""
+        with self._db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
+            if row is None:
+                raise JobStateError("job_not_found")
+            if row["status"] != "failed":
+                raise JobStateError("retry_requires_failed_status")
+            if row["error"] not in RETRYABLE_ERRORS:
+                raise JobStateError("error_not_retryable")
+            if row["attempts"] >= MAX_ATTEMPTS:
+                raise JobStateError("retry_limit_reached")
+            db.execute("""UPDATE jobs SET status='queued',error=NULL,sha256=NULL,
+                        file_size=NULL,updated_at=CURRENT_TIMESTAMP
+                        WHERE id=? AND status='failed'""", (job_id,))
+            return dict(db.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone())
 
 
 async def download_epub(client: httpx.AsyncClient, url: str, destination: Path) -> int:
@@ -175,7 +216,13 @@ async def process_queued(job: dict, store: JobStore, staging: Path, client: http
         os.replace(temporary, target)
         store.update(job['id'], 'staged', sha256=digest, file_size=size)
     except Exception as exc:
-        store.update(job['id'], 'failed', error=(str(exc) if isinstance(exc, AcquisitionError) else type(exc).__name__)[:120])
+        if isinstance(exc, (AcquisitionError, ProviderError)):
+            code = str(exc)
+        elif isinstance(exc, httpx.HTTPStatusError):
+            code = f"http_{exc.response.status_code}"
+        else:
+            code = type(exc).__name__
+        store.update(job['id'], 'failed', error=code[:120])
     finally:
         temporary.unlink(missing_ok=True)
 
@@ -188,6 +235,10 @@ def deliver_staged(job: dict, store: JobStore, staging: Path, ingest: Path) -> N
     try:
         if not source.is_file():
             raise AcquisitionError('staged_file_missing')
+        if not job.get("sha256") or validate_epub(source) != job["sha256"]:
+            raise AcquisitionError("staged_file_hash_mismatch")
+        if dest.exists():
+            raise AcquisitionError("ingest_filename_already_exists")
         ingest.mkdir(parents=True, exist_ok=True)
         with source.open('rb') as input_file, temporary.open('xb') as output_file:
             shutil.copyfileobj(input_file, output_file)
