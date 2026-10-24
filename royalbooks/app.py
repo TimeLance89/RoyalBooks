@@ -29,7 +29,8 @@ async def lifespan(app: FastAPI):
     app.state.providers = {p.name: p for p in sources}
     data = Path(path).parent
     ingest_path = os.getenv('ROYALBOOKS_CWA_INGEST_PATH', '').strip()
-    task = asyncio.create_task(worker(app.state.jobs, data, Path(ingest_path) if ingest_path else None))
+    task = asyncio.create_task(worker(app.state.jobs, data, Path(ingest_path) if ingest_path else None,
+                                      app.state.providers.get('gutendex')))
     try:
         yield
     finally:
@@ -38,7 +39,7 @@ async def lifespan(app: FastAPI):
             await task
 
 
-app = FastAPI(title='RoyalBooks', version='0.3.1', lifespan=lifespan)
+app = FastAPI(title='RoyalBooks', version='0.3.2', lifespan=lifespan)
 
 
 @app.get('/')
@@ -48,7 +49,7 @@ async def homepage():
 
 @app.get('/api/health')
 async def health():
-    return {'status': 'ok', 'version': '0.3.1'}
+    return {'status': 'ok', 'version': '0.3.2'}
 
 
 @app.get('/api/providers')

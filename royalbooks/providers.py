@@ -41,10 +41,17 @@ class Provider:
     def __init__(self) -> None:
         self._lock = asyncio.Lock()
         self._last_request = 0.0
+        # Honor an origin's access refusal rather than repeatedly hammering it.
+        self._blocked_until = 0.0
+
+    def cooldown_remaining(self) -> float:
+        return max(0.0, self._blocked_until - monotonic())
 
     async def get_json(self, client: httpx.AsyncClient, url: str, params: dict[str, Any]) -> dict[str, Any]:
         # Serialized per source; Open Library explicitly limits anonymous clients to 1 req/s.
         async with self._lock:
+            if self.cooldown_remaining():
+                raise ProviderError("source_cooldown_http_403")
             delay = max(0, self.min_interval - (monotonic() - self._last_request))
             if delay:
                 await asyncio.sleep(delay)
@@ -65,6 +72,8 @@ class Provider:
                         raise ProviderError(type(exc).__name__) from exc
                     await asyncio.sleep(min(2.0, 0.5 * 2**attempt))
                 except httpx.HTTPStatusError as exc:
+                    if exc.response.status_code in (403, 451):
+                        self._blocked_until = monotonic() + 1800.0
                     raise ProviderError(f"http_{exc.response.status_code}") from exc
             raise ProviderError("retry_exhausted")
 

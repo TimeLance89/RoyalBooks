@@ -1,10 +1,11 @@
 # RoyalBooks – Book Discovery & Automation
 
-A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Docker hosts. **v0.3.1 development preview**, not a replacement for Calibre-Web Automated.
+A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Docker hosts. **v0.3.2 development preview**, not a replacement for Calibre-Web Automated.
 
 ## Features
 - Independent source adapters: **Open Library** (work-level metadata), **Gutendex** (Project Gutenberg catalog), **DNB/German National Library** (bibliographic MARC21 metadata), and optional **Google Books** (metadata only, requires API key).
 - Parallel catalog search with per-provider timeout, retry, rate limit and diagnostic success/error counters (SQLite).
+- **Provider refusal circuit breaker:** HTTP 403/451 places an origin on a 30-minute cooldown. The Gutenberg worker shares that provider instance and does not claim or exhaust queued download attempts while its catalog origin is blocked. This is intentionally not a bypass for anti-bot controls.
 - Conservative catalog cross-references: ISBN-13/title/language edition candidates versus title/author/language work candidates. All original results are preserved; no automatic merging or assumed entitlement to a download.
 - **Opt-in read-only provider benchmark** with fixed multilingual cases, explicit language checks, source error counts and measured latency (see below).
 - Opt-in Gutenberg EPUB queue: a fresh catalog lookup, US public-domain flag check **plus explicit user confirmation of local rights**, host/redirect allowlisting, stream-size limits, archive validation and SHA-256 duplicate checks.
@@ -59,7 +60,11 @@ The JSON report differentiates successful HTTP queries, matching titles with **k
 
 ## One-time GitHub source audit
 
-The separate `Provider source audit` workflow runs once when its workflow file or the benchmark definitions change on the development branch. It queries the 12 fixed test books against Gutendex, Open Library and DNB, with no downloads, then uploads `royalbooks-source-audit` JSON as a temporary GitHub Actions artifact. It does **not** assert a provider is healthy solely because its API returned records; inspect the language-aware match rate and error counts. Live search data may differ by region, time, and catalog limits. This is a catalog-metadata audit, **not** an EPUB availability or copyright test.
+The separate `Provider source audit` workflow runs once when its workflow file or the benchmark definitions change on the development branch. It queries the 12 fixed test books against Gutendex, Open Library and DNB, with no downloads, then uploads `royalbooks-source-audit` JSON as a temporary GitHub Actions artifact. It does **not** assert a provider is healthy solely because its API returned records; inspect the language-aware match rate and error counts. Live search data may differ by region, time, and catalog limits. Provider-specific failure codes (such as HTTP 403) are preserved in the report instead of being replaced by a generic Python exception name. This is a catalog-metadata audit, **not** an EPUB availability or copyright test.
+
+## Critical provider finding (October 2026)
+
+Our initial 12-case GitHub live benchmark returned **0 successful catalog responses from Gutendex**, while Open Library and DNB responded to all 12 queries. External catalog-health checks also report an HTTP-403 protection challenge at gutendex.com. RoyalBooks will respect that denial (no scraping/captcha/proxy evasion), keep other sources working, and avoid consuming Gutenberg queue attempts during the cooldown. A separate, first-party Gutenberg bulk catalog or locally hosted search index is preferable to treating a protected community API as dependable infrastructure. **This finding does not mean Gutenberg itself is down.** The GitHub report is metadata-only and proves no successful ebook downloads.
 
 ## Sources and legal limitations
 The DNB and Google Books adapters are metadata-only: a preview or search result is **not** a legal download offer. Project Gutenberg's Gutendex catalog has an optional `copyright` field that concerns **US copyright status**; this alone does not prove that a German user can download the title. RoyalBooks therefore requires explicit local-rights confirmation for every acquisition. Open Library provides work-level records only and never becomes a download provider in this stage. **Work-level ISBN lists are not reliable edition identifiers and are intentionally not used as exact ISBN matches.** Useful upstream documentation:

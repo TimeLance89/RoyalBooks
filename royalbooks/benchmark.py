@@ -17,7 +17,7 @@ from time import perf_counter
 import httpx
 
 from royalbooks.matching import normalize
-from royalbooks.providers import Book, Provider
+from royalbooks.providers import Book, Provider, ProviderError
 from royalbooks.source_registry import configured_providers
 
 
@@ -82,7 +82,8 @@ async def probe(provider: Provider, case: dict, client: httpx.AsyncClient, limit
         return {
             "provider": provider.name,
             "status": "error",
-            "error_code": type(exc).__name__,
+            # A safe, non-secret provider status (e.g. http_403) is useful for auditing.
+            "error_code": str(exc)[:80] if isinstance(exc, ProviderError) else type(exc).__name__,
             "found": 0,
             "target_matched": False,
             "target_candidates": 0,

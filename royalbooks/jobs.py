@@ -211,11 +211,13 @@ async def download_epub(client: httpx.AsyncClient, url: str, destination: Path) 
     raise AcquisitionError("too_many_redirects")
 
 
-async def process_queued(job: dict, store: JobStore, staging: Path, client: httpx.AsyncClient) -> None:
+async def process_queued(job: dict, store: JobStore, staging: Path, client: httpx.AsyncClient,
+                         provider: Gutendex | None = None) -> None:
     temporary = staging / (job['id'] + '.part')
     target = staging / (job['id'] + '.epub')
     try:
-        item = await Gutendex().get_json(client, f"https://gutendex.com/books/{job['source_id']}", {})
+        catalog = provider if provider is not None else Gutendex()
+        item = await catalog.get_json(client, f"https://gutendex.com/books/{job['source_id']}", {})
         if item.get("id") != job['source_id'] or item.get('copyright') is not False:
             raise AcquisitionError('source_not_eligible')
         formats = item.get('formats')
@@ -267,9 +269,11 @@ def deliver_staged(job: dict, store: JobStore, staging: Path, ingest: Path) -> N
         temporary.unlink(missing_ok=True)
 
 
-async def worker(store: JobStore, data_dir: Path, ingest: Path | None) -> None:
+async def worker(store: JobStore, data_dir: Path, ingest: Path | None,
+                 gutendex: Gutendex | None = None) -> None:
     staging = data_dir / 'staging'
     staging.mkdir(parents=True, exist_ok=True)
+    catalog = gutendex if gutendex is not None else Gutendex()
     async with httpx.AsyncClient(timeout=httpx.Timeout(20.0), follow_redirects=False,
                                  headers={'User-Agent': 'RoyalBooks/0.3 (https://github.com/TimeLance89/RoyalBooks)'}) as client:
         while True:
@@ -278,10 +282,12 @@ async def worker(store: JobStore, data_dir: Path, ingest: Path | None) -> None:
                 if job:
                     await asyncio.to_thread(deliver_staged, job, store, staging, ingest)
                     continue
-            job = await asyncio.to_thread(store.claim, ('queued',))
-            if job:
-                await process_queued(job, store, staging, client)
-                continue
+            # A 403/451 cooldown must not consume another persisted job attempt.
+            if not catalog.cooldown_remaining():
+                job = await asyncio.to_thread(store.claim, ('queued',))
+                if job:
+                    await process_queued(job, store, staging, client, catalog)
+                    continue
             await asyncio.sleep(1.0)
 
 
