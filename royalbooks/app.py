@@ -14,6 +14,8 @@ from pydantic import BaseModel, Field
 
 from royalbooks.jobs import JobStore, require_token, worker
 from royalbooks.providers import Book, GoogleBooks, Gutendex, OpenLibrary, Provider
+from royalbooks.source_registry import configured_providers
+from royalbooks.matching import match_groups
 from royalbooks.storage import MetricsStore
 
 
@@ -22,9 +24,7 @@ async def lifespan(app: FastAPI):
     path = os.getenv('ROYALBOOKS_DB_PATH', '/data/royalbooks.sqlite3')
     app.state.store = MetricsStore(path)
     app.state.jobs = JobStore(path)
-    sources = [Gutendex(), OpenLibrary()]
-    if os.getenv('GOOGLE_BOOKS_API_KEY', '').strip():
-        sources.append(GoogleBooks(os.environ['GOOGLE_BOOKS_API_KEY'].strip()))
+    sources = configured_providers()
     app.state.providers = {p.name: p for p in sources}
     data = Path(path).parent
     ingest_path = os.getenv('ROYALBOOKS_CWA_INGEST_PATH', '').strip()
@@ -83,6 +83,7 @@ async def search(q: str = Query(min_length=2, max_length=120),
         results = await asyncio.gather(*[_run(provider, client, q, requested_language, limit) for provider in agents])
     items: list[Book] = [item for books, _ in results for item in books]
     return {'query': q, 'language': language, 'items': [item.as_dict() for item in items],
+            'match_groups': match_groups(items),
             'sources': [status for _, status in results], 'rights_notice':
             'Public-domain classification may be US-only; check German law before requesting a download.'}
 

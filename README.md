@@ -3,8 +3,10 @@
 A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Docker hosts. **v0.2 development preview**, not a replacement for Calibre-Web Automated.
 
 ## Features
-- Independent source adapters: **Open Library** (metadata only), **Gutendex** (Project Gutenberg catalog), and optional **Google Books** (metadata only, requires API key).
+- Independent source adapters: **Open Library** (work-level metadata), **Gutendex** (Project Gutenberg catalog), **DNB/German National Library** (bibliographic MARC21 metadata), and optional **Google Books** (metadata only, requires API key).
 - Parallel catalog search with per-provider timeout, retry, rate limit and diagnostic success/error counters (SQLite).
+- Conservative catalog cross-references: ISBN-13/title/language edition candidates versus title/author/language work candidates. All original results are preserved; no automatic merging or assumed entitlement to a download.
+- **Opt-in read-only provider benchmark** with fixed multilingual cases, explicit language checks, source error counts and measured latency (see below).
 - Opt-in Gutenberg EPUB queue: a fresh catalog lookup, US public-domain flag check **plus explicit user confirmation of local rights**, host/redirect allowlisting, stream-size limits, archive validation and SHA-256 duplicate checks.
 - Persistent SQLite job statuses: `queued` → `downloading` → `staged` → `delivering` → `delivered`. Errors become `failed`; interrupted handoffs become `needs_review` to prevent accidental repeated imports.
 - Optional handoff to the **existing CWA ingest directory**, never writes to `metadata.db`. **`delivered` only means the file was handed off to CWA, not that CWA completed the import.**
@@ -13,7 +15,7 @@ A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Dock
 ## Ugreen NAS installation
 
 1. Copy `.env.example` to `.env`. Set `ROYALBOOKS_BIND_IP` to your **NAS LAN IP**, `ROYALBOOKS_DATA_PATH` to a persistent directory, and generate a long `ROYALBOOKS_API_TOKEN` with `python -c "import secrets; print(secrets.token_urlsafe(32))"`. A blank token disables job creation.
-2. Optionally configure `GOOGLE_BOOKS_API_KEY` to enable another metadata source. Queries are sent to Google when enabled. Set `ROYALBOOKS_CWA_INGEST_PATH` **only** if you know the existing host directory mounted in Calibre-Web Automated at `/cwa-book-ingest`. The directories must be *the same host path*. If unsure, leave it blank; downloaded EPUBs remain staged until configured. CWA consumes/removes ingested files.
+2. DNB bibliographic search is enabled by default; set `ROYALBOOKS_DNB_ENABLED=0` to disable it. Optionally configure `GOOGLE_BOOKS_API_KEY` to enable another metadata source. Queries are sent to Google when enabled. Set `ROYALBOOKS_CWA_INGEST_PATH` **only** if you know the existing host directory mounted in Calibre-Web Automated at `/cwa-book-ingest`. The directories must be *the same host path*. If unsure, leave it blank; downloaded EPUBs remain staged until configured. CWA consumes/removes ingested files.
 3. Prepare the bind mounts for the non-root container (UID `10001`), e.g. `mkdir -p data && sudo chown -R 10001:10001 data`. The CWA ingest directory also needs write access for this UID (prefer an ACL/shared group over changing ownership of an existing service directory).
 4. Run `docker compose up -d --build`. Open `http://NAS-IP:8094` (or localhost if bind IP has not been changed). Enter the API token into the web UI when enqueueing books. The token is held in page memory only.
 
@@ -36,11 +38,27 @@ ROYALBOOKS_DB_PATH=./data/dev.sqlite3 uvicorn royalbooks.app:app --reload --port
 
 Tests use offline/mock downloads and simulated CWA ingest. Actual network availability, German copyright status and real NAS/CWA import behavior **have not yet been verified**.
 
+## Source benchmark (manual, read-only)
+
+The included 12-case corpus is in `benchmarks/cases.json` and deliberately mixes German classics, English books and contemporary protected bestsellers. It measures **catalog metadata search quality only**, never unauthorized downloads:
+
+```bash
+# Examine selected providers and queries without network traffic:
+python -m royalbooks.benchmark
+# Explicitly run public catalog queries, then inspect results:
+python -m royalbooks.benchmark --live --output data/provider-benchmark.json
+# Optional, scoped to a specific provider:
+python -m royalbooks.benchmark --live --providers dnb --limit 10
+```
+
+The JSON report differentiates successful HTTP queries, matching titles with **known language**, and unverified EPUB catalog links. Match rates are not download success rates. No benchmark has been run against your NAS yet; the default mode does not issue network requests. DNB and Open Library need conservative traffic rates and their APIs must not be treated as bulk-crawling services.
+
 ## Sources and legal limitations
-The Google Books adapter is metadata-only: a preview or search result is **not** a legal download offer. Project Gutenberg's Gutendex catalog has an optional `copyright` field that concerns **US copyright status**; this alone does not prove that a German user can download the title. RoyalBooks therefore requires explicit local-rights confirmation for every acquisition. Open Library provides book records only and never becomes a download provider in this stage. Useful upstream documentation:
+The DNB and Google Books adapters are metadata-only: a preview or search result is **not** a legal download offer. Project Gutenberg's Gutendex catalog has an optional `copyright` field that concerns **US copyright status**; this alone does not prove that a German user can download the title. RoyalBooks therefore requires explicit local-rights confirmation for every acquisition. Open Library provides work-level records only and never becomes a download provider in this stage. **Work-level ISBN lists are not reliable edition identifiers and are intentionally not used as exact ISBN matches.** Useful upstream documentation:
 - [Gutendex API](https://github.com/garethbjohnson/gutendex)
 - [Open Library API](https://openlibrary.org/developers/api)
+- [DNB SRU API](https://www.dnb.de/DE/Professionell/Metadatendienste/Datenbezug/SRU/sru_node.html)
 - [CWA Docker ingest volume](https://github.com/crocodilestick/Calibre-Web-Automated/blob/main/docker-compose.yml)
 
 ## Next milestone
-More metadata sources, matching by ISBN and edition, provider reliability benchmarks, job retry controls and import confirmation. Authenticate the whole UI before any public exposure.
+Confirm live benchmark results, improve edition-level mappings using authoritative edition records, add safe job retry controls and verified Calibre import status. Authenticate the whole UI before any public exposure.

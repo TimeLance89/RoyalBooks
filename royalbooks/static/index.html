@@ -39,8 +39,12 @@ $('job-message').scrollIntoView({block:'nearest'})}
 $('search').addEventListener('submit',async e=>{e.preventDefault();$('go').disabled=true;$('message').textContent='Provider werden parallel geprüft …';$('books').replaceChildren();
 try{const params=new URLSearchParams({q:$('q').value.trim(),language:$('language').value});const r=await fetch('/api/search?'+params);if(!r.ok)throw Error('HTTP '+r.status);const result=await r.json();
 $('message').textContent=result.items.length+' Treffer · '+result.sources.map(x=>x.provider+': '+x.status+' ('+x.duration_ms+' ms)').join(' · ');
-for(const item of result.items){const card=text('article','','book');const cover=document.createElement('img');cover.className='cover';cover.alt='';cover.loading='lazy';if(safeUrl(item.cover_url))cover.src=safeUrl(item.cover_url);
+for(const [index,item] of result.items.entries()){const card=text('article','','book');const cover=document.createElement('img');cover.className='cover';cover.alt='';cover.loading='lazy';if(safeUrl(item.cover_url))cover.src=safeUrl(item.cover_url);
 const detail=document.createElement('div');detail.append(text('h3',item.title),text('p',item.authors.join(', ')||'Autor unbekannt','muted'),text('p',item.source+' · '+(item.language||'Sprache unbekannt'),'pill'),text('p',item.epub_url?'EPUB gelistet · Rechte prüfen':'Nur Buchdaten','muted'));
+const groups=(result.match_groups||[]).filter(g=>g.item_indexes.includes(index));
+if(groups.some(g=>g.kind==='edition_candidate')) detail.append(text('p','ISBN-Ausgabe stimmt mit anderer Quelle überein (Kandidat)','pill'));
+else if(groups.some(g=>g.kind==='work_candidate')) detail.append(text('p','Gleiches Werk vermutet – Ausgabe unklar','pill'));
+if(item.isbn13) detail.append(text('p','ISBN-13: '+item.isbn13,'muted'));
 if(safeUrl(item.info_url)){const a=text('a','Details zur Quelle ↗');a.href=safeUrl(item.info_url);a.target='_blank';a.rel='noopener noreferrer';detail.append(a)}
 if(item.source==='gutendex'&&item.epub_url){const button=text('button','Zur Bibliothek hinzufügen','action');button.type='button';button.addEventListener('click',()=>addBook(item));detail.append(button)}card.append(cover,detail);$('books').append(card)}
 }catch(err){$('message').textContent='Suche fehlgeschlagen: '+err.message}finally{$('go').disabled=false;loadStats()}});

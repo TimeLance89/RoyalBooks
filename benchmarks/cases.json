@@ -1,0 +1,62 @@
+[
+  {
+    "query": "Faust Goethe",
+    "title": "Faust",
+    "language": "de"
+  },
+  {
+    "query": "Die Verwandlung Franz Kafka",
+    "title": "Die Verwandlung",
+    "language": "de"
+  },
+  {
+    "query": "Der Prozess Kafka",
+    "title": "Der Prozess",
+    "language": "de"
+  },
+  {
+    "query": "Der Sandmann E T A Hoffmann",
+    "title": "Der Sandmann",
+    "language": "de"
+  },
+  {
+    "query": "Effi Briest Fontane",
+    "title": "Effi Briest",
+    "language": "de"
+  },
+  {
+    "query": "Emilia Galotti Lessing",
+    "title": "Emilia Galotti",
+    "language": "de"
+  },
+  {
+    "query": "Harry Potter und der Stein der Weisen",
+    "title": "Harry Potter und der Stein der Weisen",
+    "language": "de"
+  },
+  {
+    "query": "Die Tribute von Panem Tödliche Spiele",
+    "title": "Die Tribute von Panem",
+    "language": "de"
+  },
+  {
+    "query": "The Great Gatsby Fitzgerald",
+    "title": "The Great Gatsby",
+    "language": "en"
+  },
+  {
+    "query": "Pride and Prejudice Austen",
+    "title": "Pride and Prejudice",
+    "language": "en"
+  },
+  {
+    "query": "1984 George Orwell",
+    "title": "1984",
+    "language": "en"
+  },
+  {
+    "query": "The Hobbit Tolkien",
+    "title": "The Hobbit",
+    "language": "en"
+  }
+]
