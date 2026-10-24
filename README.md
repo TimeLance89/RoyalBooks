@@ -1,8 +1,9 @@
 # RoyalBooks – Book Discovery & Automation
 
-A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Docker hosts. **v0.7 development preview**, not a replacement for Calibre-Web Automated.
+A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Docker hosts. **v0.8 development preview**, not a replacement for Calibre-Web Automated.
 
 ## Features
+- **In-browser Gutenberg catalog setup:** authenticated one-click CSV and RDF feed imports, readable queued/downloading/indexing/completed/failed status, one import at a time, and restart-safe audit history. No CLI or repeated manual status commands required.
 - **Official Project Gutenberg format index:** opt-in import of its *daily RDF bulk archive* containing specific EPUB-format URLs. These are *catalog-listed*, not live verified, and include no clearance for German copyright law. Local Gutenberg search and first-party downloads work independently from the blocked Gutendex API.
 - **Official Project Gutenberg offline index:** user-initiated import of the publisher's weekly CSV.gz catalog (~5 MB) into the local SQLite database. No per-search access to blocked Gutendex; no presumed EPUB download links.
 - Independent source adapters: **Open Library** (work-level metadata), **Gutendex** (Project Gutenberg catalog), **DNB/German National Library** (bibliographic MARC21 metadata), and optional **Google Books** (metadata only, requires API key).
@@ -58,6 +59,8 @@ Default configuration binds to **127.0.0.1**, so it is not visible on the LAN un
 - `POST /api/jobs/{id}/retry`: API key and `{ "rights_confirmed": true }` required; allowed only for transient failed jobs with fewer than three attempts, otherwise HTTP 409.
 - `GET /api/health`: health/version.
 - `GET /api/preflight`: API key required; read-only NAS/CWA configuration diagnostics without displaying the token or host paths. The web UI exposes these checks via **NAS-Einrichtung prüfen**.
+- `GET /api/catalog/imports`: authenticated history of the 20 latest official-feed imports.
+- `POST /api/catalog/imports`: authenticated, explicit import of either `{"source":"csv"}` or `{"source":"rdf"}`. Only one active import; second request returns HTTP 409. Archive requests and local parsing have bounded sizes, use existing transactional importers and touch no Calibre files.
 
 ### Development
 
@@ -73,7 +76,7 @@ Tests use offline/mock downloads and simulated CWA ingest. Actual network availa
 
 A recent live audit found the third-party Gutendex API blocked some clients. The official Project Gutenberg site provides a weekly CSV catalog and explicitly recommends its **bulk feeds instead of crawling**. RoyalBooks can index that file in your NAS's local SQLite database without touching the Calibre library. This solves the **catalog search dependency**, but not the different problem of verifying whether an EPUB exists for any given catalog entry.
 
-The index is deliberately manual for now: **no background downloads** and no automatic provider bypass. With the NAS Docker service running and the data directory writable by UID 10001:
+The index is deliberately initiated by the user: **no automatic periodic downloads** and no provider bypass. The browser's **Offiziellen Gutenberg-Katalog einrichten** panel offers buttons for both official feeds and displays their import progress as named stages. Large RDF archives may require substantial disk space and several minutes of processing; they are imported into a transactionally replaced local SQLite index. The API token is required for both start and status requests. The following CLI commands remain available as a fallback: With the NAS Docker service running and the data directory writable by UID 10001:
 
 ```bash
 # One explicit, bounded request for the current official compressed CSV catalog:
@@ -95,7 +98,7 @@ Official sources:
 
 Project Gutenberg publishes the daily `rdf-files.tar.bz2` archive in addition to the smaller weekly CSV. The RDF includes EPUB MIME types and original format links, so RoyalBooks does not need to guess per-book download URLs or query the third-party Gutendex API.
 
-**Manual one-time commands**, after the Docker container is running:
+**Browser:** Enter the API token, click **1 · Buchkatalog laden**, then **2 · EPUB-Formate laden**. Each source import happens only after an explicit click and will be retried only after an explicit new request. These optional CLI commands are for recovery or automation by the NAS administrator:
 
 ```bash
 # Step 1: Index the titles (compressed CSV ~5 MB)
@@ -106,7 +109,7 @@ docker compose exec royalbooks python -m royalbooks.gutenberg_formats --download
 docker compose exec royalbooks python -m royalbooks.gutenberg_formats --file /data/rdf-files.tar.bz2
 ```
 
-The archive is read in streaming mode without extracting its files to disk. Import is transactional: malformed archives do not destroy the existing index. The metadata transfer is capped at 256 MiB compressed, with per-record and decompression limits. It is intentionally not automatic in the preview.
+The archive is read in streaming mode without extracting its files to disk. An import interrupted by a container restart is shown as **interrupted** and cannot be assumed complete; an existing successfully built index remains in place until a later successful replacement. Import is transactional: malformed archives do not destroy the existing index. The metadata transfer is capped at 256 MiB compressed, with per-record and decompression limits. It is intentionally not automatic in the preview.
 
 After both imports, the local search labels indexed files as **"official RDF EPUB link, not live verified"**. If you have independently checked your rights to a particular work, select it and enter the normal API token. RoyalBooks downloads only the allowlisted first-party URL, then validates its actual ZIP/EPUB structure and digest before handing it to the CWA ingest folder. **A metadata link alone never proves actual availability, successful download, or an import into Calibre.** Some redirects may be refused for safety. File sizes over the current 32 MiB download limit are rejected.
 

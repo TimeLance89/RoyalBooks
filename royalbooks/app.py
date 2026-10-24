@@ -18,6 +18,8 @@ from royalbooks.gutenberg_formats import format_status, lookup_epub
 from royalbooks.handoff import observe_handoff
 from royalbooks.calibre_verify import verify_library_presence
 from royalbooks.preflight import diagnose
+from royalbooks.catalog_admin import CatalogImportService, CatalogImportBusy
+from typing import Literal
 from royalbooks.providers import Book, GoogleBooks, Gutendex, OpenLibrary, Provider
 from royalbooks.source_registry import configured_providers
 from royalbooks.matching import match_groups
@@ -29,6 +31,7 @@ async def lifespan(app: FastAPI):
     path = os.getenv('ROYALBOOKS_DB_PATH', '/data/royalbooks.sqlite3')
     app.state.store = MetricsStore(path)
     app.state.jobs = JobStore(path)
+    app.state.catalog_imports = CatalogImportService(path)
     sources = configured_providers()
     app.state.providers = {p.name: p for p in sources}
     data = Path(path).parent
@@ -38,12 +41,13 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        await app.state.catalog_imports.close()
         task.cancel()
         with suppress(asyncio.CancelledError):
             await task
 
 
-app = FastAPI(title='RoyalBooks', version='0.7.0', lifespan=lifespan)
+app = FastAPI(title='RoyalBooks', version='0.8.0', lifespan=lifespan)
 
 
 @app.get('/')
@@ -53,7 +57,7 @@ async def homepage():
 
 @app.get('/api/health')
 async def health():
-    return {'status': 'ok', 'version': '0.7.0'}
+    return {'status': 'ok', 'version': '0.8.0'}
 
 
 @app.get('/api/providers')
@@ -122,6 +126,30 @@ async def enqueue(request: QueueRequest, x_api_key: str | None = Header(default=
     ):
         raise HTTPException(status_code=409, detail='official_epub_metadata_missing')
     return {'job': app.state.jobs.add(request.source_id, request.provider)}
+
+
+class CatalogImportRequest(BaseModel):
+    source: Literal["csv", "rdf"]
+
+
+@app.get('/api/catalog/imports')
+async def catalog_import_history(x_api_key: str | None = Header(default=None)):
+    """Authenticated status of explicitly requested first-party feed imports."""
+    _guard(x_api_key)
+    return {'imports': await asyncio.to_thread(app.state.catalog_imports.history),
+            'notice': 'Catalog links are not verified downloads or copyright clearance.'}
+
+
+@app.post('/api/catalog/imports', status_code=202)
+async def request_catalog_import(
+    request: CatalogImportRequest,
+    x_api_key: str | None = Header(default=None),
+):
+    _guard(x_api_key)
+    try:
+        return {'import': app.state.catalog_imports.request(request.source)}
+    except CatalogImportBusy as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @app.get('/api/preflight')

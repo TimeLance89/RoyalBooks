@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RoyalBooks · Quellenlabor</title>
+<title>RoyalBooks · Bibliotheksmanager</title>
 <style>
 :root{color-scheme:dark;font-family:system-ui,Segoe UI,sans-serif;background:#101116;color:#f3eee6}
 *{box-sizing:border-box}body{max-width:1100px;margin:auto;padding:34px 18px}header{display:flex;justify-content:space-between;align-items:center;gap:12px}
@@ -12,11 +12,20 @@ input[type=search]{flex:1;min-width:180px}button{background:#a73340;border-color
 footer{border-top:1px solid #333;margin-top:32px;padding-top:18px;font-size:13px}.pill{font-size:11px;color:#e5c58b}
 .controls{background:#1b1c23;border:1px solid #39363e;border-radius:12px;padding:18px;margin:20px 0}.controls h2{margin:0;font-size:18px}.controls label{font-size:13px;display:block;margin:12px 0 4px}.controls input[type=password]{width:min(100%,440px)}.jobs{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}.jobs td,.jobs th{border-bottom:1px solid #3a3840;padding:9px 6px;text-align:left}.subtle{background:#32313b;border-color:#53505a}.action{margin-top:10px;font-size:12px;padding:8px 10px}
 </style></head>
-<body><header><span class="accent">✦ ROYALBOOKS</span><span class="chip">PROVIDER-LAB · v0.7</span></header>
+<body><header><span class="accent">✦ ROYALBOOKS</span><span class="chip">ROYALBOOKS · v0.8</span></header>
 <h1>Finde dein nächstes Buch.</h1><p class="muted">Quellen vergleichen, Trefferqualität prüfen und freigegebene EPUBs in deine Bibliothek übernehmen.</p>
 <form id="search"><input type="search" id="q" placeholder="Titel oder Autor, z. B. Kafka" required minlength="2" maxlength="120" aria-label="Suche"><select id="language" aria-label="Sprache"><option value="de">Deutsch</option><option value="en">Englisch</option><option value="all">Alle</option></select><button id="go">Suchen</button></form>
 <div id="message" role="status" class="muted">Bereit für die erste Suche.</div><section id="stats" class="stats" aria-label="Providerstatus"></section>
 <section id="books" class="cards" aria-live="polite"></section>
+<section class="controls" id="catalog-controls">
+<h2>Offiziellen Gutenberg-Katalog einrichten</h2>
+<p class="muted">Ohne Kommandozeile: erst Buchdaten (CSV), dann EPUB-Formatinformationen (RDF) importieren. Der zweite Schritt verarbeitet ein großes Archiv. Die Abfragen erfolgen nur nach deinem Klick.</p>
+<div style="display:flex;flex-wrap:wrap;gap:9px;margin:14px 0">
+<button type="button" class="subtle" id="sync-csv">1 · Buchkatalog laden</button>
+<button type="button" class="subtle" id="sync-rdf">2 · EPUB-Formate laden</button>
+<button type="button" class="subtle" id="sync-refresh">Status prüfen</button></div>
+<div id="import-status" class="muted" role="status" aria-live="polite">Für den Import den API-Token unten eingeben.</div>
+</section>
 <section class="controls"><h2>Automatische Übernahme</h2><p class="muted">Für Gutenberg-EPUBs mit geprüftem Quellenstatus. Prüfe zusätzlich, ob das Werk in deinem Land gemeinfrei ist. Dein API-Token wird nur bis zum Neuladen dieser Seite im Arbeitsspeicher gehalten.</p>
 <label for="token">API-Token aus deiner lokalen .env</label><input id="token" type="password" autocomplete="off" placeholder="ROYALBOOKS_API_TOKEN">
 <button id="refresh" class="subtle" type="button">Aufträge aktualisieren</button> <button id="preflight" class="subtle" type="button">NAS-Einrichtung prüfen</button><div id="preflight-results" role="status" aria-live="polite"></div><div id="job-message" role="status" class="muted"></div><div style="overflow:auto"><table class="jobs"><thead><tr><th>Gutenberg-ID</th><th>Status</th><th>Details</th></tr></thead><tbody id="job-rows"></tbody></table></div></section>
@@ -26,9 +35,10 @@ const $=id=>document.getElementById(id);
 const text=(tag,value,cls)=>{const el=document.createElement(tag);el.textContent=value;if(cls)el.className=cls;return el};
 function safeUrl(raw){try{const u=new URL(raw);return u.protocol==='https:'?u.href:null}catch{return null}}
 async function loadStats(){try{const r=await fetch('/api/providers');if(!r.ok)return;const v=await r.json();$('stats').replaceChildren(...v.providers.map(p=>{const s=v.recent_metrics.find(x=>x.provider===p.name);return text('span',p.name+': '+(s ? s.found+' Treffer-Suchen / '+s.errors+' Fehler (letzte '+s.attempts+')' : 'noch ungetestet'),'stat')}));
-if(v.catalog&&v.catalog.indexed) $('stats').append(text('span','Gutenberg offline: '+v.catalog.records+' Einträge · Stand '+v.catalog.updated_at,'stat'));
-if(v.format_catalog&&v.format_catalog.indexed) $('stats').append(text('span','Offizielle EPUB-Formatlinks: '+v.format_catalog.records+' · nicht live überprüft','stat'));
-else $('stats').append(text('span','Gutenberg Offline-Katalog: noch nicht importiert','stat'))}catch{}}
+if(v.catalog&&v.catalog.indexed) $('stats').append(text('span','Buchkatalog: '+v.catalog.records+' Titel','stat'));
+else $('stats').append(text('span','Buchkatalog noch nicht geladen','stat'));
+if(v.format_catalog&&v.format_catalog.indexed) $('stats').append(text('span','EPUB-Formatkatalog: '+v.format_catalog.records+' Links · unbestätigt','stat'));
+else $('stats').append(text('span','EPUB-Formatkatalog noch nicht geladen','stat'))}catch{}}
 async function loadJobs(){const token=$('token').value;if(!token){$('job-message').textContent='API-Token eingeben, um die Aufträge zu sehen.';return}
 try{const r=await fetch('/api/jobs',{headers:{'X-API-Key':token}});if(!r.ok)throw Error('HTTP '+r.status);const result=await r.json();
 $('job-message').textContent=result.ingest_configured?'Calibre-Übergabe ist konfiguriert.':'Kein Calibre-Importordner eingestellt. EPUBs bleiben zunächst auf dem Server.';
@@ -110,6 +120,52 @@ $('preflight').addEventListener('click',async ()=>{
   }catch(error){output.replaceChildren(text('p','NAS-Prüfung fehlgeschlagen: '+error.message,'muted'))}
   finally{$('preflight').disabled=false}
 });
+let catalogTimer=null;
+const importLabels={queued:'Wartend',downloading:'Offizielle Daten werden geladen',indexing:'Daten werden lokal indexiert',completed:'Import abgeschlossen',failed:'Import fehlgeschlagen',interrupted:'Import durch Neustart unterbrochen'};
+async function refreshImports(){
+  const token=$('token').value;
+  if(!token){$('import-status').textContent='Für den Import bitte zuerst den API-Token eingeben.';return}
+  try{
+    const response=await fetch('/api/catalog/imports',{headers:{'X-API-Key':token}});
+    if(!response.ok) throw Error('HTTP '+response.status);
+    const data=await response.json(), imports=data.imports||[];
+    const active=imports.some(job=>['queued','downloading','indexing'].includes(job.status));
+    $('sync-csv').disabled=active;$('sync-rdf').disabled=active;
+    const fragment=document.createDocumentFragment();
+    if(!imports.length)fragment.append(text('p','Noch kein Import gestartet.','muted'));
+    for(const job of imports.slice(0,6)){
+      const label=job.source==='csv'?'Buchkatalog':'EPUB-Formate';
+      const details=job.records?' · '+job.records+' Datensätze':'';
+      const error=job.error_code?' · '+job.error_code:'';
+      fragment.append(text('p',label+': '+(importLabels[job.status]||job.status)+details+error,'muted'));
+    }
+    fragment.append(text('p','Hinweis: Katalogeinträge garantieren weder erreichbare Downloads noch Nutzungsrechte.','muted'));
+    $('import-status').replaceChildren(fragment);
+    if(catalogTimer){clearTimeout(catalogTimer);catalogTimer=null}
+    if(active)catalogTimer=setTimeout(refreshImports,5000);
+    else loadStats();
+  }catch(error){$('import-status').textContent='Importstatus nicht verfügbar: '+error.message}
+}
+async function startImport(source){
+  const token=$('token').value;
+  if(!token){$('import-status').textContent='Bitte den API-Token für die Katalogverwaltung eingeben.';return}
+  const message=source==='csv'?'Offiziellen Gutenberg-Buchkatalog jetzt herunterladen und neu indexieren?':
+  'Das offizielle RDF-Archiv herunterladen und EPUB-Formate indexieren? Das Archiv kann über 100 MB groß sein.';
+  if(!confirm(message))return;
+  $('sync-csv').disabled=true;$('sync-rdf').disabled=true;
+  try{
+    const response=await fetch('/api/catalog/imports',{method:'POST',headers:{'Content-Type':'application/json','X-API-Key':token},
+      body:JSON.stringify({source})});
+    const body=await response.json();
+    if(!response.ok)throw Error(body.detail||'HTTP '+response.status);
+    $('import-status').textContent='Importauftrag angenommen: '+(source==='csv'?'Buchkatalog':'EPUB-Formate')+'.';
+  }catch(error){$('import-status').textContent='Import konnte nicht gestartet werden: '+error.message}
+  finally{await refreshImports()}
+}
+$('sync-csv').addEventListener('click',()=>startImport('csv'));
+$('sync-rdf').addEventListener('click',()=>startImport('rdf'));
+$('sync-refresh').addEventListener('click',refreshImports);
+$('token').addEventListener('change',refreshImports);
 $('refresh').addEventListener('click',loadJobs);
 async function addBook(book){if(!confirm('Hast du geprüft, dass du dieses Buch in deinem Land rechtmäßig herunterladen und speichern darfst?'))return;
 const token=$('token').value;if(!token){$('job-message').textContent='Bitte zuerst den API-Token eintragen.';return}
