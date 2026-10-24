@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from royalbooks.jobs import JobStateError, JobStore, require_token, worker
+from royalbooks.gutenberg_catalog import catalog_status
 from royalbooks.handoff import observe_handoff
 from royalbooks.providers import Book, GoogleBooks, Gutendex, OpenLibrary, Provider
 from royalbooks.source_registry import configured_providers
@@ -54,7 +55,8 @@ async def health():
 
 @app.get('/api/providers')
 async def providers():
-    return {'providers': [{'name': p.name, 'purpose': p.purpose} for p in app.state.providers.values()],
+    return {'catalog': catalog_status(os.getenv("ROYALBOOKS_DB_PATH", "/data/royalbooks.sqlite3")),
+            'providers': [{'name': p.name, 'purpose': p.purpose} for p in app.state.providers.values()],
             'recent_metrics': app.state.store.stats()}
 
 

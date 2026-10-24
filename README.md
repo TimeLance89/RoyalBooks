@@ -1,8 +1,9 @@
 # RoyalBooks – Book Discovery & Automation
 
-A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Docker hosts. **v0.3.2 development preview**, not a replacement for Calibre-Web Automated.
+A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Docker hosts. **v0.4 development preview**, not a replacement for Calibre-Web Automated.
 
 ## Features
+- **Official Project Gutenberg offline index:** user-initiated import of the publisher's weekly CSV.gz catalog (~5 MB) into the local SQLite database. No per-search access to blocked Gutendex; no presumed EPUB download links.
 - Independent source adapters: **Open Library** (work-level metadata), **Gutendex** (Project Gutenberg catalog), **DNB/German National Library** (bibliographic MARC21 metadata), and optional **Google Books** (metadata only, requires API key).
 - Parallel catalog search with per-provider timeout, retry, rate limit and diagnostic success/error counters (SQLite).
 - **Provider refusal circuit breaker:** HTTP 403/451 places an origin on a 30-minute cooldown. The Gutenberg worker shares that provider instance and does not claim or exhaust queued download attempts while its catalog origin is blocked. This is intentionally not a bypass for anti-bot controls.
@@ -43,6 +44,28 @@ ROYALBOOKS_DB_PATH=./data/dev.sqlite3 uvicorn royalbooks.app:app --reload --port
 
 Tests use offline/mock downloads and simulated CWA ingest. Actual network availability, German copyright status and real NAS/CWA import behavior **have not yet been verified**. A queued retry still checks the rights flag again and re-fetches metadata and EPUB; immutable source IDs cannot be retried if the failure was invalid, duplicate, forbidden or ambiguous. **Never interpret `delivered` as proof that CWA indexed a book.**
 
+## Reliable offline Gutenberg search (first-party bulk catalog)
+
+A recent live audit found the third-party Gutendex API blocked some clients. The official Project Gutenberg site provides a weekly CSV catalog and explicitly recommends its **bulk feeds instead of crawling**. RoyalBooks can index that file in your NAS's local SQLite database without touching the Calibre library. This solves the **catalog search dependency**, but not the different problem of verifying whether an EPUB exists for any given catalog entry.
+
+The index is deliberately manual for now: **no background downloads** and no automatic provider bypass. With the NAS Docker service running and the data directory writable by UID 10001:
+
+```bash
+# One explicit, bounded request for the current official compressed CSV catalog:
+docker compose exec royalbooks python -m royalbooks.gutenberg_catalog --download
+
+# Alternatively, use an already downloaded official CSV or CSV.gz:
+docker compose exec royalbooks python -m royalbooks.gutenberg_catalog --file /data/pg_catalog.csv.gz
+```
+
+The updater limits the compressed transfer to 12 MiB, validates CSV headers and row counts and swaps the local index **transactionally** (the previous index remains intact if parsing fails). After import, the search provider `gutenberg_catalog` is available in the ordinary book search and the API reports `catalog.indexed`, row count and update timestamp at `GET /api/providers`.
+
+**Important:** Gutenberg's CSV does **not contain** file-format availability, verified EPUB links, or rights in Germany. These records appear strictly as `catalog_only_epub_unverified`. They are never enqueued for download by this adapter. Existing Gutendex download support remains opt-in and separate. The CSV's `Issued` date is a Gutenberg release date, **not the original print publication year**.
+
+Official sources:
+- [Project Gutenberg bulk catalog and usage advice](https://www.gutenberg.org/ebooks/offline_catalogs.html)
+- [Official feed directory](https://www.gutenberg.org/cache/epub/feeds/)
+
 ## Source benchmark (manual, read-only)
 
 The included 12-case corpus is in `benchmarks/cases.json` and deliberately mixes German classics, English books and contemporary protected bestsellers. It measures **catalog metadata search quality only**, never unauthorized downloads:
@@ -74,4 +97,4 @@ The DNB and Google Books adapters are metadata-only: a preview or search result 
 - [CWA Docker ingest volume](https://github.com/crocodilestick/Calibre-Web-Automated/blob/main/docker-compose.yml)
 
 ## Next milestone
-Confirm live benchmark results, improve edition-level mappings using authoritative edition records, add explicit safe recovery for ambiguous handoffs and independently verify Calibre import status. Authenticate the whole UI before any public exposure.
+Resolve format-specific download availability without bypassing provider restrictions, then confirm live benchmark results, improve edition-level mappings using authoritative edition records, add explicit safe recovery for ambiguous handoffs and independently verify Calibre import status. Authenticate the whole UI before any public exposure.
