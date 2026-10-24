@@ -35,7 +35,8 @@ def _subfields(record: ET.Element, tag: str, codes: tuple[str, ...] = ("a",)) ->
 def _control(record: ET.Element, tag: str) -> str | None:
     for el in record.findall(f"{MARC}controlfield"):
         if el.get("tag") == tag and el.text:
-            return el.text.strip()
+            # MARC controlfield 008 is fixed-width: whitespace is semantically significant.
+            return el.text if tag == "008" else el.text.strip()
     return None
 
 
