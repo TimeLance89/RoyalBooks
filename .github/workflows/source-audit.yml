@@ -1,0 +1,37 @@
+name: Provider source audit
+on:
+  push:
+    branches: [feature/provider-foundation]
+    paths:
+      - '.github/workflows/source-audit.yml'
+      - 'benchmarks/cases.json'
+      - 'royalbooks/benchmark.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install RoyalBooks
+        run: pip install .
+      - name: Query three public catalogs (12 fixed cases, no book downloads)
+        run: |
+          python -m royalbooks.benchmark --live --providers gutendex openlibrary dnb \
+            --limit 8 --cases benchmarks/cases.json \
+            --output source-audit-report.json
+      - name: Preserve the measured report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: royalbooks-source-audit
+          path: source-audit-report.json
+          if-no-files-found: warn
+          retention-days: 14
