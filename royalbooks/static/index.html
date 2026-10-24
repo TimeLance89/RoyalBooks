@@ -19,7 +19,7 @@ footer{border-top:1px solid #333;margin-top:32px;padding-top:18px;font-size:13px
 <section id="books" class="cards" aria-live="polite"></section>
 <section class="controls"><h2>Automatische Übernahme</h2><p class="muted">Für Gutenberg-EPUBs mit geprüftem Quellenstatus. Prüfe zusätzlich, ob das Werk in deinem Land gemeinfrei ist. Dein API-Token wird nur bis zum Neuladen dieser Seite im Arbeitsspeicher gehalten.</p>
 <label for="token">API-Token aus deiner lokalen .env</label><input id="token" type="password" autocomplete="off" placeholder="ROYALBOOKS_API_TOKEN">
-<button id="refresh" class="subtle" type="button">Aufträge aktualisieren</button><div id="job-message" role="status" class="muted"></div><div style="overflow:auto"><table class="jobs"><thead><tr><th>Gutenberg-ID</th><th>Status</th><th>Details</th></tr></thead><tbody id="job-rows"></tbody></table></div></section>
+<button id="refresh" class="subtle" type="button">Aufträge aktualisieren</button> <button id="preflight" class="subtle" type="button">NAS-Einrichtung prüfen</button><div id="preflight-results" role="status" aria-live="polite"></div><div id="job-message" role="status" class="muted"></div><div style="overflow:auto"><table class="jobs"><thead><tr><th>Gutenberg-ID</th><th>Status</th><th>Details</th></tr></thead><tbody id="job-rows"></tbody></table></div></section>
 <footer class="muted">Die Übergabe an Calibre-Web Automated wird als „delivered“ angezeigt, nicht als bestätigter Bibliotheksimport. Keine unbekannten Downloadserver, keine Kopierschutz-Umgehung.</footer>
 <script>
 const $=id=>document.getElementById(id);
@@ -87,6 +87,29 @@ try{
  $('job-message').textContent='Buch '+job.source_id+': '+(explanations[status]||status);
 }catch(err){$('job-message').textContent='Bibliotheksprüfung fehlgeschlagen: '+err.message}
 }
+$('preflight').addEventListener('click',async ()=>{
+  const output=$('preflight-results');
+  const token=$('token').value;
+  if(!token){output.replaceChildren(text('p','Bitte zuerst den API-Token eingeben.','muted'));return}
+  $('preflight').disabled=true;
+  output.replaceChildren(text('p','NAS-Einstellungen werden ausschließlich lesend geprüft …','muted'));
+  try{
+    const response=await fetch('/api/preflight',{headers:{'X-API-Key':token}});
+    if(!response.ok)throw Error('HTTP '+response.status);
+    const result=await response.json();
+    const checks=Array.isArray(result.checks)?result.checks:[];
+    const fragment=document.createDocumentFragment();
+    const title=text('p',result.status==='error'?'Konfigurationsfehler erkannt':'Prüfung abgeschlossen – Hinweise beachten','muted');
+    fragment.append(title);
+    for(const check of checks){
+      const label=check.status==='ok'?'✓':check.status==='error'?'✕':'!';
+      fragment.append(text('p',label+' '+check.name+': '+check.detail,'muted'));
+    }
+    fragment.append(text('p','Nur Konfigurationsprüfung: Der tatsächliche CWA-Import wird dadurch nicht bestätigt.','muted'));
+    output.replaceChildren(fragment);
+  }catch(error){output.replaceChildren(text('p','NAS-Prüfung fehlgeschlagen: '+error.message,'muted'))}
+  finally{$('preflight').disabled=false}
+});
 $('refresh').addEventListener('click',loadJobs);
 async function addBook(book){if(!confirm('Hast du geprüft, dass du dieses Buch in deinem Land rechtmäßig herunterladen und speichern darfst?'))return;
 const token=$('token').value;if(!token){$('job-message').textContent='Bitte zuerst den API-Token eintragen.';return}

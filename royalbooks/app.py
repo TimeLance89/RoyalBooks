@@ -17,6 +17,7 @@ from royalbooks.gutenberg_catalog import catalog_status
 from royalbooks.gutenberg_formats import format_status, lookup_epub
 from royalbooks.handoff import observe_handoff
 from royalbooks.calibre_verify import verify_library_presence
+from royalbooks.preflight import diagnose
 from royalbooks.providers import Book, GoogleBooks, Gutendex, OpenLibrary, Provider
 from royalbooks.source_registry import configured_providers
 from royalbooks.matching import match_groups
@@ -121,6 +122,20 @@ async def enqueue(request: QueueRequest, x_api_key: str | None = Header(default=
     ):
         raise HTTPException(status_code=409, detail='official_epub_metadata_missing')
     return {'job': app.state.jobs.add(request.source_id, request.provider)}
+
+
+@app.get('/api/preflight')
+async def preflight_status(x_api_key: str | None = Header(default=None)):
+    """Authenticated, read-only NAS/CWA checks; no path or token disclosure."""
+    _guard(x_api_key)
+    root = str(Path(os.getenv("ROYALBOOKS_DB_PATH", "/data/royalbooks.sqlite3")).parent)
+    return await asyncio.to_thread(
+        diagnose,
+        data_path=root,
+        ingest_path=os.getenv("ROYALBOOKS_CWA_INGEST_PATH") or None,
+        library_path=os.getenv("ROYALBOOKS_CWA_LIBRARY_PATH") or None,
+        api_token=os.getenv("ROYALBOOKS_API_TOKEN") or None,
+    )
 
 
 @app.get('/api/jobs')

@@ -30,6 +30,8 @@ docker compose exec royalbooks python -m royalbooks.preflight
 docker compose exec royalbooks python -m royalbooks.preflight --json
 ```
 
+You can also open the RoyalBooks UI, enter your API token and click **NAS-Einrichtung prüfen**. It calls the authenticated, read-only `/api/preflight` endpoint and displays errors/warnings in the browser. Neither option proves that CWA watches or imports a handed-off book.
+
 This performs only read-only directory/permission/space checks and a **read-only** SQLite schema query. It never creates an ingest directory, writes a probe book, changes ownership, imports a file or contacts the internet. Failures are reported with exit code 2. Checks for file ownership/write access are heuristic: a successful check does **not** prove that the CWA watcher is consuming that exact host folder.
 
 **Critical safety change:** If the configured ingest directory is missing, a staged EPUB is retained and its job moves to `needs_review` with `ingest_directory_missing`. RoyalBooks no longer silently creates an unwatched directory or claims the book was delivered. Do not retry an ambiguous handoff without inspecting both CWA and RoyalBooks directories. CWA may remove files even when import fails.
@@ -55,6 +57,7 @@ Default configuration binds to **127.0.0.1**, so it is not visible on the LAN un
 - `GET /api/jobs/{id}/library-check`: API key required, optional read-only exact EPUB hash check against Calibre `metadata.db`; does not imply causal import confirmation.
 - `POST /api/jobs/{id}/retry`: API key and `{ "rights_confirmed": true }` required; allowed only for transient failed jobs with fewer than three attempts, otherwise HTTP 409.
 - `GET /api/health`: health/version.
+- `GET /api/preflight`: API key required; read-only NAS/CWA configuration diagnostics without displaying the token or host paths. The web UI exposes these checks via **NAS-Einrichtung prüfen**.
 
 ### Development
 
