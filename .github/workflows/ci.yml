@@ -25,6 +25,8 @@ jobs:
           node --check /tmp/royalbooks-ui.js
       - name: Offline Gutenberg catalog import/search tests
         run: pytest -q tests/test_gutenberg_catalog.py
+      - name: First-party RDF format and acquisition tests (no network)
+        run: pytest -q tests/test_gutenberg_formats.py
       - name: Benchmark CLI smoke test (no network)
         run: python -m royalbooks.benchmark
       - name: Build image

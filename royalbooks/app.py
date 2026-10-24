@@ -40,7 +40,7 @@ async def lifespan(app: FastAPI):
             await task
 
 
-app = FastAPI(title='RoyalBooks', version='0.4.0', lifespan=lifespan)
+app = FastAPI(title='RoyalBooks', version='0.5.0', lifespan=lifespan)
 
 
 @app.get('/')
@@ -50,7 +50,7 @@ async def homepage():
 
 @app.get('/api/health')
 async def health():
-    return {'status': 'ok', 'version': '0.4.0'}
+    return {'status': 'ok', 'version': '0.5.0'}
 
 
 @app.get('/api/providers')

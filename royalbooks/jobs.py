@@ -118,18 +118,20 @@ class JobStore:
         db.row_factory = sqlite3.Row
         return db
 
-    def add(self, source_id: int) -> dict:
+    def add(self, source_id: int, source: str = "gutendex") -> dict:
+        if source not in {"gutendex", "gutenberg_catalog"}:
+            raise JobStateError("unsupported_source")
         with self._db() as db:
             db.execute("INSERT OR IGNORE INTO jobs(id,source,source_id,status) VALUES (?,?,?,'queued')",
-                       (uuid.uuid4().hex, "gutendex", source_id))
-            row = db.execute("SELECT * FROM jobs WHERE source='gutendex' AND source_id=?", (source_id,)).fetchone()
+                       (uuid.uuid4().hex, source, source_id))
+            row = db.execute("SELECT * FROM jobs WHERE source=? AND source_id=?", (source, source_id)).fetchone()
             return dict(row)
 
     def list(self) -> list[dict]:
         with self._db() as db:
             return [dict(x) for x in db.execute("SELECT * FROM jobs ORDER BY created_at DESC LIMIT 100")]
 
-    def claim(self, statuses: tuple[str, ...]) -> dict | None:
+    def claim(self, statuses: tuple[str, ...], source: str | None = None) -> dict | None:
         with self._db() as db:
             db.execute("BEGIN IMMEDIATE")
             for status in statuses:
@@ -138,7 +140,11 @@ class JobStore:
                     db.execute("""UPDATE jobs SET status='failed', error='interrupted_attempt_limit',
                                 updated_at=CURRENT_TIMESTAMP
                                 WHERE status='queued' AND attempts >= ?""", (MAX_ATTEMPTS,))
-                row = db.execute("SELECT * FROM jobs WHERE status=? ORDER BY created_at LIMIT 1", (status,)).fetchone()
+                if source is None:
+                    row = db.execute("SELECT * FROM jobs WHERE status=? ORDER BY created_at LIMIT 1", (status,)).fetchone()
+                else:
+                    row = db.execute("SELECT * FROM jobs WHERE status=? AND source=? ORDER BY created_at LIMIT 1",
+                                     (status, source)).fetchone()
                 if row:
                     next_status = 'downloading' if status == 'queued' else 'delivering'
                     db.execute("""UPDATE jobs
@@ -216,14 +222,24 @@ async def process_queued(job: dict, store: JobStore, staging: Path, client: http
     temporary = staging / (job['id'] + '.part')
     target = staging / (job['id'] + '.epub')
     try:
-        catalog = provider if provider is not None else Gutendex()
-        item = await catalog.get_json(client, f"https://gutendex.com/books/{job['source_id']}", {})
-        if item.get("id") != job['source_id'] or item.get('copyright') is not False:
-            raise AcquisitionError('source_not_eligible')
-        formats = item.get('formats')
-        url = formats.get('application/epub+zip') if isinstance(formats, dict) else None
-        if not isinstance(url, str) or not valid_url(url):
-            raise AcquisitionError('no_trusted_epub')
+        if job["source"] == "gutenberg_catalog":
+            # No Gutendex calls: the local, first-party RDF index supplies the URI.
+            # This index grants no copyright permission; the API requires user confirmation.
+            from royalbooks.gutenberg_formats import lookup_epub
+            url = await asyncio.to_thread(lookup_epub, store.path, job["source_id"])
+            if not url:
+                raise AcquisitionError("official_epub_metadata_missing")
+        elif job["source"] == "gutendex":
+            catalog = provider if provider is not None else Gutendex()
+            item = await catalog.get_json(client, f"https://gutendex.com/books/{job['source_id']}", {})
+            if item.get("id") != job['source_id'] or item.get('copyright') is not False:
+                raise AcquisitionError('source_not_eligible')
+            formats = item.get('formats')
+            url = formats.get('application/epub+zip') if isinstance(formats, dict) else None
+            if not isinstance(url, str) or not valid_url(url):
+                raise AcquisitionError('no_trusted_epub')
+        else:
+            raise AcquisitionError("unsupported_source")
         size = await download_epub(client, url, temporary)
         digest = validate_epub(temporary)
         if store.sha_exists(digest, job['id']):
@@ -283,11 +299,14 @@ async def worker(store: JobStore, data_dir: Path, ingest: Path | None,
                     await asyncio.to_thread(deliver_staged, job, store, staging, ingest)
                     continue
             # A 403/451 cooldown must not consume another persisted job attempt.
-            if not catalog.cooldown_remaining():
+            if catalog.cooldown_remaining():
+                # Gutendex refusal must not stop independent first-party RDF jobs.
+                job = await asyncio.to_thread(store.claim, ('queued',), 'gutenberg_catalog')
+            else:
                 job = await asyncio.to_thread(store.claim, ('queued',))
-                if job:
-                    await process_queued(job, store, staging, client, catalog)
-                    continue
+            if job:
+                await process_queued(job, store, staging, client, catalog)
+                continue
             await asyncio.sleep(1.0)
 
 

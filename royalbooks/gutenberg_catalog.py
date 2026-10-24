@@ -164,6 +164,8 @@ def query_catalog(db_path: str, query: str, language: str | None, limit: int) ->
           " AND ".join(conditions) + " ORDER BY ebook_id LIMIT ?"
     with connect(db_path) as db:
         rows = db.execute(sql, (*values, limit)).fetchall()
+    from royalbooks.gutenberg_formats import lookup_epubs
+    known = lookup_epubs(db_path, [row["ebook_id"] for row in rows])
     books = []
     for row in rows:
         languages = [x for x in row["language"].strip(";").split(";") if x]
@@ -175,7 +177,8 @@ def query_catalog(db_path: str, query: str, language: str | None, limit: int) ->
             title=row["title"], authors=[name.strip() for name in row["authors"].split(";") if name.strip()],
             language=lang, year=None, cover_url=None,
             info_url=f"https://www.gutenberg.org/ebooks/{row['ebook_id']}",
-            availability="catalog_only_epub_unverified",
+            availability="official_rdf_epub_link_unverified" if row["ebook_id"] in known else "catalog_only_epub_unverified",
+            epub_url=known.get(row["ebook_id"]),
         ))
     return books
 

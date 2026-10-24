@@ -1,15 +1,16 @@
 # RoyalBooks – Book Discovery & Automation
 
-A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Docker hosts. **v0.4 development preview**, not a replacement for Calibre-Web Automated.
+A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Docker hosts. **v0.5 development preview**, not a replacement for Calibre-Web Automated.
 
 ## Features
+- **Official Project Gutenberg format index:** opt-in import of its *daily RDF bulk archive* containing specific EPUB-format URLs. These are *catalog-listed*, not live verified, and include no clearance for German copyright law. Local Gutenberg search and first-party downloads work independently from the blocked Gutendex API.
 - **Official Project Gutenberg offline index:** user-initiated import of the publisher's weekly CSV.gz catalog (~5 MB) into the local SQLite database. No per-search access to blocked Gutendex; no presumed EPUB download links.
 - Independent source adapters: **Open Library** (work-level metadata), **Gutendex** (Project Gutenberg catalog), **DNB/German National Library** (bibliographic MARC21 metadata), and optional **Google Books** (metadata only, requires API key).
 - Parallel catalog search with per-provider timeout, retry, rate limit and diagnostic success/error counters (SQLite).
 - **Provider refusal circuit breaker:** HTTP 403/451 places an origin on a 30-minute cooldown. The Gutenberg worker shares that provider instance and does not claim or exhaust queued download attempts while its catalog origin is blocked. This is intentionally not a bypass for anti-bot controls.
 - Conservative catalog cross-references: ISBN-13/title/language edition candidates versus title/author/language work candidates. All original results are preserved; no automatic merging or assumed entitlement to a download.
 - **Opt-in read-only provider benchmark** with fixed multilingual cases, explicit language checks, source error counts and measured latency (see below).
-- Opt-in Gutenberg EPUB queue: a fresh catalog lookup, US public-domain flag check **plus explicit user confirmation of local rights**, host/redirect allowlisting, stream-size limits, archive validation and SHA-256 duplicate checks.
+- Opt-in Gutenberg EPUB queue: Gutendex entries require a fresh US-public-domain-flag lookup; **first-party RDF entries require a locally indexed official EPUB URL**, with no unsupported copyright presumption. Both routes require explicit user confirmation of rights in their country, host/redirect allowlisting, size limits, EPUB validation and SHA-256 duplicate checks.
 - Manual retries only for explicitly classified transient errors, limited to three download attempts **including interrupted attempts during repeated container restarts**; ambiguous handoffs and permanent validation failures cannot be retried automatically.
 - Revalidate the staged EPUB against its original SHA-256 digest before the Calibre handoff, and refuse to replace an already existing handoff file.
 - Persistent SQLite job statuses: `queued` → `downloading` → `staged` → `delivering` → `delivered`. Errors become `failed`; interrupted handoffs become `needs_review` to prevent accidental repeated imports.
@@ -66,6 +67,29 @@ Official sources:
 - [Project Gutenberg bulk catalog and usage advice](https://www.gutenberg.org/ebooks/offline_catalogs.html)
 - [Official feed directory](https://www.gutenberg.org/cache/epub/feeds/)
 
+## Official EPUB format metadata – second offline index
+
+Project Gutenberg publishes the daily `rdf-files.tar.bz2` archive in addition to the smaller weekly CSV. The RDF includes EPUB MIME types and original format links, so RoyalBooks does not need to guess per-book download URLs or query the third-party Gutendex API.
+
+**Manual one-time commands**, after the Docker container is running:
+
+```bash
+# Step 1: Index the titles (compressed CSV ~5 MB)
+docker compose exec royalbooks python -m royalbooks.gutenberg_catalog --download
+# Step 2: Index official EPUB format metadata (compressed RDF >100 MB)
+docker compose exec royalbooks python -m royalbooks.gutenberg_formats --download
+# Offline alternative if the official tarball is already in the RoyalBooks /data volume:
+docker compose exec royalbooks python -m royalbooks.gutenberg_formats --file /data/rdf-files.tar.bz2
+```
+
+The archive is read in streaming mode without extracting its files to disk. Import is transactional: malformed archives do not destroy the existing index. The metadata transfer is capped at 256 MiB compressed, with per-record and decompression limits. It is intentionally not automatic in the preview.
+
+After both imports, the local search labels indexed files as **"official RDF EPUB link, not live verified"**. If you have independently checked your rights to a particular work, select it and enter the normal API token. RoyalBooks downloads only the allowlisted first-party URL, then validates its actual ZIP/EPUB structure and digest before handing it to the CWA ingest folder. **A metadata link alone never proves actual availability, successful download, or an import into Calibre.** Some redirects may be refused for safety. File sizes over the current 32 MiB download limit are rejected.
+
+The new download source ID is `gutenberg_catalog` (the original `gutendex` remains supported independently). The persistent queue and previous database schema remain compatible.
+
+Sources: [official Gutenberg feeds](https://www.gutenberg.org/cache/epub/feeds/) and [bulk metadata guidance](https://www.gutenberg.org/ebooks/offline_catalogs.html).
+
 ## Source benchmark (manual, read-only)
 
 The included 12-case corpus is in `benchmarks/cases.json` and deliberately mixes German classics, English books and contemporary protected bestsellers. It measures **catalog metadata search quality only**, never unauthorized downloads:
@@ -97,4 +121,4 @@ The DNB and Google Books adapters are metadata-only: a preview or search result 
 - [CWA Docker ingest volume](https://github.com/crocodilestick/Calibre-Web-Automated/blob/main/docker-compose.yml)
 
 ## Next milestone
-Resolve format-specific download availability without bypassing provider restrictions, then confirm live benchmark results, improve edition-level mappings using authoritative edition records, add explicit safe recovery for ambiguous handoffs and independently verify Calibre import status. Authenticate the whole UI before any public exposure.
+Validate real first-party EPUB transfer reliability and NAS/CWA import completion without bypassing provider restrictions; improve source matching and confirm live benchmark results, improve edition-level mappings using authoritative edition records, add explicit safe recovery for ambiguous handoffs and independently verify Calibre import status. Authenticate the whole UI before any public exposure.
