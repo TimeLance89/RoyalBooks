@@ -15,5 +15,13 @@ jobs:
         run: pip install -e '.[test]'
       - name: Test
         run: pytest -q
+      - name: Check browser JavaScript
+        run: |
+          python - <<'PYCODE'
+          from pathlib import Path
+          source = Path('royalbooks/static/index.html').read_text()
+          Path('/tmp/royalbooks-ui.js').write_text(source.split('<script>', 1)[1].split('</script>', 1)[0])
+          PYCODE
+          node --check /tmp/royalbooks-ui.js
       - name: Build image
         run: docker build -t royalbooks:test .

@@ -34,7 +34,7 @@ $('refresh').addEventListener('click',loadJobs);
 async function addBook(book){if(!confirm('Hast du geprüft, dass du dieses Buch in deinem Land rechtmäßig herunterladen und speichern darfst?'))return;
 const token=$('token').value;if(!token){$('job-message').textContent='Bitte zuerst den API-Token eintragen.';return}
 try{const r=await fetch('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json','X-API-Key':token},body:JSON.stringify({provider:'gutendex',source_id:Number(book.source_id),rights_confirmed:true})});
-const data=await r.json();if(!r.ok)throw Error(data.detail||'HTTP '+r.status);$('job-message').textContent='Auftrag für '+book.title+' vorgemerkt.';loadJobs()}catch(err){$('job-message').textContent='Übernahme fehlgeschlagen: '+err.message}}
+const data=await r.json();if(!r.ok)throw Error(data.detail||'HTTP '+r.status);$('job-message').textContent='Auftrag für '+book.title+' vorgemerkt.';loadJobs()}catch(err){$('job-message').textContent='Übernahme fehlgeschlagen: '+err.message}
 $('job-message').scrollIntoView({block:'nearest'})}
 $('search').addEventListener('submit',async e=>{e.preventDefault();$('go').disabled=true;$('message').textContent='Provider werden parallel geprüft …';$('books').replaceChildren();
 try{const params=new URLSearchParams({q:$('q').value.trim(),language:$('language').value});const r=await fetch('/api/search?'+params);if(!r.ok)throw Error('HTTP '+r.status);const result=await r.json();
