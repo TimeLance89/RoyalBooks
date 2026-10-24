@@ -12,6 +12,7 @@ from fastapi import FastAPI, Header, HTTPException, Query, Path as ApiPath
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, field_validator
 
+from royalbooks.direct_sources import SOURCES, lookup_epub as lookup_direct_epub
 from royalbooks.jobs import JobStateError, JobStore, require_token, worker
 from royalbooks.gutenberg_catalog import catalog_status
 from royalbooks.gutenberg_formats import format_status, lookup_epub
@@ -49,7 +50,7 @@ async def lifespan(app: FastAPI):
             await task
 
 
-app = FastAPI(title='RoyalBooks', version='0.8.0', lifespan=lifespan)
+app = FastAPI(title='RoyalBooks', version='0.9.0', lifespan=lifespan)
 
 
 @app.get('/')
@@ -59,7 +60,7 @@ async def homepage():
 
 @app.get('/api/health')
 async def health():
-    return {'status': 'ok', 'version': '0.8.0'}
+    return {'status': 'ok', 'version': '0.9.0'}
 
 
 @app.get('/api/providers')
@@ -104,7 +105,7 @@ async def search(q: str = Query(min_length=2, max_length=120),
 
 class QueueRequest(BaseModel):
     provider: str = 'gutendex'
-    source_id: int = Field(gt=0, le=99999999)
+    source_id: int = Field(gt=0, le=9223372036854775807)
     rights_confirmed: bool = False
 
 
@@ -119,7 +120,7 @@ def _guard(token: str | None) -> None:
 @app.post('/api/jobs', status_code=202)
 async def enqueue(request: QueueRequest, x_api_key: str | None = Header(default=None)):
     _guard(x_api_key)
-    if request.provider not in {'gutendex', 'gutenberg_catalog'}:
+    if request.provider not in {'gutendex', 'gutenberg_catalog', *SOURCES}:
         raise HTTPException(status_code=400, detail='unsupported_download_provider')
     if not request.rights_confirmed:
         raise HTTPException(status_code=400, detail='local_rights_confirmation_required')
@@ -127,6 +128,10 @@ async def enqueue(request: QueueRequest, x_api_key: str | None = Header(default=
         lookup_epub, app.state.jobs.path, request.source_id
     ):
         raise HTTPException(status_code=409, detail='official_epub_metadata_missing')
+    if request.provider in SOURCES and not await asyncio.to_thread(
+        lookup_direct_epub, app.state.jobs.path, request.provider, request.source_id
+    ):
+        raise HTTPException(status_code=409, detail='publisher_epub_metadata_missing_or_expired')
     return {'job': app.state.jobs.add(request.source_id, request.provider)}
 
 

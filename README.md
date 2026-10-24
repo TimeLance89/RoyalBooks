@@ -1,8 +1,10 @@
 # RoyalBooks – Book Discovery & Automation
 
-A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Docker hosts. **v0.8 development preview**, not a replacement for Calibre-Web Automated.
+A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Docker hosts. **v0.9 development preview**, not a replacement for Calibre-Web Automated.
 
 ## Features
+- **Two additional direct-EPUB connectors:** public Wikisource WSIndex finished-book catalog + Wikimedia WS Export (German/English), and Standard Ebooks **public recent-release Atom feed only** (English). Each entry must contain an explicit provider-listed EPUB link; no guessed filenames, no user-controlled URLs, no authentication bypass.
+- Direct source identity and publisher URL are bound in SQLite to short-lived, collision-resistant IDs (7-day expiry). Queue workers use the source-specific allowlist for every HTTP redirect, validate the downloaded EPUB, deduplicate SHA-256 and use the existing guarded Calibre handoff.
 - **Persistent Merkliste:** catalog books can be saved and removed in the browser, even when no EPUB source is known. This never starts a download; a separate explicit rights confirmation is always needed.
 - **In-browser Gutenberg catalog setup:** authenticated one-click CSV and RDF feed imports, readable queued/downloading/indexing/completed/failed status, one import at a time, and restart-safe audit history. No CLI or repeated manual status commands required.
 - **Official Project Gutenberg format index:** opt-in import of its *daily RDF bulk archive* containing specific EPUB-format URLs. These are *catalog-listed*, not live verified, and include no clearance for German copyright law. Local Gutenberg search and first-party downloads work independently from the blocked Gutendex API.
@@ -20,6 +22,23 @@ A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Dock
 - **Optional read-only Calibre presence check:** inspect the actual Calibre `metadata.db` and find an identical EPUB by recorded file size plus SHA-256. Never modifies library content, never treats missing matches as proof of failed import, and never claims the specific RoyalBooks job caused an existing file.
 - Read-only handoff diagnostics distinguish files still in the import folder, files no longer there, and inaccessible folders. **A vanished file is not proof of a successful Calibre import.** Ambiguous handoffs remain blocked for manual review.
 - API token required for job creation and job listing. No cloud accounts, scraping, torrent downloads, DRM removal or arbitrary URL fetching.
+
+## Direct-source connectors (development preview)
+
+RoyalBooks now includes two more **actual EPUB acquisition pipelines**, not merely metadata searches:
+
+- **Wikisource:** `https://wsindex.toolforge.org/books/` offers a catalog of validated/proofread works and published EPUB export URLs supplied by the Wikimedia WS Export infrastructure. Only the returned `epub_url` on the official exporter domains is eligible. The integration currently scans a *bounded initial catalog page*, so it is **not yet a complete global title search**. Source availability and exporter rate limits must be tested live. The associated German translation or edition may have separate copyright restrictions.
+- **Standard Ebooks:** `https://standardebooks.org/feeds/atom/new-releases` is the publisher's publicly accessible, 15-book new-releases feed. RoyalBooks accepts **only explicit `rel=enclosure` EPUB links** from that public feed on the publisher's domain. The complete OPDS/Atom catalogs may require approved membership or project access. RoyalBooks neither evades that access restriction nor guesses hidden download URLs. Existing ebooks remain downloadable on the publisher's website.
+
+Both sources are searchable from the existing RoyalBooks UI and submit one-click EPUB acquisition jobs after the user confirms rights for that title in their country. Entries without trustworthy direct EPUB links are never given a download action. Link listings do not guarantee the server still serves the file. A search populates an expiring local source record; when that record is older than seven days, searching again refreshes it. All download activity remains token-protected; same EPUB validation, 32 MiB cap, safe redirects, error states, hashes and optional CWA import handoff apply.
+
+**No commercial DRM bypass, paid-catalog scraping, credential workarounds or access-control evasion.** Free personal use does not itself grant rights to copy paid ebooks. Library-owned files can still be imported via existing lawful CWA mechanisms. This scope also keeps publisher APIs from being abused.
+
+### Related open-source work reviewed
+
+- [Wikimedia WS Export](https://github.com/wikimedia/ws-export), maintained at [Wikimedia GitLab](https://gitlab.wikimedia.org/toolforge-repos/wsexport), documents the official EPUB export mechanism.
+- [Wikisource tools](https://github.com/ruslanbay/wikisource-exporter) demonstrate a different packaging approach; integration instead uses Wikimedia's public export infrastructure.
+- [BookShelves OPDS catalog list](https://github.com/getbookshelves/opds-catalog) is a useful discovery list but includes feeds requiring authentication or which may be retired. Any additional OPDS connector must explicitly distinguish free acquisition from borrowing, purchase and preview links.
 
 ## NAS host audit: actual CWA / RoyalBooks Docker mounts
 

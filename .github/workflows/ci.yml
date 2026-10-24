@@ -35,5 +35,7 @@ jobs:
         run: |
           pytest -q tests/test_nas_cwa_audit.py
           python scripts/nas_cwa_audit.py --help
+      - name: Direct publisher EPUB search and guarded queue tests
+        run: pytest -q tests/test_direct_sources.py
       - name: Build image
         run: docker build -t royalbooks:test .

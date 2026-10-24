@@ -16,6 +16,7 @@ from defusedxml import ElementTree
 import httpx
 
 from royalbooks.providers import Gutendex, ProviderError
+from royalbooks.direct_sources import SOURCES, lookup_epub as lookup_direct_epub, safe_epub_url
 
 MAX_BYTES = 32 * 1024 * 1024
 MAX_UNCOMPRESSED = 160 * 1024 * 1024
@@ -119,7 +120,7 @@ class JobStore:
         return db
 
     def add(self, source_id: int, source: str = "gutendex") -> dict:
-        if source not in {"gutendex", "gutenberg_catalog"}:
+        if source not in {"gutendex", "gutenberg_catalog", *SOURCES}:
             raise JobStateError("unsupported_source")
         with self._db() as db:
             db.execute("INSERT OR IGNORE INTO jobs(id,source,source_id,status) VALUES (?,?,?,'queued')",
@@ -191,14 +192,15 @@ class JobStore:
             return dict(db.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone())
 
 
-async def download_epub(client: httpx.AsyncClient, url: str, destination: Path) -> int:
-    if not valid_url(url):
+async def download_epub(client: httpx.AsyncClient, url: str, destination: Path, source: str = "gutendex") -> int:
+    checker = valid_url if source not in SOURCES else lambda u: safe_epub_url(source, u)
+    if not checker(url):
         raise AcquisitionError("untrusted_download_host")
     for _ in range(4):
         async with client.stream("GET", url, follow_redirects=False) as response:
             if response.status_code in (301, 302, 303, 307, 308):
                 target = urljoin(url, response.headers.get("location", ""))
-                if not valid_url(target):
+                if not checker(target):
                     raise AcquisitionError("untrusted_redirect")
                 url = target
                 continue
@@ -229,6 +231,10 @@ async def process_queued(job: dict, store: JobStore, staging: Path, client: http
             url = await asyncio.to_thread(lookup_epub, store.path, job["source_id"])
             if not url:
                 raise AcquisitionError("official_epub_metadata_missing")
+        elif job["source"] in SOURCES:
+            url = await asyncio.to_thread(lookup_direct_epub, store.path, job["source"], job["source_id"])
+            if not url:
+                raise AcquisitionError("publisher_epub_metadata_missing_or_expired")
         elif job["source"] == "gutendex":
             catalog = provider if provider is not None else Gutendex()
             item = await catalog.get_json(client, f"https://gutendex.com/books/{job['source_id']}", {})
@@ -240,7 +246,7 @@ async def process_queued(job: dict, store: JobStore, staging: Path, client: http
                 raise AcquisitionError('no_trusted_epub')
         else:
             raise AcquisitionError("unsupported_source")
-        size = await download_epub(client, url, temporary)
+        size = await download_epub(client, url, temporary, source=job["source"])
         digest = validate_epub(temporary)
         if store.sha_exists(digest, job['id']):
             raise AcquisitionError('duplicate_epub')
@@ -309,7 +315,11 @@ async def worker(store: JobStore, data_dir: Path, ingest: Path | None,
             # A 403/451 cooldown must not consume another persisted job attempt.
             if catalog.cooldown_remaining():
                 # Gutendex refusal must not stop independent first-party RDF jobs.
-                job = await asyncio.to_thread(store.claim, ('queued',), 'gutenberg_catalog')
+                job = None
+                for independent in ('gutenberg_catalog', 'wikisource', 'standardebooks'):
+                    job = await asyncio.to_thread(store.claim, ('queued',), independent)
+                    if job:
+                        break
             else:
                 job = await asyncio.to_thread(store.claim, ('queued',))
             if job:
