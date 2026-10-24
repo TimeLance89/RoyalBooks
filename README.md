@@ -3,6 +3,7 @@
 A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Docker hosts. **v0.8 development preview**, not a replacement for Calibre-Web Automated.
 
 ## Features
+- **Persistent Merkliste:** catalog books can be saved and removed in the browser, even when no EPUB source is known. This never starts a download; a separate explicit rights confirmation is always needed.
 - **In-browser Gutenberg catalog setup:** authenticated one-click CSV and RDF feed imports, readable queued/downloading/indexing/completed/failed status, one import at a time, and restart-safe audit history. No CLI or repeated manual status commands required.
 - **Official Project Gutenberg format index:** opt-in import of its *daily RDF bulk archive* containing specific EPUB-format URLs. These are *catalog-listed*, not live verified, and include no clearance for German copyright law. Local Gutenberg search and first-party downloads work independently from the blocked Gutendex API.
 - **Official Project Gutenberg offline index:** user-initiated import of the publisher's weekly CSV.gz catalog (~5 MB) into the local SQLite database. No per-search access to blocked Gutendex; no presumed EPUB download links.
@@ -59,6 +60,7 @@ Default configuration binds to **127.0.0.1**, so it is not visible on the LAN un
 - `POST /api/jobs/{id}/retry`: API key and `{ "rights_confirmed": true }` required; allowed only for transient failed jobs with fewer than three attempts, otherwise HTTP 409.
 - `GET /api/health`: health/version.
 - `GET /api/preflight`: API key required; read-only NAS/CWA configuration diagnostics without displaying the token or host paths. The web UI exposes these checks via **NAS-Einrichtung prüfen**.
+- `GET /api/watchlist`, `POST /api/watchlist`, `DELETE /api/watchlist/{id}`: authenticated local reading list. User-entered source IDs and external HTTPS metadata links are validated. Saving is *not* an acquisition request.
 - `GET /api/catalog/imports`: authenticated history of the 20 latest official-feed imports.
 - `POST /api/catalog/imports`: authenticated, explicit import of either `{"source":"csv"}` or `{"source":"rdf"}`. Only one active import; second request returns HTTP 409. Archive requests and local parsing have bounded sizes, use existing transactional importers and touch no Calibre files.
 

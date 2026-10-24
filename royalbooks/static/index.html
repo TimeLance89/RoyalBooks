@@ -10,13 +10,20 @@ input[type=search]{flex:1;min-width:180px}button{background:#a73340;border-color
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(275px,1fr));gap:14px}.book{background:#202128;border:1px solid #34333a;border-radius:12px;padding:16px;display:flex;gap:15px;min-height:165px}
 .cover{width:72px;height:108px;object-fit:cover;background:#38363d;border-radius:5px}.book h3{font-size:16px;margin:0 0 6px;line-height:1.3}.book p{font-size:13px;margin:4px 0}.book a{font-size:13px;color:#e0b663}.stats{display:flex;gap:9px;flex-wrap:wrap;margin:18px 0}.stat{background:#292730;padding:10px 14px;border-radius:8px;font-size:13px}
 footer{border-top:1px solid #333;margin-top:32px;padding-top:18px;font-size:13px}.pill{font-size:11px;color:#e5c58b}
-.controls{background:#1b1c23;border:1px solid #39363e;border-radius:12px;padding:18px;margin:20px 0}.controls h2{margin:0;font-size:18px}.controls label{font-size:13px;display:block;margin:12px 0 4px}.controls input[type=password]{width:min(100%,440px)}.jobs{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}.jobs td,.jobs th{border-bottom:1px solid #3a3840;padding:9px 6px;text-align:left}.subtle{background:#32313b;border-color:#53505a}.action{margin-top:10px;font-size:12px;padding:8px 10px}
+.controls{background:#1b1c23;border:1px solid #39363e;border-radius:12px;padding:18px;margin:20px 0}.controls h2{margin:0;font-size:18px}.controls label{font-size:13px;display:block;margin:12px 0 4px}.controls input[type=password]{width:min(100%,440px)}.jobs{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}.jobs td,.jobs th{border-bottom:1px solid #3a3840;padding:9px 6px;text-align:left}.subtle{background:#32313b;border-color:#53505a}.action{margin-top:10px;font-size:12px;padding:8px 10px}.watch-row{display:flex;align-items:start;justify-content:space-between;gap:14px;border-bottom:1px solid #3a3840;padding:12px 0}.watch-row h3{font-size:15px;margin:0}.watch-row button{white-space:nowrap}.watch-row p{font-size:12px;margin:6px 0}.watch-row a{color:#e0b663;font-size:12px}
 </style></head>
 <body><header><span class="accent">✦ ROYALBOOKS</span><span class="chip">ROYALBOOKS · v0.8</span></header>
 <h1>Finde dein nächstes Buch.</h1><p class="muted">Quellen vergleichen, Trefferqualität prüfen und freigegebene EPUBs in deine Bibliothek übernehmen.</p>
 <form id="search"><input type="search" id="q" placeholder="Titel oder Autor, z. B. Kafka" required minlength="2" maxlength="120" aria-label="Suche"><select id="language" aria-label="Sprache"><option value="de">Deutsch</option><option value="en">Englisch</option><option value="all">Alle</option></select><button id="go">Suchen</button></form>
 <div id="message" role="status" class="muted">Bereit für die erste Suche.</div><section id="stats" class="stats" aria-label="Providerstatus"></section>
 <section id="books" class="cards" aria-live="polite"></section>
+<section class="controls" id="watchlist">
+<h2>Meine Merkliste</h2>
+<p class="muted">Interessante Bücher speichern, auch wenn noch keine passende EPUB verfügbar ist. Merken löst keinen Download aus.</p>
+<button type="button" id="watchlist-refresh" class="subtle">Merkliste öffnen</button>
+<div id="watchlist-message" role="status" class="muted"></div>
+<div id="watchlist-items" aria-live="polite"></div>
+</section>
 <section class="controls" id="catalog-controls">
 <h2>Offiziellen Gutenberg-Katalog einrichten</h2>
 <p class="muted">Ohne Kommandozeile: erst Buchdaten (CSV), dann EPUB-Formatinformationen (RDF) importieren. Der zweite Schritt verarbeitet ein großes Archiv. Die Abfragen erfolgen nur nach deinem Klick.</p>
@@ -120,6 +127,54 @@ $('preflight').addEventListener('click',async ()=>{
   }catch(error){output.replaceChildren(text('p','NAS-Prüfung fehlgeschlagen: '+error.message,'muted'))}
   finally{$('preflight').disabled=false}
 });
+async function loadWatchlist(){
+  const token=$('token').value;
+  if(!token){$('watchlist-message').textContent='Bitte zunächst den API-Token unter Automatische Übernahme eingeben.';return}
+  try{
+    const response=await fetch('/api/watchlist',{headers:{'X-API-Key':token}});
+    if(!response.ok)throw Error('HTTP '+response.status);
+    const data=await response.json(), items=data.items||[];
+    $('watchlist-message').textContent=items.length+' gespeicherte Bücher · Speicherung löst keinen Download aus.';
+    const panel=$('watchlist-items');
+    panel.replaceChildren(...items.map(book=>{
+      const row=text('article','','watch-row'), info=document.createElement('div');
+      info.append(text('h3',book.title),text('p',(book.authors||[]).join(', ')||'Autor unbekannt','muted'),
+                  text('p',book.source+' · '+(book.language||'Sprache unbekannt'),'pill'));
+      const link=safeUrl(book.info_url);
+      if(link){const a=text('a','Quelle anzeigen ↗');a.href=link;a.target='_blank';a.rel='noopener noreferrer';info.append(a)}
+      const remove=text('button','Entfernen','subtle action');remove.type='button';
+      remove.addEventListener('click',async ()=>{
+        if(!confirm('Dieses Buch aus der Merkliste entfernen?'))return;
+        try{
+          const response=await fetch('/api/watchlist/'+encodeURIComponent(book.id),
+              {method:'DELETE',headers:{'X-API-Key':$('token').value}});
+          if(!response.ok)throw Error('HTTP '+response.status);
+          await loadWatchlist();
+        }catch(error){$('watchlist-message').textContent='Entfernen fehlgeschlagen: '+error.message}
+      });
+      row.append(info,remove);return row;
+    }));
+  }catch(error){$('watchlist-message').textContent='Merkliste nicht verfügbar: '+error.message}
+}
+async function saveBook(book){
+  const token=$('token').value;
+  if(!token){$('watchlist-message').textContent='Zum Merken zuerst den API-Token eingeben.';return}
+  const payload={
+    source:book.source,source_id:String(book.source_id),title:book.title,
+    authors:(book.authors||[]).slice(0,8).map(name=>name.slice(0,120)),
+    language:/^[a-z]{2,3}$/.test(book.language||'')?book.language:null,
+    info_url:safeUrl(book.info_url)
+  };
+  try{
+    const response=await fetch('/api/watchlist',{method:'POST',
+      headers:{'Content-Type':'application/json','X-API-Key':token},body:JSON.stringify(payload)});
+    const data=await response.json();
+    if(!response.ok)throw Error(data.detail||'HTTP '+response.status);
+    $('watchlist-message').textContent=book.title+' gespeichert.';
+    await loadWatchlist();
+  }catch(error){$('watchlist-message').textContent='Merken fehlgeschlagen: '+error.message}
+}
+$('watchlist-refresh').addEventListener('click',loadWatchlist);
 let catalogTimer=null;
 const importLabels={queued:'Wartend',downloading:'Offizielle Daten werden geladen',indexing:'Daten werden lokal indexiert',completed:'Import abgeschlossen',failed:'Import fehlgeschlagen',interrupted:'Import durch Neustart unterbrochen'};
 async function refreshImports(){
@@ -182,6 +237,7 @@ if(groups.some(g=>g.kind==='edition_candidate')) detail.append(text('p','ISBN-Au
 else if(groups.some(g=>g.kind==='work_candidate')) detail.append(text('p','Gleiches Werk vermutet – Ausgabe unklar','pill'));
 if(item.isbn13) detail.append(text('p','ISBN-13: '+item.isbn13,'muted'));
 if(safeUrl(item.info_url)){const a=text('a','Details zur Quelle ↗');a.href=safeUrl(item.info_url);a.target='_blank';a.rel='noopener noreferrer';detail.append(a)}
+const save=text('button','Merken','subtle action');save.type='button';save.addEventListener('click',()=>saveBook(item));detail.append(save);
 if((item.source==='gutendex'||item.source==='gutenberg_catalog')&&item.epub_url){const button=text('button','Zur Bibliothek hinzufügen','action');button.type='button';button.addEventListener('click',()=>addBook(item));detail.append(button)}card.append(cover,detail);$('books').append(card)}
 }catch(err){$('message').textContent='Suche fehlgeschlagen: '+err.message}finally{$('go').disabled=false;loadStats()}});
 loadStats();

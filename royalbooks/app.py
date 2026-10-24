@@ -10,7 +10,7 @@ from time import perf_counter
 import httpx
 from fastapi import FastAPI, Header, HTTPException, Query, Path as ApiPath
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from royalbooks.jobs import JobStateError, JobStore, require_token, worker
 from royalbooks.gutenberg_catalog import catalog_status
@@ -19,6 +19,7 @@ from royalbooks.handoff import observe_handoff
 from royalbooks.calibre_verify import verify_library_presence
 from royalbooks.preflight import diagnose
 from royalbooks.catalog_admin import CatalogImportService, CatalogImportBusy
+from royalbooks.watchlist import WatchlistStore, WatchlistFull
 from typing import Literal
 from royalbooks.providers import Book, GoogleBooks, Gutendex, OpenLibrary, Provider
 from royalbooks.source_registry import configured_providers
@@ -32,6 +33,7 @@ async def lifespan(app: FastAPI):
     app.state.store = MetricsStore(path)
     app.state.jobs = JobStore(path)
     app.state.catalog_imports = CatalogImportService(path)
+    app.state.watchlist = WatchlistStore(path)
     sources = configured_providers()
     app.state.providers = {p.name: p for p in sources}
     data = Path(path).parent
@@ -150,6 +152,51 @@ async def request_catalog_import(
         return {'import': app.state.catalog_imports.request(request.source)}
     except CatalogImportBusy as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+class WatchlistRequest(BaseModel):
+    source: Literal["gutendex", "gutenberg_catalog", "openlibrary", "dnb", "google_books"]
+    source_id: str = Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_-]+$")
+    title: str = Field(min_length=2, max_length=250)
+    authors: list[str] = Field(default_factory=list, max_length=8)
+    language: str | None = Field(default=None, max_length=3, pattern=r"^[a-z]{2,3}$")
+    info_url: str | None = Field(default=None, max_length=500, pattern=r"^https://")
+
+    @field_validator("authors")
+    @classmethod
+    def check_authors(cls, value: list[str]) -> list[str]:
+        if any(not author.strip() or len(author) > 120 for author in value):
+            raise ValueError("invalid_author")
+        return value
+
+
+@app.get("/api/watchlist")
+async def list_watchlist(x_api_key: str | None = Header(default=None)):
+    _guard(x_api_key)
+    return {"items": await asyncio.to_thread(app.state.watchlist.list),
+            "notice": "A saved book is not a download request."}
+
+
+@app.post("/api/watchlist", status_code=201)
+async def save_to_watchlist(book: WatchlistRequest, x_api_key: str | None = Header(default=None)):
+    _guard(x_api_key)
+    try:
+        item = await asyncio.to_thread(app.state.watchlist.add, **book.model_dump())
+    except WatchlistFull as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return {"item": item}
+
+
+@app.delete("/api/watchlist/{item_id}")
+async def delete_watchlist_item(
+    item_id: str = ApiPath(min_length=32, max_length=32, pattern=r"^[0-9a-f]{32}$"),
+    x_api_key: str | None = Header(default=None),
+):
+    _guard(x_api_key)
+    removed = await asyncio.to_thread(app.state.watchlist.remove, item_id)
+    if not removed:
+        raise HTTPException(status_code=404, detail="item_not_found")
+    return {"removed": True}
 
 
 @app.get('/api/preflight')
