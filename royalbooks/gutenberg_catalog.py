@@ -168,12 +168,12 @@ def query_catalog(db_path: str, query: str, language: str | None, limit: int) ->
     for row in rows:
         languages = [x for x in row["language"].strip(";").split(";") if x]
         lang = language if language and language in languages else (languages[0] if len(languages) == 1 else None)
-        issued = row["issued"] or ""
-        year = int(issued[:4]) if re.match(r"^\d{4}", issued) else None
+        # Gutenberg CSV "Issued" means *catalog release*, not original
+        # publication year. Do not misrepresent it as the book's year.
         books.append(Book(
             source="gutenberg_catalog", source_id=str(row["ebook_id"]),
             title=row["title"], authors=[name.strip() for name in row["authors"].split(";") if name.strip()],
-            language=lang, year=year, cover_url=None,
+            language=lang, year=None, cover_url=None,
             info_url=f"https://www.gutenberg.org/ebooks/{row['ebook_id']}",
             availability="catalog_only_epub_unverified",
         ))
