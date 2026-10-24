@@ -1,6 +1,6 @@
 # RoyalBooks – Book Discovery & Automation
 
-A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Docker hosts. **v0.5 development preview**, not a replacement for Calibre-Web Automated.
+A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Docker hosts. **v0.6 development preview**, not a replacement for Calibre-Web Automated.
 
 ## Features
 - **Official Project Gutenberg format index:** opt-in import of its *daily RDF bulk archive* containing specific EPUB-format URLs. These are *catalog-listed*, not live verified, and include no clearance for German copyright law. Local Gutenberg search and first-party downloads work independently from the blocked Gutendex API.
@@ -15,6 +15,7 @@ A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Dock
 - Revalidate the staged EPUB against its original SHA-256 digest before the Calibre handoff, and refuse to replace an already existing handoff file.
 - Persistent SQLite job statuses: `queued` → `downloading` → `staged` → `delivering` → `delivered`. Errors become `failed`; interrupted handoffs become `needs_review` to prevent accidental repeated imports.
 - Optional handoff to the **existing CWA ingest directory**, never writes to `metadata.db`. **`delivered` only means the file was handed off to CWA, not that CWA completed the import.**
+- **Optional read-only Calibre presence check:** inspect the actual Calibre `metadata.db` and find an identical EPUB by recorded file size plus SHA-256. Never modifies library content, never treats missing matches as proof of failed import, and never claims the specific RoyalBooks job caused an existing file.
 - Read-only handoff diagnostics distinguish files still in the import folder, files no longer there, and inaccessible folders. **A vanished file is not proof of a successful Calibre import.** Ambiguous handoffs remain blocked for manual review.
 - API token required for job creation and job listing. No cloud accounts, scraping, torrent downloads, DRM removal or arbitrary URL fetching.
 
@@ -31,7 +32,8 @@ Default configuration binds to **127.0.0.1**, so it is not visible on the LAN un
 - `GET /api/search?q=Kafka&language=de`: mixed catalog listings; metadata results ≠ downloads.
 - `GET /api/providers`: anonymized source quality counters (the last 200 attempts; no search terms stored).
 - `POST /api/jobs`: `X-API-Key: <token>`, JSON `{"provider":"gutendex","source_id":42,"rights_confirmed":true}`.
-- `GET /api/jobs`: API key required, last 100 jobs, ingest configuration, and `handoff_observation` for each staged/delivered/ambiguous job.
+- `GET /api/jobs`: API key required, last 100 jobs, ingest/library configuration, and `handoff_observation` for each staged/delivered/ambiguous job.
+- `GET /api/jobs/{id}/library-check`: API key required, optional read-only exact EPUB hash check against Calibre `metadata.db`; does not imply causal import confirmation.
 - `POST /api/jobs/{id}/retry`: API key and `{ "rights_confirmed": true }` required; allowed only for transient failed jobs with fewer than three attempts, otherwise HTTP 409.
 - `GET /api/health`: health/version.
 
@@ -89,6 +91,16 @@ After both imports, the local search labels indexed files as **"official RDF EPU
 The new download source ID is `gutenberg_catalog` (the original `gutendex` remains supported independently). The persistent queue and previous database schema remain compatible.
 
 Sources: [official Gutenberg feeds](https://www.gutenberg.org/cache/epub/feeds/) and [bulk metadata guidance](https://www.gutenberg.org/ebooks/offline_catalogs.html).
+
+## Optional Calibre library verification (read-only)
+
+For this optional check, set `ROYALBOOKS_CWA_LIBRARY_PATH` in `.env` to the **host directory** that your existing CWA container mounts at `/calibre-library`. This must be the library directory containing `metadata.db`, **not** the ingest folder. RoyalBooks mounts it at `/cwa-library:ro` (strictly read-only); the original CWA library must continue to be managed only by CWA/Calibre. Do not change ownership or database permissions solely for RoyalBooks.
+
+The authenticated `GET /api/jobs/{id}/library-check` endpoint is available for jobs marked `delivered`. The button **In Calibre prüfen** performs this one check on demand. It reads registered EPUB format entries from Calibre's standard `books` / `data` tables and computes SHA-256 only for bounded candidate files of the same recorded size (100 max). It follows no symlink outside the mounted library and does not crawl the directory tree. If the exact hash exists, the answer is `identical_epub_present`: an identical EPUB is **present in the library**. This is **not proof that this job imported the book**; the file may have existed beforehand.
+
+If no exact match exists, the result is `no_exact_match_unverified` rather than `failed`. CWA can rewrite EPUBs, calibre's size metadata can become stale, and filesystem/SQLite state can lag. An ingest file disappearing still does not prove success. This feature doesn't require write access, an undocumented CWA API or scraping. If SQLite cannot read a live WAL-enabled library on a read-only mount, the result stays inconclusive, rather than changing CWA settings.
+
+**Real NAS validation is still required**: no access to your current library was performed in CI, only fixtures. The existing Calibre import handoff and job states remain unchanged.
 
 ## Source benchmark (manual, read-only)
 

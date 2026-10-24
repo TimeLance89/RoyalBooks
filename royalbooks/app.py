@@ -16,6 +16,7 @@ from royalbooks.jobs import JobStateError, JobStore, require_token, worker
 from royalbooks.gutenberg_catalog import catalog_status
 from royalbooks.gutenberg_formats import format_status, lookup_epub
 from royalbooks.handoff import observe_handoff
+from royalbooks.calibre_verify import verify_library_presence
 from royalbooks.providers import Book, GoogleBooks, Gutendex, OpenLibrary, Provider
 from royalbooks.source_registry import configured_providers
 from royalbooks.matching import match_groups
@@ -41,7 +42,7 @@ async def lifespan(app: FastAPI):
             await task
 
 
-app = FastAPI(title='RoyalBooks', version='0.5.0', lifespan=lifespan)
+app = FastAPI(title='RoyalBooks', version='0.6.0', lifespan=lifespan)
 
 
 @app.get('/')
@@ -51,7 +52,7 @@ async def homepage():
 
 @app.get('/api/health')
 async def health():
-    return {'status': 'ok', 'version': '0.5.0'}
+    return {'status': 'ok', 'version': '0.6.0'}
 
 
 @app.get('/api/providers')
@@ -132,6 +133,7 @@ async def list_jobs(x_api_key: str | None = Header(default=None)):
     for job in records:
         job['handoff_observation'] = await asyncio.to_thread(observe_handoff, job, staging, ingest)
     return {'jobs': records, 'ingest_configured': bool(ingest_path),
+            'library_configured': bool(os.getenv('ROYALBOOKS_CWA_LIBRARY_PATH', '').strip()),
             'handoff_notice': 'A disappearing ingest file does not confirm a successful Calibre import.'}
 
 
@@ -154,3 +156,18 @@ async def retry_job(
     except JobStateError as exc:
         code = 404 if str(exc) == 'job_not_found' else 409
         raise HTTPException(status_code=code, detail=str(exc)) from exc
+
+
+@app.get('/api/jobs/{job_id}/library-check')
+async def library_check(
+    job_id: str = ApiPath(min_length=32, max_length=32, pattern=r'^[0-9a-f]{32}$'),
+    x_api_key: str | None = Header(default=None),
+):
+    """Check only for an identical file registered in the read-only Calibre DB."""
+    _guard(x_api_key)
+    job = await asyncio.to_thread(app.state.jobs.get, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail='job_not_found')
+    location = os.getenv('ROYALBOOKS_CWA_LIBRARY_PATH', '').strip()
+    verification = await asyncio.to_thread(verify_library_presence, job, location)
+    return {'job_id': job_id, 'verification': verification}
