@@ -87,6 +87,7 @@ async def test_end_to_end_staging_and_handoff(tmp_path):
     staging = tmp_path / 'staging'
     staging.mkdir()
     ingest = tmp_path / 'cwa-ingest'
+    ingest.mkdir()
     job = store.add(42)
     epub = example_epub()
     def handler(request):

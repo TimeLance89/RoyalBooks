@@ -1,6 +1,6 @@
 # RoyalBooks – Book Discovery & Automation
 
-A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Docker hosts. **v0.6 development preview**, not a replacement for Calibre-Web Automated.
+A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Docker hosts. **v0.7 development preview**, not a replacement for Calibre-Web Automated.
 
 ## Features
 - **Official Project Gutenberg format index:** opt-in import of its *daily RDF bulk archive* containing specific EPUB-format URLs. These are *catalog-listed*, not live verified, and include no clearance for German copyright law. Local Gutenberg search and first-party downloads work independently from the blocked Gutendex API.
@@ -18,6 +18,25 @@ A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Dock
 - **Optional read-only Calibre presence check:** inspect the actual Calibre `metadata.db` and find an identical EPUB by recorded file size plus SHA-256. Never modifies library content, never treats missing matches as proof of failed import, and never claims the specific RoyalBooks job caused an existing file.
 - Read-only handoff diagnostics distinguish files still in the import folder, files no longer there, and inaccessible folders. **A vanished file is not proof of a successful Calibre import.** Ambiguous handoffs remain blocked for manual review.
 - API token required for job creation and job listing. No cloud accounts, scraping, torrent downloads, DRM removal or arbitrary URL fetching.
+
+## NAS / CWA integration preflight (v0.7, offline)
+
+**RoyalBooks has NOT been tested against your actual NAS or CWA library.** Before enabling automatic handoff, check the physical host directories configured in **both** Compose stacks. Official CWA expects a dedicated host mount at `/cwa-book-ingest` and a separate library at `/calibre-library`; the ingest folder is emptied after processing. A folder that exists only in the RoyalBooks container does not prove CWA can see it.
+
+After configuring the mounts and starting RoyalBooks, run:
+
+```bash
+docker compose exec royalbooks python -m royalbooks.preflight
+docker compose exec royalbooks python -m royalbooks.preflight --json
+```
+
+This performs only read-only directory/permission/space checks and a **read-only** SQLite schema query. It never creates an ingest directory, writes a probe book, changes ownership, imports a file or contacts the internet. Failures are reported with exit code 2. Checks for file ownership/write access are heuristic: a successful check does **not** prove that the CWA watcher is consuming that exact host folder.
+
+**Critical safety change:** If the configured ingest directory is missing, a staged EPUB is retained and its job moves to `needs_review` with `ingest_directory_missing`. RoyalBooks no longer silently creates an unwatched directory or claims the book was delivered. Do not retry an ambiguous handoff without inspecting both CWA and RoyalBooks directories. CWA may remove files even when import fails.
+
+The CI suite now exercises a complete **simulated** flow: live queue worker, mocked Gutenberg HTTP, validated EPUB staging, handoff to a fixture ingest folder, mock consumer registration into a fixture Calibre SQLite library, exact SHA-256 presence check, and restart recovery. This is not a real NAS/CWA end-to-end result.
+
+Official CWA reference: https://github.com/crocodilestick/Calibre-Web-Automated/blob/main/docker-compose.yml
 
 ## Ugreen NAS installation
 

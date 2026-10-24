@@ -270,7 +270,15 @@ def deliver_staged(job: dict, store: JobStore, staging: Path, ingest: Path) -> N
             raise AcquisitionError("staged_file_hash_mismatch")
         if dest.exists():
             raise AcquisitionError("ingest_filename_already_exists")
-        ingest.mkdir(parents=True, exist_ok=True)
+        # Never invent an ingest folder: Docker/CWA may be watching a different mount.
+        # A missing directory means the handoff is uncertain and needs manual review.
+        if not ingest.is_dir():
+            raise AcquisitionError("ingest_directory_missing")
+        if ingest.is_symlink():
+            raise AcquisitionError("ingest_symlink_forbidden")
+        # If the directory was misconfigured to overlap our staging, refuse.
+        if ingest.resolve() == staging.resolve() or ingest.resolve().is_relative_to(staging.resolve()):
+            raise AcquisitionError("ingest_overlaps_staging")
         with source.open('rb') as input_file, temporary.open('xb') as output_file:
             shutil.copyfileobj(input_file, output_file)
             output_file.flush()
