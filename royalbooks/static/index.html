@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RoyalBooks – Provider-Lab</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,"Segoe UI",sans-serif;background:#111216;color:#f7f2eb}
+*{box-sizing:border-box}body{max-width:1080px;margin:0 auto;padding:30px 18px}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px}
+h1{font-size:clamp(2rem,5vw,3.3rem);margin:20px 0 8px}
+p{line-height:1.5}.muted{color:#aaaab2}.gold{color:#edc16e}.chip{border:1px solid #574431;border-radius:20px;padding:6px 12px;font-size:12px}
+form{display:flex;flex-wrap:wrap;gap:10px;margin:25px 0}input,select,button{border-radius:9px;padding:13px;color:#fff;background:#24252b;border:1px solid #44454c;font-size:15px}
+input{flex:1;min-width:170px}button{background:#a42d40;border-color:#a42d40;cursor:pointer}button:disabled{opacity:.5}
+#stats{display:flex;flex-wrap:wrap;gap:9px;margin:18px 0}.stat{background:#25252d;border:1px solid #3b373d;padding:10px 14px;border-radius:8px;font-size:12px}
+#books{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+.book{background:#1d1e25;border:1px solid #37373f;padding:15px;border-radius:12px;display:flex;gap:15px;min-height:170px}
+.cover{width:74px;height:110px;background:#36363e;object-fit:cover;border-radius:4px}
+.book h3{font-size:16px;margin:0 0 6px;line-height:1.3}.book p{margin:3px 0;font-size:13px}
+a{color:#edc16e;font-size:13px}.source{color:#e8bd77;font-size:12px}footer{border-top:1px solid #333;margin-top:38px;padding-top:15px;font-size:13px}
+</style></head>
+<body>
+<header><b class="gold">✦ ROYALBOOKS</b><span class="chip">PROVIDER-LAB · 0.1</span></header>
+<h1>Finde dein nächstes Buch.</h1>
+<p class="muted">Durchsuche mehrere Kataloge gleichzeitig. Wir zeigen ehrlich, welche Quelle nur Buchinformationen liefert und welche ein EPUB meldet.</p>
+<form id="search">
+<input id="q" placeholder="Buchtitel oder Autor, z. B. Kafka" required minlength="2" maxlength="120" aria-label="Buchsuche">
+<select id="language" aria-label="Sprache"><option value="de">Deutsch</option><option value="en">Englisch</option><option value="all">Alle Sprachen</option></select>
+<button id="go">Suchen</button>
+</form>
+<p class="muted" id="message" role="status">Bereit für die erste Suche.</p>
+<section id="stats" aria-label="Quellenstatistik"></section>
+<section id="books" aria-live="polite"></section>
+<footer class="muted">Diese erste Version bietet eine Katalogsuche, noch keine automatischen Downloads. Die US-Kennzeichnung „gemeinfrei“ ist nicht automatisch auf Deutschland übertragbar.</footer>
+<script>
+const el = (id) => document.getElementById(id);
+const make = (tag,value,cls) => { const node=document.createElement(tag);node.textContent=value;if(cls)node.className=cls;return node; };
+const safeUrl = (value) => { try { const url=new URL(value);return url.protocol==='https:'?url.href:null; } catch { return null; } };
+async function refreshStats() {
+  try {
+    const response=await fetch('/api/providers');
+    if (!response.ok) return;
+    const data=await response.json();
+    el('stats').replaceChildren(...data.providers.map(provider => {
+      const stat=data.recent_metrics.find(item=>item.provider===provider.name);
+      const caption=stat ? stat.found+' erfolgreiche Suchen / '+stat.errors+' Fehler (letzte '+stat.attempts+')' : 'noch nicht getestet';
+      return make('span',provider.name+' · '+caption,'stat');
+    }));
+  } catch {}
+}
+el('search').addEventListener('submit',async event => {
+  event.preventDefault();
+  el('go').disabled=true;
+  el('message').textContent='Suche läuft auf allen Quellen …';
+  el('books').replaceChildren();
+  try {
+    const params=new URLSearchParams({q:el('q').value.trim(),language:el('language').value});
+    const response=await fetch('/api/search?'+params);
+    if(!response.ok) throw Error('HTTP '+response.status);
+    const data=await response.json();
+    el('message').textContent=data.items.length+' Treffer · '+data.sources.map(s=>s.provider+': '+s.status+' ('+s.duration_ms+' ms)').join(' · ');
+    for (const book of data.items) {
+      const card=make('article','','book');
+      const cover=document.createElement('img');cover.className='cover';cover.alt='';cover.loading='lazy';
+      const image=safeUrl(book.cover_url);if(image)cover.src=image;
+      const info=document.createElement('div');
+      info.append(make('h3',book.title),make('p',book.authors.join(', ')||'Autor unbekannt','muted'),
+        make('p',book.source+' · '+(book.language||'Sprache unbekannt'),'source'),
+        make('p',book.epub_url?'EPUB gelistet · Rechte prüfen':'Nur Metadaten','muted'));
+      const link=safeUrl(book.info_url);
+      if(link){const a=make('a','Quelle ansehen ↗');a.href=link;a.target='_blank';a.rel='noopener noreferrer';info.append(a);}
+      card.append(cover,info);el('books').append(card);
+    }
+  } catch (error) { el('message').textContent='Suche fehlgeschlagen: '+error.message; }
+  finally { el('go').disabled=false;refreshStats(); }
+});
+refreshStats();
+</script></body></html>
