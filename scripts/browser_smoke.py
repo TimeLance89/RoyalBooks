@@ -27,7 +27,7 @@ def main():
     with tempfile.TemporaryDirectory() as folder:
         token = 'browser-fixture-private-token'
         env = {**os.environ, 'ROYALBOOKS_DB_PATH': str(Path(folder)/'db.sqlite3'),
-               'ROYALBOOKS_API_TOKEN': token, 'ROYALBOOKS_DOWNLOADS_ENABLED': '0'}
+               'ROYALBOOKS_API_TOKEN': token, 'ROYALBOOKS_STORE_REFRESH_ENABLED':'0', 'ROYALBOOKS_DOWNLOADS_ENABLED': '0'}
         process = subprocess.Popen([sys.executable, '-m', 'uvicorn', 'royalbooks.app:app',
                                     '--host', '127.0.0.1', '--port', str(port)],
                                    cwd=ROOT, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -116,6 +116,23 @@ def main():
                     with page.expect_request(lambda request: '/api/jobs' in request.url and request.method=='POST') as posted:
                         page.locator('#books').get_by_role('button', name='EPUB übernehmen', exact=True).click()
                     assert posted.value.post_data_json == {'provider':'libgen','source_id':6002,'rights_confirmed':True}
+                    page.locator('[data-view-target=search]').click()
+                    # The added community source uses the same queue flow.
+                    data['items']=[{**libgen,'source':'memoryoftheworld','source_id':'6003','acquisition_id':6003,
+                                    'epub_url':'https://library.memoryoftheworld.org/files/test/Author/Book/book.epub'}]
+                    data['query']='Stephen King es'
+                    data['query_analysis']={'original_query':'Steven King es'}
+                    page.locator('#q').fill('Steven King es')
+                    page.locator('#result-limit').select_option('60')
+                    with page.expect_request(lambda request:'/api/books/search?' in request.url) as searched:
+                        page.locator('#go').click()
+                    assert 'limit=60' in searched.value.url
+                    page.wait_for_function("document.querySelector('#books').textContent.includes('Memory of the World')")
+                    assert page.locator('#search-notice').is_visible()
+                    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+                    with page.expect_request(lambda request:'/api/jobs' in request.url and request.method=='POST') as posted:
+                        page.locator('#books').get_by_role('button',name='EPUB übernehmen',exact=True).click()
+                    assert posted.value.post_data_json == {'provider':'memoryoftheworld','source_id':6003,'rights_confirmed':True}
                     page.locator('[data-view-target=search]').click()
                     page.unroute('**/api/books/search?*')
                     page.route('**/api/books/search?*', lambda route: route.fulfill(status=503, json={'detail':'search_busy'}))

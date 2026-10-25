@@ -208,15 +208,17 @@ class JobStore:
 
 
 async def download_epub(client: httpx.AsyncClient, url: str, destination: Path, source: str = "gutendex") -> int:
+    headers = {}
     checker = valid_url if source not in SOURCES else lambda u: safe_epub_url(source, u)
     if source == 'libgen':
         wanted_md5 = [value.lower() for value in parse_qs(urlsplit(url).query).get('md5', [])]
+        headers['Referer'] = f'https://{urlsplit(url).hostname}/ads.php?md5={wanted_md5[0]}' if wanted_md5 else ''
         checker = lambda candidate: (safe_file_url(candidate) and
             [value.lower() for value in parse_qs(urlsplit(candidate).query).get('md5', [])] == wanted_md5)
     if not checker(url):
         raise AcquisitionError("untrusted_download_host")
     for _ in range(4):
-        async with client.stream("GET", url, follow_redirects=False) as response:
+        async with client.stream("GET", url, follow_redirects=False, headers=headers) as response:
             if response.status_code in (301, 302, 303, 307, 308):
                 target = urljoin(url, response.headers.get("location", ""))
                 if not checker(target):

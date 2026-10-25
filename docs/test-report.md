@@ -141,3 +141,39 @@ above describes the initial acceptance, not this subsequent change.
   and all four delivered job records preserved. No active job interrupted.
 - EPUB reading uses the device's reading app. Built-in reader, progress sync and
   Kindle delivery are not implemented.
+
+## Storefront and reliability follow-up (2026-10-25)
+
+- Default discovery page: current-year German EPUB editions, recent uploads,
+  fiction, nonfiction and actual Open Library daily trends. The live NAS audit
+  filled all five shelves with 18 curated records each (shelves may overlap).
+- Snapshots persist across restarts, update on startup/hourly in the background,
+  retain last-good results on failed/empty source responses, and expose timestamps.
+  Loading the store does not run a new search or enqueue downloads.
+- Added real LibGen source-listed covers and ISBNs, including parsing the extra
+  cover column. A bounded, pinned JPEG proxy supplies the source-required Referer
+  and caches covers on the NAS. Live original JPEG bytes verified through HTTP.
+- Selected ISBN/work descriptions use bounded, cached Open Library metadata.
+  Trend works are never called German editions or available downloads. Source
+  text is rendered as text; no generated synopsis or invented bestseller ranks.
+- Current-year source filters, filename-metadata curation, horizontal book rails,
+  category selection, search sorting and richer details tested at desktop,
+  390-pixel mobile and 320-pixel small mobile widths. Existing library, watchlist,
+  session and queue browser flows remain passing.
+- Search coverage now uses real 25-row paging, upstream language/EPUB filters,
+  ISBN-column search, visible known spelling correction and an independent
+  Memory of the World source. Live German EPUB candidates: Es 14, Die Therapie
+  12, Verity 7, Der Wüstenplanet 29, Harry Potter 16. A separate Memory of the
+  World EPUB was downloaded and validated only in temporary container storage.
+- A pre-existing authorized failed user job exposed a further actual source CDN:
+  the catalog-issued 307 pointed to `cdn5.booksdl.lc/get.php`, with unchanged MD5
+  and the expected key shape; its response was HTTP 200. That exact host was
+  added, without wildcards. Transfers now retain the catalog Referer. Existing
+  wrong-origin, wrong-MD5 and malformed-key rejection tests remain active.
+- Windows: 232 passed, two symlink privilege skips. Three offline real Chromium
+  scripts cover discovery, bookshelf and store. Live desktop/mobile store,
+  original covers, descriptions, corrected multi-author EPUB search and private
+  network access verified on the NAS. CI includes all three browser scripts.
+- Previous production image retained as `royalbooks:before-store-20261025`; a
+  fresh SQLite backup was taken before deployment. Calibre library files and
+  metadata are never directly modified by RoyalBooks.

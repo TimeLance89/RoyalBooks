@@ -1,6 +1,8 @@
 """Read-only Calibre bookshelf and bounded, library-contained file access."""
 from pathlib import Path, PurePosixPath
 import sqlite3
+import re
+from html import unescape
 from royalbooks.database import connect
 
 
@@ -36,6 +38,7 @@ def bookshelf(location, query='', sort='recent', limit=60, offset=0):
     clause = "casefold(b.title || ' ' || COALESCE(b.author_sort,'')) LIKE ? ESCAPE '\\'"
     try:
         with _db(root) as db:
+            has_comments = bool(db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='comments'").fetchone())
             total = db.execute('SELECT COUNT(*) FROM books').fetchone()[0]
             count = db.execute('SELECT COUNT(*) FROM books b WHERE '+clause,(needle,)).fetchone()[0]
             rows = db.execute('SELECT b.id,b.title,b.author_sort,b.timestamp FROM books b WHERE '+clause+
@@ -43,7 +46,10 @@ def bookshelf(location, query='', sort='recent', limit=60, offset=0):
             items=[]
             for book_id,title,authors,added in rows:
                 formats=[r[0].upper() for r in db.execute('SELECT format FROM data WHERE book=? ORDER BY format',(book_id,))]
+                comment = db.execute('SELECT text FROM comments WHERE book=? LIMIT 1',(book_id,)).fetchone() if has_comments else None
+                description = unescape(re.sub(r'<[^>]*>',' ',comment[0]))[:12000] if comment and isinstance(comment[0],str) else None
                 items.append({'id':book_id,'title':title,'authors':authors or 'Autor unbekannt',
+                              'description':description,
                               'added_at':added,'formats':formats,'cover_url':f'/api/library/{book_id}/cover',
                               'epub_url':f'/api/library/{book_id}/epub' if 'EPUB' in formats else None})
         return {'items':items,'total':total,'filtered_total':count,'offset':offset,'limit':limit,

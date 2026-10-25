@@ -56,3 +56,53 @@ connection closure. Old jobs default to unapproved in an additive migration.
 
 See `source-audit-local.json`, NAS audit and the final test report for measured
 results. Neither a blocked source nor a listed EPUB counts as a download test.
+
+## Search coverage expansion (2026-10-25)
+
+The NAS audit of LibGen's own live form found its documented Google-mode
+operators `lang` (three-letter ISO code) and `ext`. German EPUB requests now use
+`lang:ger ext:epub`; English uses `lang:eng ext:epub`. These are ordinary public
+catalog filters, not bypasses. With `res=100` the live response still selected
+25 rows and advertised a 25-row paginator. RoyalBooks now requests/reads 25-row
+pages, deduplicates repeated pages and reads up to four pages. ISBN queries use
+the ISBN column. Format fallback retains other listings only if EPUB search is
+empty. Language/EPUB filtering happens upstream, before the result limit.
+
+A live candidate-image audit returned only declared German EPUBs:
+
+| Query | EPUB file candidates |
+| --- | ---: |
+| Steven King es (reported correction to Stephen King es) | 14 |
+| Sebastian Fitzek Die Therapie | 12 |
+| Colleen Hoover Verity | 7 |
+| Frank Herbert Der Wüstenplanet | 29 |
+| Harry Potter und der Stein der Weisen | 16 |
+
+The selected exact-title `Es` candidate also resolved a fresh, pinned free GET
+link. These counts establish listings and acquisition bindings, not that every
+listed file has been downloaded or that every edition is unique.
+
+Added an independent [Memory of the World catalog](https://library.memoryoftheworld.org/).
+The site's own public JSON and frontend expose `/search?q=...&limit=48&offset=...`
+and source-listed `/files/` paths. The adapter paginates up to 144 source rows,
+filters declared languages conservatively, indexes eligible EPUBs and uses the
+existing validation/queue/handoff path. The collection is mostly scholarly and
+English; it is not advertised as universal German-fiction coverage. A live
+`Faust` search returned 11 EPUB records with no language filter. One source-listed
+file (`Faust I & II`, 2,268,745 bytes) was transferred and EPUB/CRC/SHA-256 validated
+in temporary container storage, then removed. No test job or Calibre import was
+created. SHA-256: `e1a4f444c16c9a4cd1fda6a08263355474acb12dc420925e21a2a120e70930a0`.
+
+Additional source checks from the NAS:
+
+- Anna's Archive: public request redirected to the same search with `check=1`;
+  the ordinary follow-up returned HTTP 403 DDoS-Guard. No challenge bypass or
+  fictitious automatic adapter added. The [project FAQ](https://annasarchive.io/faq)
+  describes browser verification for free downloads and a members fast-download API.
+- OceanOfPDF: HTTP 403 with a verification page; not integrated.
+- Flibusta: HTTP 502 during audit; not integrated as a reliable source.
+- Old libgen.is fiction endpoint was not reachable within the audit timeout.
+
+Search defaults to 30 results per provider (optional 60). A narrowly scoped,
+visible correction handles `Steven King`; other names are not arbitrarily
+rewritten. Existing account-free automatic private-network access is preserved.

@@ -29,6 +29,9 @@ class SourceProfile:
 
 
 PROFILES = {
+    'memoryoftheworld': SourceProfile('memoryoftheworld', 'Memory of the World',
+                           'file_listing', 'edition', 'multilingual', ('EPUB',), True,
+                           'Independent community library; source-listed EPUBs, no account required'),
     'libgen': SourceProfile('libgen', 'Library Genesis', 'file_listing', 'edition',
                            'multilingual', ('EPUB', 'PDF', 'AZW3', 'MOBI', 'FB2', 'DJVU', 'TXT'), True,
                            'Source-bound EPUB acquisition; fresh GET link and integrity checks required'),

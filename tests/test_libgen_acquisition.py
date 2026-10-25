@@ -42,7 +42,7 @@ def test_only_source_bound_catalog_urls_allowed(url):
     assert not safe_catalog_url(url)
 
 
-@pytest.mark.parametrize('url', [GET, CDN])
+@pytest.mark.parametrize('url', [GET, CDN, CDN.replace('cdn2.', 'cdn5.')])
 def test_pinned_https_download_routes(url):
     assert safe_file_url(url)
     assert not safe_file_url(url.replace('https:', 'http:'))
@@ -112,6 +112,7 @@ async def test_full_libgen_queue_resolves_fresh_link_and_checks_both_hashes(tmp_
             return httpx.Response(200, text=f'<a href="{get}">GET</a>')
         if request.url.host == 'libgen.li':
             return httpx.Response(307, headers={'location':cdn})
+        assert request.headers['Referer'] == catalog
         return httpx.Response(200, content=content)
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         await process_queued(job, store, staging, client)

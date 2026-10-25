@@ -32,10 +32,15 @@ class SearchQuery:
     author: str | None
     isbn: str | None
     variants: tuple[str, ...]
+    original_text: str | None = None
 
 
 def analyze_query(value: str) -> SearchQuery:
     text = ' '.join(unicodedata.normalize('NFKC', value).split())
+    original = text
+    # A common author misspelling. Report the correction in the API/UI.
+    text = re.sub(r'\bSteven\s+King\b', 'Stephen King', text, flags=re.I)
+    correction = original if original != text else None
     # Only a whole ISBN query is transformed; numbers inside titles stay intact.
     candidate = re.sub(r'[\s-]', '', re.sub(r'^isbn(?:-1[03])?:?\s*', '', text, flags=re.I)).upper()
     number = canonical_isbn(candidate)
@@ -46,7 +51,7 @@ def analyze_query(value: str) -> SearchQuery:
     if title and author:
         text = title + ' author:' + author
     variants = tuple(dict.fromkeys([text, *([title] if title else [])]))
-    return SearchQuery(text, title, author, None, variants)
+    return SearchQuery(text, title, author, None, variants, correction)
 
 
 class SearchCoordinator:

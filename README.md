@@ -13,7 +13,9 @@ API keys are **not required**.
   discovery, watchlist and downloads. Light/dark and view preferences persist;
   credentials are never stored in browser storage.
 - Independent built-in DNB, Open Library, Wikisource/WSIndex, Standard Ebooks,
-  Gutendex and Library Genesis adapters; optional local Gutenberg CSV/RDF index.
+  Gutendex, Library Genesis and Memory of the World adapters; optional local
+  Gutenberg CSV/RDF index. LibGen filters EPUB and requested language upstream,
+  with real 25-record pagination rather than stopping at the first short table.
 - Parallel search with an eight-second provider deadline, six operation slots,
   bounded responses, short result cache, coalesced identical queries, refusal
   cooldowns and source-specific diagnostics. A failed source cannot erase
@@ -77,6 +79,14 @@ and `/api/library/{id}/epub` resolve only files registered inside that library;
 metadata paths, directory traversal and symlinks cannot expose outside files.
 An EPUB can be downloaded and opened with the device's reading app. An in-browser
 EPUB reader, reading progress sync and Kindle delivery are not implemented.
+
+Search returns 30 records per source by default, with an optional 60-record
+selection. The known author misspelling "Steven King" is normalized to "Stephen
+King" and visibly reported. Other misspellings are not silently rewritten.
+Memory of the World is an independent community library with mostly scholarly,
+English-language material; declared German/English language filters remain
+strict. Only source-listed HTTPS EPUB paths under its pinned `/files/` origin
+are eligible for the normal validated transfer and CWA handoff.
 
 Normal search is intended for a LAN. Protect Internet exposure with an
 authenticating reverse proxy. Public search has a per-client quota; personal
@@ -162,3 +172,31 @@ The server API token remains required and is never sent to the browser. This
 setting grants management access to every matching peer; use only for a private
 LAN/VPN deployment. Forwarded headers do not grant access; same-origin write
 checks remain enforced. Leave empty to require the normal device login.
+
+## Automatic discovery storefront
+
+The default home page is a browsing storefront with five independently cached
+shelves: current-year German EPUB editions, recent catalog uploads, fiction,
+nonfiction and actual Open Library daily trends. Current publication year and
+recent upload are explicitly distinct. International work trends are never
+marked as German editions or downloadable files; their action searches actual
+EPUB sources. Store rows deduplicate repeated editions and omit obvious filename
+metadata. Raw search records remain available unchanged.
+
+Snapshots are persisted in RoyalBooks SQLite and refreshed on startup and hourly
+by a cancellable background task. A failed/empty upstream response retains the
+last successful shelf and its timestamp. `/api/store` serves the snapshot without
+waiting on upstream calls. Background refresh does not enqueue downloads.
+`ROYALBOOKS_STORE_REFRESH_ENABLED=0` disables refresh for offline deployments/tests.
+
+LibGen's cover-enabled result tables supply explicit cover links and ISBNs. A
+pinned, source-listed JPEG proxy caches at most 500 images, each no larger than
+512 KiB. It uses the catalog origin's normal Referer and refuses redirects,
+foreign origins, non-JPEG bodies and unregistered paths. No token or source
+session is sent to the browser. Store and search previews use these cached covers.
+
+Book details show source descriptions when present; otherwise a selected exact
+ISBN or Open Library work can retrieve a bounded, cached Open Library synopsis.
+Work descriptions are labeled. No synopsis or bestseller rank is fabricated.
+The personal bookshelf also exposes descriptions already present in Calibre's
+comments table, read only.

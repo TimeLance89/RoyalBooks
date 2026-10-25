@@ -12,6 +12,7 @@ import httpx
 from fastapi import FastAPI, Header, HTTPException, Query, Request, Depends, Path as ApiPath
 from fastapi.responses import JSONResponse
 from fastapi.responses import FileResponse
+from fastapi.responses import Response
 from pydantic import BaseModel, Field, field_validator
 
 from royalbooks.direct_sources import SOURCES, lookup_epub as lookup_direct_epub
@@ -34,6 +35,8 @@ from royalbooks.presentation import display_groups
 from royalbooks.storage import MetricsStore
 from royalbooks.auth import SessionStore, COOKIE, SESSION_SECONDS
 from royalbooks.library import bookshelf, library_file, LibraryUnavailable
+from royalbooks.storefront import Storefront
+from royalbooks.artwork import fetch_artwork
 
 
 def downloads_enabled() -> bool:
@@ -58,6 +61,10 @@ async def lifespan(app: FastAPI):
         event_hooks={'response': [bounded_response]},
         headers={'User-Agent': 'RoyalBooks/2.0 (https://github.com/TimeLance89/RoyalBooks)'})
     app.state.discovery = SearchCoordinator(sources, app.state.search_client, app.state.store)
+    app.state.storefront = Storefront(path, app.state.search_client)
+    app.state.artwork_slots = asyncio.Semaphore(3)
+    storefront_task = (asyncio.create_task(app.state.storefront.run())
+                       if os.getenv('ROYALBOOKS_STORE_REFRESH_ENABLED', '1') != '0' else None)
     task = None
     if downloads_enabled() and os.getenv('ROYALBOOKS_API_TOKEN'):
         task = asyncio.create_task(worker(app.state.jobs, data,
@@ -66,6 +73,10 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        if storefront_task is not None:
+            storefront_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await storefront_task
         await app.state.discovery.close()
         await app.state.search_client.aclose()
         await app.state.catalog_imports.close()
@@ -108,6 +119,37 @@ async def homepage():
 @app.get('/api/health')
 async def health():
     return {'status': 'ok', 'version': '2.0.0'}
+
+
+@app.get('/api/store')
+async def store_home():
+    return JSONResponse(await asyncio.to_thread(app.state.storefront.snapshot),
+                        headers={'Cache-Control':'no-store'})
+
+
+@app.get('/api/catalog-cover/{md5}')
+async def catalog_cover(md5: str = ApiPath(pattern=r'^[a-f0-9]{32}$')):
+    try:
+        async with app.state.artwork_slots:
+            content = await asyncio.wait_for(fetch_artwork(app.state.storefront.path, md5,
+                                            app.state.search_client),timeout=6)
+    except (httpx.HTTPError, asyncio.TimeoutError):
+        content = None
+    if not content:
+        raise HTTPException(status_code=404, detail='cover_unavailable')
+    return Response(content,media_type='image/jpeg',headers={'Cache-Control':'public, max-age=86400',
+                                                            'X-Content-Type-Options':'nosniff'})
+
+
+@app.get('/api/book-preview')
+async def book_preview(request: Request,
+                       isbn: str | None = Query(default=None, pattern=r'^97[89][0-9]{10}$'),
+                       work: str | None = Query(default=None, pattern=r'^OL[0-9]{1,12}W$')):
+    await _limit_public_search('preview:' + (request.client.host if request.client else 'unknown'))
+    if bool(isbn) == bool(work):
+        raise HTTPException(status_code=422, detail='provide_isbn_or_work')
+    return JSONResponse(await app.state.storefront.preview(isbn,work),
+                        headers={'Cache-Control':'no-store'})
 
 
 @app.get('/api/providers')
@@ -163,7 +205,8 @@ async def _search(q: str, language: str, limit: int):
         states = [state for _, state in results]
     return {'query': analyzed.text, 'language': language, 'mode': 'integrated_providers',
             'query_analysis': {'title': analyzed.title, 'author': analyzed.author,
-                               'isbn': analyzed.isbn, 'variants': analyzed.variants},
+                               'isbn': analyzed.isbn, 'variants': analyzed.variants,
+                               'original_query': analyzed.original_text},
             'items': [item.as_dict() for item in items],
             'match_groups': match_groups(items), 'display_groups': display_groups(items, analyzed.text),
             'search_evidence': search_evidence(items), 'sources': states}
@@ -175,7 +218,7 @@ async def books_search(
     request: Request,
     q: str = Query(min_length=2, max_length=120),
     language: str = Query(default='de', pattern='^(de|en|all)$'),
-    limit: int = Query(default=10, ge=1, le=30),
+    limit: int = Query(default=30, ge=1, le=60),
 ):
     await _limit_public_search(request.client.host if request.client else 'unknown')
     if len(q.strip()) < 2:
@@ -381,7 +424,7 @@ async def request_catalog_import(
 
 
 class WatchlistRequest(BaseModel):
-    source: Literal["gutendex", "gutenberg_catalog", "openlibrary", "dnb", "google_books", "libgen", "wikisource", "standardebooks"]
+    source: Literal["gutendex", "gutenberg_catalog", "openlibrary", "dnb", "google_books", "libgen", "wikisource", "standardebooks", "memoryoftheworld"]
     source_id: str = Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_-]+$")
     title: str = Field(min_length=2, max_length=250)
     authors: list[str] = Field(default_factory=list, max_length=8)
