@@ -17,7 +17,7 @@ from urllib.parse import urlsplit
 import httpx
 from defusedxml import ElementTree as XML
 
-BOOK_CATEGORY = 7020
+BOOK_CATEGORIES = (7020, 7120)  # Standard EBook and German EBook
 MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 NN = "{http://www.newznab.com/DTD/2010/feeds/attributes/}"
 FORMATS = ("epub", "azw3", "mobi", "pdf", "fb2", "djvu", "cbz")
@@ -143,7 +143,7 @@ def parse_prowlarr(data: object, query: str, language: str | None, limit: int) -
         categories = item.get("categories", [])
         ids = [c if type(c) is int else c.get("id") if isinstance(c, dict) else None
                for c in categories] if isinstance(categories, list) else []
-        if BOOK_CATEGORY not in ids:
+        if not any(category in ids for category in BOOK_CATEGORIES):
             continue
         name = item.get("indexer")
         proto = item.get("protocol")
@@ -169,7 +169,7 @@ def parse_rss(payload: bytes, config: Indexer, query: str,
         attrs = {el.attrib.get("name"): el.attrib.get("value")
                  for el in node.findall(NN + "attr")}
         category = attrs.get("category")
-        if category not in ("7020", "7000"):
+        if category not in ("7020", "7120", "7000", "7100"):
             continue
         size = attrs.get("size") or node.findtext("size")
         listed = make_listing(node.findtext("title"), config.name, config.kind,
@@ -184,11 +184,14 @@ async def fetch_indexer(client: httpx.AsyncClient, config: Indexer, query: str,
                         language: str | None, limit: int) -> list[Listing]:
     if config.kind == "prowlarr":
         path = config.url + "/api/v1/search"
-        params = {"query": query, "type": "search", "categories": BOOK_CATEGORY}
+        params = [("query", query), ("type", "search"),
+                  *[("categories", category) for category in BOOK_CATEGORIES]]
         headers = {"X-Api-Key": config.key}
     else:
         path = config.url
-        params = {"t": "search", "q": query, "cat": BOOK_CATEGORY, "apikey": config.key}
+        params = {"t": "search", "q": query,
+                  "cat": ",".join(str(c) for c in BOOK_CATEGORIES),
+                  "apikey": config.key}
         headers = {"Accept": "application/rss+xml"}
     response = await client.get(path, params=params, headers=headers, follow_redirects=False)
     if response.status_code != 200:
