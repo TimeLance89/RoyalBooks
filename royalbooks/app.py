@@ -124,7 +124,21 @@ async def search(q: str = Query(min_length=2, max_length=120),
 @app.get('/api/indexers/search')
 async def indexer_search(
     q: str = Query(min_length=2, max_length=120),
-    language: str = Query(default='de', pattern='^(de|en|all)
+    language: str = Query(default='de', pattern='^(de|en|all)$'),
+    limit: int = Query(default=30, ge=1, le=40),
+    x_api_key: str | None = Header(default=None),
+):
+    _guard(x_api_key)
+    try:
+        result = await search_indexers(q, None if language == 'all' else language, limit)
+    except (OSError, ValueError):
+        raise HTTPException(status_code=503, detail='invalid_indexer_configuration')
+    return {'query': q, 'language': language, **result,
+            'mode': 'read_only',
+            'notice': 'Indexer listings are unverified.'}
+
+
+class QueueRequest(BaseModel):
     provider: str = 'gutendex'
     source_id: int = Field(gt=0, le=9223372036854775807)
     rights_confirmed: bool = False
