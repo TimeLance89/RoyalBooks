@@ -217,3 +217,7 @@ docker compose logs --tail=80 royalbooks
 ```
 
 If the next error concerns `/data/royalbooks.sqlite3`, that is a **different host volume ownership/mount permissions issue**. Check it without broad recursive chmod/chown commands against your NAS or Calibre library. If your NAS Compose stack overrides `/app` or `/app/royalbooks` with a bind mount, fix that external mount configuration; the Dockerfile cannot change its runtime permissions.
+
+## Search result presentation (v0.9 UI improvement)
+
+The search API keeps every source-specific record in `items`. `display_groups` is an additional reversible, conservatively keyed presentation index: entries with exactly matching normalized title/language and compatible named authors are rendered on a single card with an expandable list of source records, ISBNs and per-edition actions. This is not edition deduplication or proof of identical files. Different author names and unknown languages are kept separate. Exact title query matches rank first, and a valid EPUB listing is favored for the card's lead record. The browser also separates catalog-only results from listed (unverified) EPUB links and shows provider outages without overwhelming the search page. DNB covers may be requested from Open Library by that record's ISBN, with a visible fallback if unavailable. A Gutendex request is capped at six seconds to avoid delaying all other search providers on blocked hosts.

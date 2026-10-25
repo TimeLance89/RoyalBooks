@@ -25,6 +25,7 @@ from typing import Literal
 from royalbooks.providers import Book, GoogleBooks, Gutendex, OpenLibrary, Provider
 from royalbooks.source_registry import configured_providers
 from royalbooks.matching import match_groups
+from royalbooks.presentation import display_groups
 from royalbooks.storage import MetricsStore
 
 
@@ -74,7 +75,10 @@ async def providers():
 async def _run(provider: Provider, client: httpx.AsyncClient, q: str, language: str | None, limit: int):
     start = perf_counter()
     try:
-        items = await asyncio.wait_for(provider.search(client, q, language, limit), timeout=18.0)
+        # Gutendex can be access-blocked from NAS networks; do not hold the whole
+        # search page for nearly 18 seconds while the other sources already responded.
+        cap = 6.0 if provider.name == 'gutendex' else 18.0
+        items = await asyncio.wait_for(provider.search(client, q, language, limit), timeout=cap)
         outcome = 'found' if items else 'empty'
         error = None
     except Exception as exc:
@@ -99,6 +103,7 @@ async def search(q: str = Query(min_length=2, max_length=120),
     items: list[Book] = [item for books, _ in results for item in books]
     return {'query': q, 'language': language, 'items': [item.as_dict() for item in items],
             'match_groups': match_groups(items),
+            'display_groups': display_groups(items, q),
             'sources': [status for _, status in results], 'rights_notice':
             'Public-domain classification may be US-only; check German law before requesting a download.'}
 

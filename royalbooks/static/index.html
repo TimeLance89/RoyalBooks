@@ -5,8 +5,9 @@
 :root{color-scheme:dark;font-family:Inter,system-ui,"Segoe UI",sans-serif;background:#0d1017;color:#f7f1e9;
   --gold:#f3c875;--gold-muted:#bfa16c;--line:#34313b;--red:#a73b51;--surface:#1b1d27;--muted:#b3adb3}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html{scroll-behavior:smooth}
-body{max-width:1200px;margin:0 auto;padding:26px 28px 50px;min-height:100vh;position:relative}
+body{max-width:1520px;margin:0 auto;padding:26px clamp(18px,3vw,48px) 50px;min-height:100vh;position:relative}
 body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;
   background:radial-gradient(ellipse 760px 440px at 89% -12%,rgba(156,43,70,.25),transparent 72%),
   radial-gradient(ellipse 650px 480px at -15% 27%,rgba(199,151,70,.10),transparent 72%)}
@@ -16,14 +17,14 @@ header .chip{display:inline-block;border:1px solid rgba(243,200,117,.35);border-
 header nav{display:flex;gap:17px;align-items:center;flex-wrap:wrap}
 header nav a{color:#d8d1d2;font-size:13px;text-decoration:none;font-weight:700}
 header nav a:hover,header nav a:focus-visible{color:var(--gold)}
-h1{font-size:clamp(2.25rem,5.4vw,4.6rem);line-height:1.08;font-weight:800;letter-spacing:-.055em;
+h1{font-size:clamp(2.25rem,4.2vw,4.15rem);line-height:1.08;font-weight:800;letter-spacing:-.055em;
   margin:0 0 14px;max-width:850px}
 h2{font-size:20px;margin:0 0 10px;letter-spacing:-.02em}
 p{line-height:1.58}
 .muted{color:var(--muted)}
 .accent,.pill{color:var(--gold)}
 .chip{color:var(--gold);font-size:11px}
-.hero{margin:32px 0 22px;padding:clamp(26px,5vw,55px);border-radius:24px;
+.hero{margin:24px 0 19px;padding:clamp(24px,3.2vw,42px);border-radius:24px;
   border:1px solid rgba(231,178,116,.19);
   background:linear-gradient(110deg,rgba(29,30,40,.98) 10%,rgba(60,28,46,.92) 75%,rgba(95,35,54,.64));
   box-shadow:0 18px 70px #0005}
@@ -42,13 +43,27 @@ button.subtle,.subtle.action{background:#30313c;border:1px solid #5b505e}
 #message{margin-bottom:16px;min-height:20px;font-size:13px}
 .stats{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 24px}
 .stat{padding:10px 13px;border-radius:11px;background:#20212b;border:1px solid #343540;color:#dfd4cb;font-size:12px}
-.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:15px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(345px,1fr));gap:17px}
 .book{background:linear-gradient(150deg,#22242d,#1a1a23);border:1px solid #353441;
-  border-radius:17px;padding:19px;display:flex;gap:16px;min-height:175px;box-shadow:0 7px 20px #0002}
+  border-radius:17px;padding:19px;display:grid;grid-template-columns:90px minmax(0,1fr);gap:16px;min-height:192px;box-shadow:0 7px 20px #0002}
 .book:hover{border-color:#7f6064}
-.cover{width:80px;height:120px;object-fit:cover;flex:none;background:linear-gradient(140deg,#744c4b,#383043);
+.cover{width:90px;height:135px;object-fit:cover;flex:none;background:linear-gradient(140deg,#744c4b,#383043);
   border-radius:7px;box-shadow:0 10px 20px #0006}
-.book h3{font-size:16px;line-height:1.35;margin:1px 0 7px}
+.book h3{font-size:16px;line-height:1.35;margin:1px 0 7px;overflow-wrap:anywhere}
+.book-detail{min-width:0}
+.cover-slot{width:90px;height:135px;position:relative;border-radius:7px;overflow:hidden;background:linear-gradient(135deg,#745055,#322936)}
+.cover-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#f0cc8d;font-size:36px}
+.cover-slot img{position:relative;display:block;background:transparent}
+.book details{margin:10px 0 0;border-top:1px solid #403944;padding-top:9px}
+.book summary{color:var(--gold);font-size:12px;font-weight:700;cursor:pointer}
+.edition-row{border-top:1px solid #34343d;padding:9px 0}
+.edition-row p{margin:4px 0}
+.edition-row button{font-size:11px;padding:6px 9px}
+.search-filters{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:12px 0 20px}
+.search-filters button{background:#262631;border-color:#57505b;font-size:12px;padding:8px 12px}
+.search-filters button[aria-pressed="true"]{background:#785041;border-color:#c99d67}
+.search-notice{font-size:13px;color:#e5c58b;margin:6px 0 14px}
+.source-label{color:#e2cfb8}
 .book p{font-size:12px;margin:4px 0}
 .book a{display:inline-block;font-size:12px;font-weight:700;color:var(--gold);margin:6px 0}
 .action{margin:10px 7px 0 0;font-size:12px;padding:8px 11px;border-radius:9px}
@@ -80,18 +95,28 @@ form input[type=search]{min-width:100%;flex-basis:100%}
 form select,form button{flex:1}
 .cards{grid-template-columns:minmax(0,1fr)}
 .book{padding:14px}
-.cover{width:69px;height:104px}
+.cover,.cover-slot{width:74px;height:111px}
+.book{grid-template-columns:74px minmax(0,1fr)}
+.search-filters{gap:6px}
 .controls{border-radius:13px;padding:17px 14px}
 #catalog-controls button{flex:1}
 }</style></head>
 <body><header><span class="accent">✦ ROYALBOOKS</span>
 <nav aria-label="Navigation"><a href="#search">Entdecken</a><a href="#watchlist">Merkliste</a><a href="#catalog-controls">Quellen</a><a href="#download-center">Downloads</a></nav>
-<span class="chip">VORSCHAU · v0.8</span></header>
+<span class="chip">VORSCHAU · v0.9</span></header>
 <section class="hero"><p class="eyebrow">DEINE DIGITALE BIBLIOTHEK</p>
 <h1>Jedes Buch beginnt mit einer Entdeckung.</h1>
 <p class="muted">Suche über mehrere Buchkataloge, merke dir spannende Titel und übernimm rechtmäßig verfügbare EPUBs in deine Bibliothek.</p></section>
 <form id="search"><input type="search" id="q" placeholder="Titel oder Autor, z. B. Kafka" required minlength="2" maxlength="120" aria-label="Suche"><select id="language" aria-label="Sprache"><option value="de">Deutsch</option><option value="en">Englisch</option><option value="all">Alle</option></select><button id="go">Suchen</button></form>
-<div id="message" role="status" class="muted">Bereit für die erste Suche.</div><section id="stats" class="stats" aria-label="Providerstatus"></section>
+<div id="message" role="status" class="muted">Bereit für die erste Suche.</div>
+<p id="search-notice" class="search-notice" hidden></p>
+<div id="search-filters" class="search-filters" hidden aria-label="Suchergebnisse filtern">
+<button type="button" data-filter="all" aria-pressed="true">Alle Titel</button>
+<button type="button" data-filter="epub" aria-pressed="false">Mit EPUB-Link</button>
+<button type="button" data-filter="metadata" aria-pressed="false">Nur Buchdaten</button>
+</div>
+<details id="source-details"><summary class="muted">Quellenstatus und Diagnose anzeigen</summary>
+<section id="stats" class="stats" aria-label="Providerstatus"></section></details>
 <section id="books" class="cards" aria-live="polite"></section>
 <section class="controls" id="watchlist">
 <h2>Meine Merkliste</h2>
@@ -317,18 +342,132 @@ const token=$('token').value;if(!token){$('job-message').textContent='Bitte zuer
 try{const r=await fetch('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json','X-API-Key':token},body:JSON.stringify({provider:book.source,source_id:Number(book.source_id),rights_confirmed:true})});
 const data=await r.json();if(!r.ok)throw Error(data.detail||'HTTP '+r.status);$('job-message').textContent='Auftrag für '+book.title+' vorgemerkt.';loadJobs()}catch(err){$('job-message').textContent='Übernahme fehlgeschlagen: '+err.message}
 $('job-message').scrollIntoView({block:'nearest'})}
-$('search').addEventListener('submit',async e=>{e.preventDefault();$('go').disabled=true;$('message').textContent='Provider werden parallel geprüft …';$('books').replaceChildren();
-try{const params=new URLSearchParams({q:$('q').value.trim(),language:$('language').value});const r=await fetch('/api/search?'+params);if(!r.ok)throw Error('HTTP '+r.status);const result=await r.json();
-$('message').textContent=result.items.length+' Treffer · '+result.sources.map(x=>x.provider+': '+x.status+' ('+x.duration_ms+' ms)').join(' · ');
-for(const [index,item] of result.items.entries()){const card=text('article','','book');const cover=document.createElement('img');cover.className='cover';cover.alt='';cover.loading='lazy';if(safeUrl(item.cover_url))cover.src=safeUrl(item.cover_url);
-const detail=document.createElement('div');detail.append(text('h3',item.title),text('p',item.authors.join(', ')||'Autor unbekannt','muted'),text('p',item.source+' · '+(item.language||'Sprache unbekannt'),'pill'),text('p',item.epub_url?'EPUB-Link im Katalog · noch nicht live geprüft · Rechte prüfen':(item.source==='gutenberg_catalog'?'Offizieller Offline-Katalog · EPUB nicht verifiziert':'Nur Buchdaten'),'muted'));
-const groups=(result.match_groups||[]).filter(g=>g.item_indexes.includes(index));
-if(groups.some(g=>g.kind==='edition_candidate')) detail.append(text('p','ISBN-Ausgabe stimmt mit anderer Quelle überein (Kandidat)','pill'));
-else if(groups.some(g=>g.kind==='work_candidate')) detail.append(text('p','Gleiches Werk vermutet – Ausgabe unklar','pill'));
-if(item.isbn13) detail.append(text('p','ISBN-13: '+item.isbn13,'muted'));
-if(safeUrl(item.info_url)){const a=text('a','Details zur Quelle ↗');a.href=safeUrl(item.info_url);a.target='_blank';a.rel='noopener noreferrer';detail.append(a)}
-const save=text('button','Merken','subtle action');save.type='button';save.addEventListener('click',()=>saveBook(item));detail.append(save);
-if(['gutendex','gutenberg_catalog','wikisource','standardebooks'].includes(item.source)&&item.epub_url){const button=text('button','Zur Bibliothek hinzufügen','action');button.type='button';button.addEventListener('click',()=>addBook(item));detail.append(button)}card.append(cover,detail);$('books').append(card)}
-}catch(err){$('message').textContent='Suche fehlgeschlagen: '+err.message}finally{$('go').disabled=false;loadStats()}});
+
+const sourceNames={gutendex:'Gutendex',openlibrary:'Open Library',gutenberg_catalog:'Gutenberg',
+wikisource:'Wikisource',standardebooks:'Standard Ebooks',dnb:'Deutsche Nationalbibliothek',google_books:'Google Books'};
+const sourceName=key=>sourceNames[key]||key;
+let lastSearchResult=null;
+let searchFilter='all';
+
+function renderEditionInfo(container,item){
+  container.append(text('p',sourceName(item.source)+' · '+(item.language||(item.source==='openlibrary'?'Sprache je nach Ausgabe':'Sprache unbekannt'))+(item.year?' · '+item.year:''),'pill'));
+  if(item.isbn13)container.append(text('p','ISBN-13: '+item.isbn13,'muted'));
+  if(item.epub_url)container.append(text('p','EPUB-Link gelistet · Verfügbarkeit und Rechte noch prüfen','pill'));
+  else container.append(text('p','Buchdaten · kein Downloadangebot dieser Quelle','muted'));
+}
+
+function renderEditionActions(container,item,compact=false){
+  const url=safeUrl(item.info_url);
+  if(url){
+    const link=text('a','Quelle ansehen ↗');link.href=url;link.target='_blank';link.rel='noopener noreferrer';
+    container.append(link);
+  }
+  const save=text('button',compact?'Merken':'Auf Merkliste','subtle action');
+  save.type='button';save.addEventListener('click',()=>saveBook(item));container.append(save);
+  if(['gutendex','gutenberg_catalog','wikisource','standardebooks'].includes(item.source)&&item.epub_url){
+    const button=text('button','EPUB übernehmen','action');button.type='button';
+    button.addEventListener('click',()=>addBook(item));container.append(button);
+  }
+}
+
+function resultCard(group,items){
+  const members=group.item_indexes.map(index=>items[index]).filter(Boolean);
+  if(!members.length)return null;
+  const main=items[group.primary_index]||members[0];
+  const article=text('article','','book');
+  const wrap=text('div','','cover-slot');
+  wrap.append(text('span','✦','cover-fallback'));
+  const cover=main.cover_url||(main.source==='dnb'&&main.isbn13?
+       'https://covers.openlibrary.org/b/isbn/'+encodeURIComponent(main.isbn13)+'-M.jpg?default=false':null);
+  if(safeUrl(cover)){
+    const img=document.createElement('img');img.className='cover';img.alt='Covervorschau (falls für diese Ausgabe verfügbar)';
+    img.loading='lazy';
+    img.onerror=()=>img.remove();
+    img.onload=()=>{if(img.naturalWidth<10||img.naturalHeight<10)img.remove()};
+    img.src=safeUrl(cover);wrap.append(img);
+  }
+  const info=text('div','','book-detail');
+  info.append(text('h3',main.title));
+  info.append(text('p',main.authors.join(', ')||'Autor nicht im Katalog genannt','muted'));
+  renderEditionInfo(info,main);
+  renderEditionActions(info,main);
+  if(members.length>1){
+    const details=document.createElement('details');
+    const summary=document.createElement('summary');
+    summary.textContent=members.length+' Katalogeinträge / Ausgaben ansehen';
+    details.append(summary);
+    details.append(text('p','Einträge sind nur zur Übersicht gruppiert. ISBNs können unterschiedliche Ausgaben bezeichnen.','muted'));
+    for(const item of members){
+      const edition=text('div','','edition-row');
+      edition.append(text('p',item.title,'source-label'));
+      edition.append(text('p',item.authors.join(', ')||'Autor unbekannt','muted'));
+      renderEditionInfo(edition,item);
+      renderEditionActions(edition,item,true);
+      details.append(edition);
+    }
+    info.append(details);
+  }
+  article.append(wrap,info);
+  return article;
+}
+
+function renderResults(){
+  if(!lastSearchResult)return;
+  const items=lastSearchResult.items||[];
+  const groups=lastSearchResult.display_groups||items.map((_,index)=>({
+    primary_index:index,item_indexes:[index],epub_count:items[index].epub_url?1:0
+  }));
+  const visible=groups.filter(group=>searchFilter==='all'||
+      (searchFilter==='epub'?group.epub_count>0:group.epub_count===0));
+  const cards=visible.map(group=>resultCard(group,items)).filter(Boolean);
+  $('books').replaceChildren(...cards);
+  if(!cards.length){
+    const message=searchFilter==='epub'?'Kein EPUB-Link zu dieser Suche gefunden. Du kannst die Titel trotzdem auf die Merkliste setzen.':
+      'Keine passenden Einträge für diesen Filter.';
+    $('books').append(text('p',message,'muted'));
+  }
+}
+document.querySelectorAll('#search-filters button').forEach(button=>button.addEventListener('click',()=>{
+  searchFilter=button.dataset.filter;
+  for(const other of document.querySelectorAll('#search-filters button'))
+    other.setAttribute('aria-pressed',String(other===button));
+  renderResults();
+}));
+
+$('search').addEventListener('submit',async e=>{
+  e.preventDefault();
+  $('go').disabled=true;
+  $('message').textContent='Buchkataloge werden durchsucht …';
+  $('search-filters').hidden=true;
+  $('search-notice').hidden=true;
+  $('books').replaceChildren();
+  lastSearchResult=null;
+  try{
+    const params=new URLSearchParams({q:$('q').value.trim(),language:$('language').value});
+    const r=await fetch('/api/search?'+params);
+    if(!r.ok)throw Error('HTTP '+r.status);
+    const result=await r.json();
+    lastSearchResult=result;
+    searchFilter='all';
+    for(const other of document.querySelectorAll('#search-filters button'))
+      other.setAttribute('aria-pressed',String(other.dataset.filter==='all'));
+    const found=result.items||[];
+    const groups=result.display_groups||found.map((_,i)=>({item_indexes:[i]}));
+    const epub=found.filter(item=>item.epub_url).length;
+    const errors=(result.sources||[]).filter(x=>x.status==='error');
+    $('message').textContent=groups.length+' Titelübersichten aus '+found.length+' Katalogeinträgen · '+
+        epub+' EPUB-Link'+(epub===1?'':'s')+' gelistet';
+    const notices=[];
+    if(found.length&&!epub)notices.push('Zu dieser Suche wurden nur Buchdaten gefunden – keine Quelle bietet bislang eine EPUB-Datei an.');
+    if(errors.length)notices.push('Nicht erreichbar: '+errors.map(x=>sourceName(x.provider)).join(', ')+'. Andere Quellen wurden trotzdem durchsucht.');
+    if((result.sources||[]).some(x=>x.provider==='gutenberg_catalog'&&x.status==='empty'))
+      notices.push('Der lokale Gutenberg-Buchkatalog ist eventuell noch nicht geladen (unter „Quellen“ einrichten).');
+    $('search-notice').textContent=notices.join(' ');
+    $('search-notice').hidden=!notices.length;
+    $('search-filters').hidden=!found.length;
+    renderResults();
+  }catch(err){$('message').textContent='Suche fehlgeschlagen: '+err.message}
+  finally{$('go').disabled=false;loadStats()}
+});
 loadStats();
 </script></body></html>
