@@ -7,6 +7,11 @@ API keys are **not required**.
 
 ## What actually works
 
+- Calibre bookshelf as the home screen, with original covers, local title/author
+  search, recent/title/author sorting, grid/list view and EPUB downloads to the
+  current device. Desktop sidebar and mobile bottom navigation separate library,
+  discovery, watchlist and downloads. Light/dark and view preferences persist;
+  credentials are never stored in browser storage.
 - Independent built-in DNB, Open Library, Wikisource/WSIndex, Standard Ebooks,
   Gutendex and Library Genesis adapters; optional local Gutenberg CSV/RDF index.
 - Parallel search with an eight-second provider deadline, six operation slots,
@@ -56,7 +61,7 @@ Optional settings:
 | --- | --- |
 | `ROYALBOOKS_API_TOKEN` | Protects watchlist, queue, catalog imports and NAS diagnostics. Search works without it; downloads remain disabled without a token. Enter once in the administration panel and choose **Dieses Gerät anmelden**. A revocable HttpOnly session lasts seven days; the API token is never persisted in browser storage. |
 | `ROYALBOOKS_CWA_INGEST_PATH` | Actual **host** directory mounted as `/cwa-book-ingest` in CWA. RoyalBooks mounts it as `/cwa-ingest`; UID 10001 needs write access. |
-| `ROYALBOOKS_CWA_LIBRARY_PATH` | Actual **host** Calibre library directory; mounted read-only in RoyalBooks. Used only for optional presence checks. |
+| `ROYALBOOKS_CWA_LIBRARY_PATH` | Actual **host** Calibre library directory; mounted read-only in RoyalBooks. Supplies the bookshelf, covers, existing EPUB files and optional presence checks. |
 | `ROYALBOOKS_DOWNLOADS_ENABLED=0` | Pauses automatic processing and new/retried jobs. Default is enabled for newly consented v2 jobs. |
 | `ROYALBOOKS_ENABLE_LEGACY_WORKER=1` | Explicitly resumes historic backlog as well. Default 0 preserves it paused. |
 | `GOOGLE_BOOKS_API_KEY` | Optional extra metadata source; never required. |
@@ -65,6 +70,13 @@ The CWA ingest folder and RoyalBooks storage must be separate. A `delivered`
 status means handed to the ingest folder; it does not establish successful
 Calibre import. An identical file found in the read-only library check proves
 presence, not which job caused it. RoyalBooks never writes `metadata.db`.
+
+The authenticated `/api/library` endpoint lists existing Calibre books with
+bounded pagination (`q`, `sort`, `limit`, `offset`). `/api/library/{id}/cover`
+and `/api/library/{id}/epub` resolve only files registered inside that library;
+metadata paths, directory traversal and symlinks cannot expose outside files.
+An EPUB can be downloaded and opened with the device's reading app. An in-browser
+EPUB reader, reading progress sync and Kindle delivery are not implemented.
 
 Normal search is intended for a LAN. Protect Internet exposure with an
 authenticating reverse proxy. Public search has a per-client quota; personal

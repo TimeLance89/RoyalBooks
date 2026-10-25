@@ -33,6 +33,7 @@ from royalbooks.matching import match_groups
 from royalbooks.presentation import display_groups
 from royalbooks.storage import MetricsStore
 from royalbooks.auth import SessionStore, COOKIE, SESSION_SECONDS
+from royalbooks.library import bookshelf, library_file, LibraryUnavailable
 
 
 def downloads_enabled() -> bool:
@@ -251,6 +252,34 @@ def admin_access(request: Request, x_api_key: str | None = Header(default=None))
 
 class LoginRequest(BaseModel):
     token: str = Field(min_length=1, max_length=512)
+
+
+@app.get('/api/library')
+async def library_books(q: str = Query(default='', max_length=120),
+                        sort: Literal['recent', 'title', 'author'] = 'recent',
+                        limit: int = Query(default=60, ge=1, le=100),
+                        offset: int = Query(default=0, ge=0, le=100000),
+                        _admin: None = Depends(admin_access)):
+    try:
+        result = await asyncio.to_thread(bookshelf, os.getenv('ROYALBOOKS_CWA_LIBRARY_PATH'),
+                                         q, sort, limit, offset)
+        return JSONResponse(result, headers={'Cache-Control':'no-store'})
+    except LibraryUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.get('/api/library/{book_id}/{kind}')
+async def library_asset(book_id: int = ApiPath(gt=0), kind: Literal['cover', 'epub'] = 'cover',
+                        _admin: None = Depends(admin_access)):
+    try:
+        file = await asyncio.to_thread(library_file, os.getenv('ROYALBOOKS_CWA_LIBRARY_PATH'), book_id, kind)
+    except LibraryUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    if file is None:
+        raise HTTPException(status_code=404, detail='library_file_not_found')
+    return FileResponse(file, media_type='image/jpeg' if kind == 'cover' else 'application/epub+zip',
+                        filename=file.name if kind == 'epub' else None,
+                        headers={'Cache-Control':'private, no-store', 'X-Content-Type-Options':'nosniff'})
 
 
 class DeviceLinkRequest(BaseModel):

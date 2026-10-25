@@ -49,6 +49,8 @@ jobs:
           python -m playwright install --with-deps chromium
       - name: Desktop and mobile browser flows (explicit fixtures)
         run: python scripts/browser_smoke.py
+      - name: Calibre bookshelf and device download browser flows
+        run: python scripts/browser_bookshelf.py
       - name: Build image
         run: docker build -t royalbooks:test .
       - name: Verify runtime non-root user can import source from image

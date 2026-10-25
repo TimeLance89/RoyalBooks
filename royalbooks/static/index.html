@@ -1,134 +1,21 @@
 <!doctype html>
-<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RoyalBooks · Bibliotheksmanager</title>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f4f6f8"><title>RoyalBooks · Deine Bibliothek</title>
 <style>
-:root{color-scheme:dark;font-family:Inter,system-ui,"Segoe UI",sans-serif;background:#0d1017;color:#f7f1e9;
-  --gold:#f3c875;--gold-muted:#bfa16c;--line:#34313b;--red:#a73b51;--surface:#1b1d27;--muted:#b3adb3}
-*{box-sizing:border-box}
-[hidden]{display:none!important}
-html{scroll-behavior:smooth}
-body{max-width:1520px;margin:0 auto;padding:26px clamp(18px,3vw,48px) 50px;min-height:100vh;position:relative}
-body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;
-  background:radial-gradient(ellipse 760px 440px at 89% -12%,rgba(156,43,70,.25),transparent 72%),
-  radial-gradient(ellipse 650px 480px at -15% 27%,rgba(199,151,70,.10),transparent 72%)}
-header{display:flex;align-items:center;justify-content:space-between;gap:18px;border-bottom:1px solid rgba(255,255,255,.1);padding:5px 0 23px;flex-wrap:wrap}
-header .accent{font-size:19px;font-weight:800;letter-spacing:.11em;color:var(--gold)}
-header .chip{display:inline-block;border:1px solid rgba(243,200,117,.35);border-radius:100px;padding:7px 12px;font-weight:700;letter-spacing:.06em}
-header nav{display:flex;gap:17px;align-items:center;flex-wrap:wrap}
-header nav a{color:#d8d1d2;font-size:13px;text-decoration:none;font-weight:700}
-header nav a:hover,header nav a:focus-visible{color:var(--gold)}
-h1{font-size:clamp(2.25rem,4.2vw,4.15rem);line-height:1.08;font-weight:800;letter-spacing:-.055em;
-  margin:0 0 14px;max-width:850px}
-h2{font-size:20px;margin:0 0 10px;letter-spacing:-.02em}
-p{line-height:1.58}
-.muted{color:var(--muted)}
-.accent,.pill{color:var(--gold)}
-.chip{color:var(--gold);font-size:11px}
-.hero{margin:24px 0 19px;padding:clamp(24px,3.2vw,42px);border-radius:24px;
-  border:1px solid rgba(231,178,116,.19);
-  background:linear-gradient(110deg,rgba(29,30,40,.98) 10%,rgba(60,28,46,.92) 75%,rgba(95,35,54,.64));
-  box-shadow:0 18px 70px #0005}
-.hero .eyebrow{color:var(--gold);font-weight:800;letter-spacing:.18em;font-size:11px;margin:0 0 18px}
-.hero>p:not(.eyebrow){max-width:670px;margin:0;font-size:15px}
-form{display:flex;flex-wrap:wrap;gap:12px;margin:24px 0 20px;align-items:stretch}
-input,select,button{background:#252631;color:#faf7f2;border:1px solid #504754;border-radius:11px;padding:13px 15px;font:inherit;font-size:14px}
-input,select{min-height:45px}
-input[type=search]{flex:1;min-width:190px;background:#1d1c28}
-input[type=password]{width:min(100%,440px)}
-input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
-button{font-weight:700;background:var(--red);border-color:#c05669;cursor:pointer;transition:filter .15s,transform .15s}
-button:hover:not(:disabled){filter:brightness(1.14);transform:translateY(-1px)}
-button:disabled{opacity:.52;cursor:not-allowed}
-button.subtle,.subtle.action{background:#30313c;border:1px solid #5b505e}
-#message{margin-bottom:16px;min-height:20px;font-size:13px}
-.stats{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 24px}
-.stat{padding:10px 13px;border-radius:11px;background:#20212b;border:1px solid #343540;color:#dfd4cb;font-size:12px}
-.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(345px,1fr));gap:17px}
-.book{background:linear-gradient(150deg,#22242d,#1a1a23);border:1px solid #353441;
-  border-radius:17px;padding:19px;display:grid;grid-template-columns:90px minmax(0,1fr);gap:16px;min-height:192px;box-shadow:0 7px 20px #0002}
-.book:hover{border-color:#7f6064}
-.cover{width:90px;height:135px;object-fit:cover;flex:none;background:linear-gradient(140deg,#744c4b,#383043);
-  border-radius:7px;box-shadow:0 10px 20px #0006}
-.book h3{font-size:16px;line-height:1.35;margin:1px 0 7px;overflow-wrap:anywhere}
-.book-detail{min-width:0}
-.cover-slot{width:90px;height:135px;position:relative;border-radius:7px;overflow:hidden;background:linear-gradient(135deg,#745055,#322936)}
-.cover-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#f0cc8d;font-size:36px}
-.cover-slot img{position:relative;display:block;background:transparent}
-.book details{margin:10px 0 0;border-top:1px solid #403944;padding-top:9px}
-.book summary{color:var(--gold);font-size:12px;font-weight:700;cursor:pointer}
-.edition-row{border-top:1px solid #34343d;padding:9px 0}
-.edition-row p{margin:4px 0}
-.edition-row button{font-size:11px;padding:6px 9px}
-.search-filters{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:12px 0 20px}
-.search-filters button{background:#262631;border-color:#57505b;font-size:12px;padding:8px 12px}
-.search-filters button[aria-pressed="true"]{background:#785041;border-color:#c99d67}
-.search-notice{font-size:13px;color:#e5c58b;margin:6px 0 14px}
-.source-label{color:#e2cfb8}
-.book p{font-size:12px;margin:4px 0}
-.release-card{grid-template-columns:60px minmax(0,1fr);min-height:130px}
-.release-symbol{display:flex;align-items:center;justify-content:center;width:58px;height:72px;border-radius:10px;background:#513943;color:var(--gold);font-size:28px}
-.release-meta{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
-.release-meta span{font-size:11px;border:1px solid #4b4752;border-radius:100px;padding:4px 8px;color:#e5cfb0}
-#token{width:min(100%,420px)}
-@media(max-width:680px){.release-card{grid-template-columns:55px minmax(0,1fr)}#token{width:100%;flex-basis:100%}}
-.book a{display:inline-block;font-size:12px;font-weight:700;color:var(--gold);margin:6px 0}
-.action{margin:10px 7px 0 0;font-size:12px;padding:8px 11px;border-radius:9px}
-.controls{margin:23px 0;background:linear-gradient(130deg,#1b1d28,#1b1b23);
-  border:1px solid #373743;padding:clamp(18px,3vw,25px);border-radius:17px;box-shadow:0 8px 25px #0002}
-.controls>p{margin:8px 0 12px;font-size:13px}
-.controls label{font-size:13px;font-weight:700;display:block;margin:14px 0 7px}
-#preflight-results>p,#import-status>p{border-bottom:1px solid #36343f;padding:7px 0;font-size:12px}
-#preflight-results{margin:12px 0}
-#job-message,#watchlist-message{margin:13px 0;font-size:13px;min-height:18px}
-.jobs{width:100%;border-collapse:collapse;margin-top:15px;font-size:13px}
-.jobs td,.jobs th{border-bottom:1px solid #393943;padding:12px 8px;text-align:left;vertical-align:top}
-.jobs th{font-size:11px;color:var(--gold-muted);text-transform:uppercase;letter-spacing:.1em}
-.watch-row{display:flex;align-items:start;justify-content:space-between;gap:14px;border-bottom:1px solid #393743;padding:13px 0}
-.watch-row h3{font-size:15px;margin:0}
-.watch-row button{white-space:nowrap}
-.watch-row p{font-size:12px;margin:6px 0}
-.watch-row a{color:var(--gold);font-size:12px}
-footer{border-top:1px solid #353541;margin-top:32px;padding-top:20px;font-size:12px}
-@media(max-width:680px){
-body{padding:17px 15px 36px}
-header{padding-bottom:15px;gap:12px}
-header nav{gap:11px}
-header nav a{font-size:12px}
-.hero{padding:24px 20px;border-radius:17px;margin:19px 0}
-.hero>p:not(.eyebrow){font-size:13px}
-form{margin:18px 0;gap:8px}
-form input[type=search]{min-width:100%;flex-basis:100%}
-form select,form button{flex:1}
-.cards{grid-template-columns:minmax(0,1fr)}
-.book{padding:14px}
-.cover,.cover-slot{width:74px;height:111px}
-.book{grid-template-columns:74px minmax(0,1fr)}
-.search-filters{gap:6px}
-.controls{border-radius:13px;padding:17px 14px}
-#catalog-controls button{flex:1}
-}
-/* Book titles carry the library identity; controls remain compact and quiet. */
-h1,.book h3,#detail-title{font-family:Georgia,"Palatino Linotype",serif;font-weight:500;letter-spacing:-.025em}
-h1{font-size:clamp(2.4rem,4vw,4rem)}
-.hero{background:#201d26;box-shadow:none;border-radius:10px;border-left:3px solid var(--gold)}
-.book{background:#1b1d27;box-shadow:none;border-radius:10px}
-.book h3{font-size:21px}
-.stat{max-width:340px}.stat p{margin:5px 0}
-.search-diagnostics{margin:16px 0;color:var(--muted);font-size:13px}
-.search-diagnostics summary{cursor:pointer}
-dialog{background:#1b1d27;color:#f7f1e9;border:1px solid #756248;border-radius:12px;padding:26px;width:min(760px,calc(100% - 24px));max-height:88vh;overflow:auto}
-dialog::backdrop{background:#070810c9}#close-detail{float:right;margin:0 0 14px 14px}
-.detail-cover{width:130px;max-height:200px;object-fit:cover;float:left;margin:0 22px 16px 0}.description{white-space:pre-line;clear:none;max-width:65ch}
-#detail-content h3{clear:both}.action{min-height:44px}.book a{min-height:30px}
-@media(max-width:680px){header .chip{display:none}header nav{width:100%;justify-content:space-between}.hero{padding:22px 18px}.book h3{font-size:20px}.book .action{margin-right:4px;padding:8px}dialog{padding:18px}.stat{width:100%;max-width:none}}
-@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}button{transition:none}}
+:root{color-scheme:light;--bg:#f4f6f8;--surface:#fff;--ink:#1c2c3e;--muted:#607084;--line:#dfe5ec;--gold:#17649b;--gold-muted:#607084;--red:#17649b;--accent-soft:#e8f1f8;font-family:"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:15px}
+:root[data-theme=dark]{color-scheme:dark;--bg:#14202d;--surface:#1d2c3d;--ink:#edf2f7;--muted:#adbbca;--line:#34465a;--gold:#82bde6;--gold-muted:#adbbca;--red:#327eaf;--accent-soft:#253e54}
+*{box-sizing:border-box} [hidden]{display:none!important} body{margin:0}button,input,select{font:inherit}button,a,input,select,summary{-webkit-tap-highlight-color:transparent}button,a{touch-action:manipulation}a{color:var(--gold)}button{cursor:pointer}button:disabled{opacity:.5;cursor:wait}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid var(--gold);outline-offset:4px}button,input,select{border:1px solid var(--line);border-radius:9px;min-height:44px;padding:11px 15px;background:var(--surface);color:var(--ink)}button{font-weight:600}button:hover:not(:disabled){border-color:var(--gold)}button:not(.subtle):not(.nav-link):not(.icon-button):not(.filter-button){background:var(--red);color:#fff;border-color:transparent}.subtle{background:var(--surface)}p{line-height:1.6}.muted{color:var(--muted)}h1,h2,h3,p{overflow-wrap:anywhere}h1{font-size:clamp(30px,3vw,44px);font-weight:650;letter-spacing:-.04em;line-height:1.15;margin:8px 0 14px}h2{font-size:23px;letter-spacing:-.03em;margin:0 0 12px}h3{font-size:16px;line-height:1.4}a{text-underline-offset:3px}
+.app-sidebar{position:fixed;inset:0 auto 0 0;width:224px;background:var(--surface);border-right:1px solid var(--line);padding:35px 20px;display:flex;flex-direction:column;z-index:20}.brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink);font-size:22px;font-weight:750;letter-spacing:-1px;padding:0 8px}.brand svg{width:30px;height:34px;color:var(--gold)}.brand-caption{margin:7px 0 35px 48px;font-size:11px;color:var(--muted)}.app-nav{display:flex;flex-direction:column;gap:6px}.nav-link{display:flex;align-items:center;gap:13px;padding:13px 15px;border:0;border-radius:8px;text-decoration:none;color:var(--muted);font-size:14px;font-weight:600;min-height:48px}.nav-link svg{width:21px;height:21px;flex:none}.nav-link[aria-current=page]{background:var(--accent-soft);color:var(--gold)}.sidebar-bottom{margin-top:auto;padding:20px 8px 0;font-size:12px;color:var(--muted);border-top:1px solid var(--line)}.connection-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#319579;margin-right:7px}.app-main{max-width:1550px;margin-left:224px;padding:0 clamp(22px,4vw,64px) 35px}.topbar{height:86px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);margin-bottom:34px}.topbar-title{font-size:14px;font-weight:600;color:var(--muted)}.topbar-tools{display:flex;gap:8px}.icon-button{background:transparent;min-width:44px;padding:9px;display:flex;align-items:center;justify-content:center;gap:6px}.icon-button svg{height:20px;width:20px}.profile{height:38px;width:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--gold);font-weight:700;font-size:13px}.hero{margin:0 0 26px;padding:0;max-width:740px}.hero p{color:var(--muted);font-size:15px;margin:0;max-width:58ch}.page-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin:0 0 28px}.page-heading p{margin:0;color:var(--muted)}.page-heading .icon-button{flex:none;margin-top:12px}.section-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:28px 0 16px}.section-heading h2{font-size:18px;margin:0}.count-badge{font-size:12px;padding:5px 10px;background:var(--accent-soft);color:var(--gold);border-radius:20px;white-space:nowrap}.toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:22px 0}.toolbar input{flex:1;min-width:180px}.toolbar select{min-width:160px}.layout-toggle{display:flex;gap:4px}.layout-toggle button[aria-pressed=true]{background:var(--accent-soft);color:var(--gold);border-color:var(--gold)}.shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:30px 25px;align-items:start}.shelf-book{min-width:0}.shelf-book>button{display:block;width:100%;padding:0;border:0;background:transparent!important;color:var(--ink)!important;text-align:left;font-weight:400}.jacket{position:relative;width:100%;aspect-ratio:2/3;border-radius:3px 8px 8px 3px;overflow:hidden;box-shadow:3px 6px 13px #14273d21;background:var(--jacket,#234d65);color:#fff;isolation:isolate}.jacket:after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 4px 0 4px #0002,inset 5px 0 0 #ffffff12}.jacket img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1}.jacket-type{position:absolute;inset:12%;border-top:1px solid #ffffff70;border-bottom:1px solid #ffffff70;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;text-align:center}.jacket-type strong{font-family:Georgia,serif;font-weight:400;font-size:clamp(18px,1.6vw,27px);line-height:1.2}.jacket-type small{font-size:10px;opacity:.8}.shelf-book h3{margin:13px 0 4px;font-size:14px;font-weight:650}.shelf-book p{margin:0;color:var(--muted);font-size:12px}.format-tag{display:inline-block;font-size:10px;font-weight:700;margin-top:8px;color:var(--gold);border:1px solid var(--line);border-radius:4px;padding:3px 6px}.empty-state{grid-column:1/-1;text-align:center;padding:55px 20px;border:1px dashed var(--line);border-radius:12px;max-width:100%;color:var(--muted)}.empty-state svg{width:48px;height:48px;color:var(--gold);margin-bottom:14px}.empty-state h2{color:var(--ink);font-size:22px}.empty-state p{max-width:440px;margin:10px auto 20px}.shelf.list-layout{grid-template-columns:1fr;gap:0}.shelf.list-layout .shelf-book{border-bottom:1px solid var(--line);padding:16px 0}.shelf.list-layout .shelf-book>button{display:grid;grid-template-columns:58px 1fr;column-gap:18px;align-items:start}.shelf.list-layout .jacket{grid-row:1/5}.shelf.list-layout .jacket-type{display:none}.shelf.list-layout h3{margin-top:3px}.shelf.list-layout .format-tag{justify-self:start}.shelf.list-layout .jacket-type strong{font-size:12px}
+#search{display:flex;gap:10px;margin:25px 0 15px}#q{flex:1;min-width:150px;background:var(--surface)}#message,#library-message{font-size:13px;min-height:20px;margin:16px 0}.search-filters{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0}.search-filters button{background:transparent!important;color:var(--muted)!important;border:1px solid var(--line)!important;border-radius:24px;padding:8px 14px;font-size:12px;min-height:38px}.search-filters button[aria-pressed=true]{background:var(--accent-soft)!important;color:var(--gold)!important;border-color:var(--gold)!important}.search-notice{font-size:12px;color:var(--muted);padding:10px 0}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:28px 22px}.book{min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;align-self:start}.cover-slot{position:relative;width:100%;height:230px;max-width:165px;margin:0 auto 17px;overflow:hidden;background:var(--jacket,#234d65);border-radius:3px 7px 7px 3px;box-shadow:3px 6px 12px #14273d21}.cover{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.cover-fallback{position:absolute;inset:16px 13px;border-top:1px solid #ffffff70;border-bottom:1px solid #ffffff70;display:flex;align-items:center;justify-content:center;text-align:center;color:#fff;font:22px/1.3 Georgia,serif;padding:10px}.book h3{margin:0 0 7px;font-size:16px}.book p{font-size:12px;margin:5px 0}.book .pill{color:var(--gold)}.book .action{font-size:12px;margin:8px 5px 0 0;padding:8px 10px;min-height:40px}.book a{display:block;font-size:12px;margin-top:12px}.book details{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}summary{cursor:pointer;line-height:1.5}.book summary{font-size:12px;color:var(--gold)}.edition-row{border-bottom:1px solid var(--line);padding:15px 0}.edition-row p{font-size:13px}.search-diagnostics{margin:15px 0;color:var(--muted);font-size:13px}.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:20px}.stat{padding:18px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:13px}.stat p{margin:7px 0}.controls{margin:20px 0;padding:22px;background:var(--surface);border:1px solid var(--line);border-radius:10px}.controls>p{font-size:13px;color:var(--muted);max-width:72ch}.controls label{display:block;margin:15px 0 6px}.controls>summary{font-weight:600}#token{width:min(100%,420px)}#job-message,#watchlist-message{font-size:13px;margin:16px 0}.watch-row{display:flex;align-items:start;justify-content:space-between;gap:20px;padding:20px 0;border-bottom:1px solid var(--line)}.watch-row h3{margin:0 0 8px}.watch-row p,.watch-row a{font-size:12px;margin:5px 0}.watch-row .action{font-size:12px;flex:none}.jobs{border-collapse:collapse;width:100%;font-size:13px;table-layout:fixed}.jobs th{text-align:left;color:var(--muted);font-size:12px;font-weight:500}.jobs td,.jobs th{padding:18px 12px;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere}.jobs td p{font-size:12px}.jobs .action{font-size:12px;margin-top:10px}.jobs th:first-child{width:30%}.jobs th:nth-child(2){width:30%}#preflight-results p{font-size:13px;border-bottom:1px solid var(--line);padding:10px 0}dialog{width:min(700px,calc(100% - 28px));max-height:86dvh;overflow:auto;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:28px;box-shadow:0 20px 80px #0004}dialog::backdrop{background:#0d1b2c90}#close-detail{float:right;margin:0 0 16px 16px}.detail-cover{width:140px;max-height:215px;object-fit:cover;float:left;margin:0 24px 20px 0;border-radius:4px}.description{white-space:pre-line;color:var(--muted);font-size:14px}#detail-content h3{clear:both}.action{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;min-height:44px;padding:10px 14px;border-radius:8px;margin:10px 8px 0 0}.primary-link{background:var(--red);color:#fff}.library-actions{display:flex;justify-content:center;margin:30px 0}.app-footer{border-top:1px solid var(--line);margin-top:45px;padding-top:20px;color:var(--muted);font-size:12px;display:flex;justify-content:space-between;gap:20px}#access-banner{display:none}.loading-shelf{opacity:.5;pointer-events:none}
+@media(min-width:1500px){.shelf{grid-template-columns:repeat(auto-fill,minmax(165px,1fr))}}
+@media(max-width:1050px){.app-sidebar{width:190px;padding:30px 12px}.app-main{margin-left:190px;padding-left:26px;padding-right:26px}.brand{font-size:20px}.brand-caption{margin-left:48px}.shelf{gap:26px 20px;grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}}
+@media(max-width:700px){.app-sidebar{inset:auto 0 0;width:100%;height:calc(70px + env(safe-area-inset-bottom));padding:5px 10px env(safe-area-inset-bottom);border-right:0;border-top:1px solid var(--line)}.app-sidebar>.brand,.brand-caption,.sidebar-bottom{display:none}.app-nav{flex-direction:row;justify-content:space-around;gap:2px}.nav-link{flex:1;min-height:60px;justify-content:center;flex-direction:column;gap:5px;padding:7px 4px;font-size:10px;border-radius:7px}.nav-link svg{width:22px;height:22px}.app-main{margin-left:0;padding:0 20px calc(95px + env(safe-area-inset-bottom))}.topbar{height:72px;margin-bottom:26px}.topbar-title{font-size:18px;font-weight:750;color:var(--ink);letter-spacing:-.5px}.topbar-tools{align-items:center}.profile{width:32px;height:32px}.page-heading{margin-bottom:20px;gap:8px}.page-heading p{font-size:13px}h1{font-size:32px}.hero{margin-bottom:22px}.hero p{font-size:13px}.toolbar{gap:8px}.toolbar input{flex-basis:100%;min-width:0;width:100%}.toolbar select{flex:1;min-width:0}.shelf{grid-template-columns:repeat(2,minmax(0,1fr));gap:25px 20px}.jacket-type strong{font-size:23px}.jacket-type{gap:16px}.shelf-book h3{font-size:13px}.shelf-book p{font-size:11px}.cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 12px}.book{padding:11px}.cover-slot{height:auto;aspect-ratio:2/3;margin-bottom:13px}.cover-fallback{font-size:19px;inset:12px 9px;padding:3px}.book h3{font-size:14px}.book p{font-size:11px}.book .action{display:flex;width:100%;margin:7px 0 0;font-size:11px;padding:8px 5px}.book details{grid-column:1/-1}.book summary{font-size:11px}#search{flex-wrap:wrap;gap:8px}#q{width:100%;flex-basis:100%}#search select{flex:1}#go{flex:1}.controls{padding:17px;margin:16px 0}.controls h2{font-size:21px}.search-filters{gap:6px}.search-filters button{font-size:11px;padding:8px 11px}.jobs,.jobs tbody,.jobs tr,.jobs td{display:block;width:100%}.jobs thead{display:none}.jobs tr{border-bottom:1px solid var(--line);padding:15px 0}.jobs td{display:grid;grid-template-columns:100px minmax(0,1fr);gap:12px;border:0;padding:7px 0;font-size:12px}.jobs td:before{content:attr(data-label);color:var(--muted);font-size:12px}.jobs td p,.jobs td button{grid-column:2}.jobs .action{justify-self:start}.watch-row{gap:10px}.watch-row .action{padding:8px;font-size:11px}.app-footer{font-size:11px;margin-top:30px}.empty-state{padding:36px 16px}.empty-state h2{font-size:21px}.empty-state p{font-size:13px}.detail-cover{width:95px;margin-right:16px}dialog{padding:20px}.stats{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+
 </style></head>
-<body><header><span class="accent">✦ ROYALBOOKS</span>
-<nav aria-label="Navigation"><a href="#search">Entdecken</a><a href="#watchlist">Merkliste</a><a href="#source-details">Quellen</a><a href="#download-center">Downloads</a></nav>
-<span class="chip">DIREKTSUCHE · 2.0</span></header>
-<section class="hero">
-<h1>Finde die richtige Buchausgabe.</h1>
-<p class="muted">RoyalBooks durchsucht eingebaute Buchquellen direkt. Keine zusätzlichen Programme, Indexer oder API-Schlüssel nötig. Deutsche Ausgaben werden bevorzugt.</p></section>
+<body><aside class="app-sidebar"><a class="brand" href="#library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5c4-2 6-1 9 1 3-2 5-3 9-1v15c-4-2-6-1-9 1-3-2-5-3-9-1zM12 6v15"/></svg>RoyalBooks</a><p class="brand-caption">Deine Bücher. Dein Regal.</p><nav class="app-nav" aria-label="Navigation"><a class="nav-link" href="#library" data-view-target="library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h4v16H4zM10 4h4v16h-4zM17 4l4 15-3 1-4-15z"/></svg><span>Bibliothek</span></a><a class="nav-link" href="#search" data-view-target="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><span>Entdecken</span></a><a class="nav-link" href="#watchlist" data-view-target="watchlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg><span>Merkliste</span></a><a class="nav-link" href="#download-center" data-view-target="download-center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg><span>Downloads</span></a></nav><div class="sidebar-bottom"><span class="connection-dot"></span>Mit deiner Bibliothek verbunden</div></aside><main class="app-main"><header class="topbar"><span class="topbar-title">RoyalBooks</span><div class="topbar-tools"><button class="icon-button" id="theme-toggle" type="button" aria-label="Darstellung wechseln" title="Hell / Dunkel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13a8 8 0 0 1-9-9 8 8 0 1 0 9 9z"/></svg></button><span class="profile" aria-label="Persönliche Bibliothek">RB</span></div></header><section id="library" data-view="library"><div class="page-heading"><div><h1>Deine Bibliothek</h1><p>Alle deine Bücher. Bereit für das nächste Kapitel.</p></div><button type="button" class="icon-button" id="library-refresh" aria-label="Bibliothek aktualisieren" title="Aktualisieren"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 7a7 7 0 0 1 12-2l2 7M4 12l2 7a7 7 0 0 0 12-2"/></svg></button></div><div class="toolbar"><input type="search" id="library-query" placeholder="In deiner Bibliothek suchen" aria-label="Bibliothek durchsuchen" maxlength="120"><select id="library-sort" aria-label="Bibliothek sortieren"><option value="recent">Zuletzt hinzugefügt</option><option value="title">Nach Titel</option><option value="author">Nach Autor</option></select><div class="layout-toggle"><button class="icon-button" id="view-grid" type="button" aria-label="Regalansicht" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></button><button class="icon-button" id="view-list" type="button" aria-label="Listenansicht" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5h13M8 12h13M8 19h13M3 5h1M3 12h1M3 19h1"/></svg></button></div></div><div class="section-heading"><h2 id="shelf-heading">Dein Bücherregal</h2><span class="count-badge" id="library-count">Wird geladen …</span></div><p id="library-message" class="muted" role="status"></p><div id="library-books" class="shelf" aria-live="polite"></div><div class="library-actions"><button id="library-more" type="button" class="subtle" hidden>Weitere Bücher laden</button></div></section><section data-view="search" hidden><section class="hero">
+<h1>Dein nächstes Kapitel.</h1>
+<p class="muted">Entdecke Bücher, sammle Lesewünsche und ergänze deine Bibliothek. Suche nach einem Titel, einem Autor oder einer ISBN.</p></section>
 <form id="search"><input type="search" id="q" placeholder="Titel, Autor oder ISBN" required minlength="2" maxlength="120" aria-label="Suche"><select id="language" aria-label="Sprache"><option value="de">Deutsch</option><option value="en">Englisch</option><option value="all">Alle</option></select><button id="go">Bücher suchen</button></form>
 <div id="message" role="status" class="muted">Suche nach einem Buch. RoyalBooks nutzt automatisch eingebaute Quellen.</div>
 <p id="access-banner" class="search-notice" role="status" hidden></p>
@@ -142,7 +29,7 @@ dialog::backdrop{background:#070810c9}#close-detail{float:right;margin:0 0 14px 
 <details id="source-details"><summary class="muted">Integrierte Quellen und Diagnose</summary>
 <section id="stats" class="stats" aria-label="Providerstatus"></section></details>
 <details class="search-diagnostics"><summary id="source-summary">Quellenstatus ansehen</summary><div id="search-diagnostics"></div></details>
-<section id="books" class="cards" aria-live="polite"></section>
+<section id="books" class="cards" aria-live="polite"></section></section>
 <details class="controls" id="admin-access">
 <summary style="cursor:pointer;font-weight:750">Verwaltungszugang für Merkliste und Aufträge (optional)</summary>
 <p class="muted">Die Suche ist frei. Melde dieses Gerät einmal für Merkliste und Downloads an. Der Zugang bleibt sieben Tage erhalten; der API-Token wird nicht im Browser gespeichert.</p>
@@ -152,14 +39,17 @@ dialog::backdrop{background:#070810c9}#close-detail{float:right;margin:0 0 14px 
 <button id="access-logout" type="button" class="subtle" hidden>Abmelden</button>
 <p id="access-status" class="muted" role="status" aria-live="polite">Zugang wird geprüft …</p>
 </details>
-<section class="controls" id="watchlist">
+<section class="controls" id="watchlist" data-view="watchlist" hidden>
 <h2>Meine Merkliste</h2>
-<p class="muted">Gespeicherte ältere Einträge bleiben erhalten. Zum Öffnen der persönlichen Merkliste wird der optionale Verwaltungszugang benötigt.</p>
+<p class="muted">Bücher, die du als Nächstes lesen möchtest. Deine gespeicherten Titel bleiben hier erhalten.</p>
 <button type="button" id="watchlist-refresh" class="subtle">Merkliste öffnen</button>
 <div id="watchlist-message" role="status" class="muted"></div>
 <div id="watchlist-items" aria-live="polite"></div>
 </section>
-<details class="controls" id="catalog-controls"><summary>Optionalen Offline-Katalog verwalten</summary>
+<section class="controls" id="download-center" data-view="download-center" hidden><h2>Deine Downloads</h2><p class="muted">Bestätigte EPUB-Aufträge werden geprüft und im verbundenen Calibre-Importordner bereitgestellt. Historische Aufträge bleiben bis zur Freigabe pausiert.</p>
+
+<button id="refresh" class="subtle" type="button">Aufträge aktualisieren</button> <button id="preflight" class="subtle" type="button">NAS-Einrichtung prüfen</button><div id="preflight-results" role="status" aria-live="polite"></div><div id="job-message" role="status" class="muted"></div><div style="overflow:auto"><table class="jobs"><thead><tr><th>Quelle / Buch-ID</th><th>Status</th><th>Details</th></tr></thead><tbody id="job-rows"></tbody></table></div></section>
+<details class="controls" id="catalog-controls" hidden><summary>Optionalen Offline-Katalog verwalten</summary>
 <h2>Offiziellen Gutenberg-Katalog einrichten</h2>
 <p class="muted">Ohne Kommandozeile: erst Buchdaten (CSV), dann EPUB-Formatinformationen (RDF) importieren. Der zweite Schritt verarbeitet ein großes Archiv. Die Abfragen erfolgen nur nach deinem Klick.</p>
 <div style="display:flex;flex-wrap:wrap;gap:9px;margin:14px 0">
@@ -168,12 +58,8 @@ dialog::backdrop{background:#070810c9}#close-detail{float:right;margin:0 0 14px 
 <button type="button" class="subtle" id="sync-refresh">Status prüfen</button></div>
 <div id="import-status" class="muted" role="status" aria-live="polite">Für den Import den API-Token unten eingeben.</div>
 </details>
-<section class="controls" id="download-center"><h2>Downloadcenter und Calibre</h2><p class="muted">Bestätigte EPUB-Aufträge werden geprüft und im verbundenen Calibre-Importordner bereitgestellt. Historische Aufträge bleiben bis zur Freigabe pausiert.</p>
-<p class="muted">Für Auftragsdetails den optionalen Verwaltungszugang oberhalb der Merkliste öffnen.</p>
-<button id="refresh" class="subtle" type="button">Aufträge aktualisieren</button> <button id="preflight" class="subtle" type="button">NAS-Einrichtung prüfen</button><div id="preflight-results" role="status" aria-live="polite"></div><div id="job-message" role="status" class="muted"></div><div style="overflow:auto"><table class="jobs"><thead><tr><th>Quelle / Buch-ID</th><th>Status</th><th>Details</th></tr></thead><tbody id="job-rows"></tbody></table></div></section>
 <dialog id="book-dialog" aria-labelledby="detail-title"><button id="close-detail" class="subtle" type="button">Schließen</button><div id="detail-content"></div></dialog>
-<footer class="muted">Die Übergabe an Calibre-Web Automated wird als „delivered“ angezeigt, nicht als bestätigter Bibliotheksimport. Keine unbekannten Downloadserver, keine Kopierschutz-Umgehung.</footer>
-<script>
+<footer class="app-footer"><span>RoyalBooks · Deine persönliche Bibliothek</span><a href="#settings" id="settings-link">Einstellungen &amp; Quellen</a></footer></main><script>
 const $=id=>document.getElementById(id);
 const text=(tag,value,cls)=>{const el=document.createElement(tag);el.textContent=value;if(cls)el.className=cls;return el};
 let adminAuthenticated=false;
@@ -223,7 +109,7 @@ async function signIn(){
   const response=await fetch('/api/auth/login',{method:'POST',credentials:'same-origin',
    headers:{'Content-Type':'application/json','X-RoyalBooks-Client':'web'},body:JSON.stringify({token:$('token').value})});
   if(!response.ok)throw Error(response.status===401?'Der Token ist ungültig.':'Anmeldung fehlgeschlagen.');
-  $('token').value='';showAccess(true);await loadJobs();
+  $('token').value='';showAccess(true);await loadJobs();loadLibrary();loadWatchlist();
  }catch(error){showAccess(false,error.message)}
 }
 $('access-login').addEventListener('click',signIn);
@@ -288,7 +174,7 @@ if(job.status==='delivered'&&result.library_configured){
  const b=text('button','In Calibre prüfen','action');b.type='button';
  b.addEventListener('click',()=>checkLibrary(job));info.append(b);
 }
-row.append(text('td',sourceName(job.source)+' / '+job.source_id),text('td',((job.status==='queued'&&!job.v2_authorized&&!result.legacy_worker_enabled)?'Historisch · pausiert':(jobStatusLabels[job.status]||job.status))+' · Versuch '+job.attempts+'/3'),info);return row}))}catch(err){$('job-message').textContent='Aufträge nicht abrufbar: '+err.message}}
+row.append(text('td',sourceName(job.source)+' / '+job.source_id),text('td',((job.status==='queued'&&!job.v2_authorized&&!result.legacy_worker_enabled)?'Historisch · pausiert':(jobStatusLabels[job.status]||job.status))+' · Versuch '+job.attempts+'/3'),info);['Buch / Quelle','Status','Details'].forEach((label,i)=>row.children[i].dataset.label=label);return row}))}catch(err){$('job-message').textContent='Aufträge nicht abrufbar: '+err.message}}
 async function retryJob(job){
 if(!confirm('Darf dieses Buch weiterhin rechtmäßig heruntergeladen werden, und möchtest du den Auftrag erneut starten?'))return;
 const token=$('token').value;if(!token&&!adminAuthenticated){$('job-message').textContent='API-Token fehlt.';return}
@@ -442,11 +328,11 @@ $('token').addEventListener('change',loadJobs);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&($('token').value||adminAuthenticated))loadJobs()});
 async function addBook(book){
 await authReady;
-const token=$('token').value;if(!token&&!adminAuthenticated){$('admin-access').open=true;$('token').focus();$('job-message').textContent='Für Downloadaufträge den RoyalBooks-Verwaltungszugang eingeben. Kein Anbieterkonto erforderlich.';return}
+const token=$('token').value;if(!token&&!adminAuthenticated){showView('settings');$('admin-access').open=true;$('token').focus();$('job-message').textContent='Für Downloadaufträge den RoyalBooks-Verwaltungszugang eingeben. Kein Anbieterkonto erforderlich.';return}
 if(!confirm('Hast du geprüft, dass du dieses Buch in deinem Land rechtmäßig herunterladen und speichern darfst?'))return;
 try{const r=await adminFetch('/api/jobs',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({provider:book.source,source_id:Number(book.acquisition_id||book.source_id),rights_confirmed:true})});
 const data=await r.json();if(!r.ok)throw Error(data.detail||'HTTP '+r.status);$('job-message').textContent='Auftrag für '+book.title+' vorgemerkt.';loadJobs()}catch(err){$('job-message').textContent='Übernahme fehlgeschlagen: '+err.message}
-$('job-message').scrollIntoView({block:'nearest'})}
+showView('download-center');$('job-message').scrollIntoView({block:'nearest'})}
 
 const sourceNames={gutendex:'Gutendex',openlibrary:'Open Library',gutenberg_catalog:'Gutenberg',
 libgen:'Library Genesis',wikisource:'Wikisource',standardebooks:'Standard Ebooks',dnb:'Deutsche Nationalbibliothek',google_books:'Google Books'};
@@ -483,7 +369,8 @@ function resultCard(group,items){
   const main=items[group.primary_index]||members[0];
   const article=text('article','','book');
   const wrap=text('div','','cover-slot');
-  wrap.append(text('span','✦','cover-fallback'));
+  wrap.style.setProperty('--jacket',jacketColor(main.title));
+  wrap.append(text('span',main.title,'cover-fallback'));
   const cover=main.cover_url||(main.source==='dnb'&&main.isbn13?
        'https://covers.openlibrary.org/b/isbn/'+encodeURIComponent(main.isbn13)+'-M.jpg?default=false':null);
   if(safeUrl(cover)){
@@ -583,7 +470,95 @@ $('search').addEventListener('submit',async e=>{
   }catch(err){$('message').textContent='Buchsuche fehlgeschlagen: '+err.message}
   finally{$('go').disabled=false}
 });
+const jacketPalette=['#244f63','#75494c','#47604e','#625172','#8a663c','#305c7b'];
+function jacketColor(title){let hash=0;for(const c of title||'Buch')hash=((hash*31)+c.charCodeAt(0))>>>0;return jacketPalette[hash%jacketPalette.length]}
+function makeJacket(book){
+ const cover=text('div','','jacket');cover.style.setProperty('--jacket',jacketColor(book.title));
+ const type=text('div','','jacket-type');type.append(text('strong',book.title),text('small',book.authors));cover.append(type);
+ if(book.cover_url){const image=document.createElement('img');image.src=book.cover_url;image.alt='Cover von '+book.title;image.loading='lazy';image.onerror=()=>image.remove();cover.append(image)}
+ return cover;
+}
+let libraryItems=[],libraryGeneration=0,libraryHasMore=false,libraryQueryTimer=null;
+function libraryMessage(message,buttonLabel,action){
+ const empty=text('div','','empty-state');empty.append(text('h2',message));
+ if(buttonLabel){const button=text('button',buttonLabel);button.type='button';button.addEventListener('click',action);empty.append(button)}
+ $('library-books').replaceChildren(empty);
+}
+function openLibraryBook(book){
+ const content=$('detail-content');content.replaceChildren();
+ const title=text('h2',book.title);title.id='detail-title';content.append(title,text('p',book.authors,'muted'));
+ if(book.cover_url){const image=document.createElement('img');image.className='detail-cover';image.src=book.cover_url;image.alt='Cover von '+book.title;image.onerror=()=>image.remove();content.append(image)}
+ content.append(text('p','In deiner Calibre-Bibliothek gespeichert.','description'),text('p','Verfügbare Formate: '+(book.formats.join(', ')||'Keine Datei hinterlegt'),'muted'));
+ if(book.epub_url){const download=text('a','EPUB auf dieses Gerät laden','action primary-link');download.href=book.epub_url;download.download='';content.append(download)}
+ const note=text('p','Öffne die EPUB nach dem Laden in deiner Lese-App.','muted');content.append(note);
+ $('book-dialog').showModal();
+}
+function renderLibrary(){
+ $('library-books').replaceChildren(...libraryItems.map(book=>{
+  const card=text('article','','shelf-book');const button=text('button','');button.type='button';button.setAttribute('aria-label',book.title+' öffnen');
+  button.append(makeJacket(book),text('h3',book.title),text('p',book.authors),text('span',book.formats.includes('EPUB')?'EPUB':(book.formats[0]||'Buch'),'format-tag'));
+  button.addEventListener('click',()=>openLibraryBook(book));card.append(button);return card;
+ }));
+ if(!libraryItems.length)libraryMessage($('library-query').value?'Keine passenden Bücher gefunden.':'Dein Regal wartet auf das erste Buch.','Bücher entdecken',()=>showView('search'));
+ $('library-more').hidden=!libraryHasMore;
+}
+async function loadLibrary(more=false){
+ if(!adminAuthenticated){$('library-count').textContent='Zugang erforderlich';libraryMessage('Melde dich für deine Bibliothek an.','Zugang öffnen',()=>{showView('settings');$('admin-access').open=true});return}
+ const generation=++libraryGeneration;
+ $('library-books').classList.add('loading-shelf');$('library-more').disabled=true;
+ $('library-message').textContent='Bibliothek wird geladen …';
+ try{
+  const params=new URLSearchParams({q:$('library-query').value.trim(),sort:$('library-sort').value,offset:String(more?libraryItems.length:0)});
+  const response=await adminFetch('/api/library?'+params);const data=await response.json();
+  if(generation!==libraryGeneration)return;
+  if(!response.ok)throw Error(data.detail||'library_unavailable');
+  libraryItems=more?[...libraryItems,...data.items]:data.items;libraryHasMore=data.has_more;
+  $('library-count').textContent=data.total+' '+(data.total===1?'Buch':'Bücher');
+  $('shelf-heading').textContent=$('library-query').value?'Suchergebnisse':$('library-sort').value==='recent'?'Zuletzt hinzugefügt':'Dein Bücherregal';
+  $('library-message').textContent=$('library-query').value?data.filtered_total+' passende Bücher':'';
+  renderLibrary();
+ }catch(error){
+  if(generation!==libraryGeneration)return;
+  const messages={library_not_configured:'Verbinde deine Calibre-Bibliothek in den NAS-Einstellungen.',library_unavailable:'Die Bibliothek ist gerade nicht erreichbar.',library_unreadable:'Die Calibre-Buchdaten konnten nicht gelesen werden.'};
+  $('library-count').textContent='Nicht erreichbar';$('library-message').textContent=messages[error.message]||'Bibliothek konnte nicht geladen werden.';
+  $('library-more').hidden=true;libraryMessage('Deine Bücher konnten nicht geladen werden.','Erneut versuchen',()=>loadLibrary());
+ }finally{if(generation===libraryGeneration){$('library-books').classList.remove('loading-shelf');$('library-more').disabled=false}}
+}
+function showView(name,updateHash=true){
+ const valid=['library','search','watchlist','download-center','settings'];if(!valid.includes(name))name='library';
+ for(const section of document.querySelectorAll('[data-view]'))section.hidden=section.dataset.view!==name;
+ for(const link of document.querySelectorAll('[data-view-target]')){
+  if(link.dataset.viewTarget===name)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');
+ }
+ if(updateHash&&location.hash!=='#'+name)history.replaceState(null,'','#'+name);
+ if(name==='library'&&adminAuthenticated)loadLibrary();
+ if(name==='watchlist'&&adminAuthenticated)loadWatchlist();
+ if(name==='download-center'&&adminAuthenticated)loadJobs();
+ window.scrollTo({top:0,behavior:'instant'});
+}
+function setLibraryLayout(layout){
+ const list=layout==='list';$('library-books').classList.toggle('list-layout',list);
+ $('view-grid').setAttribute('aria-pressed',String(!list));$('view-list').setAttribute('aria-pressed',String(list));
+ try{localStorage.setItem('royalbooks-layout',list?'list':'grid')}catch{}
+}
+function setTheme(theme){document.documentElement.dataset.theme=theme;document.querySelector('meta[name="theme-color"]').content=theme==='dark'?'#14202d':'#f4f6f8';$('theme-toggle').setAttribute('aria-label',theme==='dark'?'Helle Darstellung':'Dunkle Darstellung');try{localStorage.setItem('royalbooks-theme',theme)}catch{}}
+const settings=text('section','');settings.dataset.view='settings';settings.hidden=true;
+settings.append(text('h1','Einstellungen & Quellen'),text('p','Verbindung, Buchquellen und Bibliotheksverwaltung.','muted'));
+for(const id of ['admin-access','source-details','catalog-controls']){const section=$(id);section.hidden=false;settings.append(section)}
+document.querySelector('.app-footer').before(settings);
+$('catalog-controls').open=false;$('source-details').open=true;
+for(const link of document.querySelectorAll('[data-view-target],#settings-link,.brand'))link.addEventListener('click',event=>{event.preventDefault();showView(link.dataset.viewTarget||link.hash.slice(1))});
+window.addEventListener('hashchange',()=>showView(location.hash.slice(1),false));
+$('library-refresh').addEventListener('click',()=>loadLibrary());$('library-more').addEventListener('click',()=>loadLibrary(true));
+$('library-query').addEventListener('input',()=>{clearTimeout(libraryQueryTimer);libraryQueryTimer=setTimeout(()=>loadLibrary(),300)});
+$('library-sort').addEventListener('change',()=>loadLibrary());
+$('view-grid').addEventListener('click',()=>setLibraryLayout('grid'));$('view-list').addEventListener('click',()=>setLibraryLayout('list'));
+$('theme-toggle').addEventListener('click',()=>setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark'));
+try{setTheme(localStorage.getItem('royalbooks-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));setLibraryLayout(localStorage.getItem('royalbooks-layout')||'grid')}catch{setTheme('light')}
+showView(location.hash.slice(1),false);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!$('library').hidden&&adminAuthenticated)loadLibrary()});
+
 loadStats();
 authReady=initializeAccess();
-authReady.then(()=>{if(adminAuthenticated)loadJobs()});
+authReady.then(()=>{loadLibrary();if(adminAuthenticated){loadJobs();loadWatchlist()}});
 </script></body></html>

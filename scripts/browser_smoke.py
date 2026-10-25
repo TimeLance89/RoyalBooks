@@ -59,8 +59,9 @@ def main():
                                 sources=[dict(provider='dnb',status='found'),dict(provider='gutendex',status='error',error='http_403')],
                                 search_evidence=dict(epub_links_listed_unverified=1, file_listings_unverified=0))
                     page.route('**/api/books/search?*', lambda route: route.fulfill(json=data))
-                    page.goto(base)
+                    page.goto(base+'/#search')
                     assert page.locator('#language').input_value() == 'de'
+                    page.locator('[data-view-target=search]').click()
                     page.locator('#q').fill('Faust')
                     page.locator('#go').click()
                     page.locator('#books .book').wait_for()
@@ -84,13 +85,16 @@ def main():
                     assert page.locator('#token').input_value() == ''
                     page.reload()
                     page.wait_for_function("document.querySelector('#access-status').textContent.includes('ist für Downloads')")
+                    page.locator('[data-view-target=search]').click()
                     page.locator('#q').fill('Faust')
                     page.locator('#go').click()
                     page.locator('#books .book').wait_for()
                     page.locator('#books').get_by_role('button', name='Auf Merkliste', exact=True).click()
                     page.wait_for_function("document.querySelector('#watchlist-items').textContent.includes('Faust')")
+                    page.locator('[data-view-target=watchlist]').click()
                     page.locator('#watchlist-items').get_by_role('button', name='Entfernen').click()
                     page.wait_for_function("!document.querySelector('#watchlist-items').textContent.includes('Faust')")
+                    page.locator('[data-view-target=search]').click()
                     page.locator('[data-filter=metadata]').click()
                     assert page.locator('#books .book').count() == 0
                     page.locator('[data-filter=all]').click()
@@ -112,6 +116,7 @@ def main():
                     with page.expect_request(lambda request: '/api/jobs' in request.url and request.method=='POST') as posted:
                         page.locator('#books').get_by_role('button', name='EPUB übernehmen', exact=True).click()
                     assert posted.value.post_data_json == {'provider':'libgen','source_id':6002,'rights_confirmed':True}
+                    page.locator('[data-view-target=search]').click()
                     page.unroute('**/api/books/search?*')
                     page.route('**/api/books/search?*', lambda route: route.fulfill(status=503, json={'detail':'search_busy'}))
                     page.locator('#go').click()

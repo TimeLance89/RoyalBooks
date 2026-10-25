@@ -149,7 +149,7 @@ def test_integrated_browser_controls():
     assert "Bücher suchen" in page
     assert "/api/books/search?" in page
     assert "resultCard(group,items)" in page
-    assert '<details class="controls" id="catalog-controls">' in page
+    assert '<details class="controls" id="catalog-controls" hidden>' in page
 
 @pytest.mark.asyncio
 async def test_token_free_search_has_basic_rate_limit(monkeypatch):

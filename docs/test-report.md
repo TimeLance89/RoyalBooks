@@ -120,3 +120,24 @@ The original link-only EPUB filter and missing LibGen acquisition route were
 corrected after the user identified the gap. Full follow-up results and scope:
 [free LibGen acquisition](libgen-acquisition.md). The earlier 170-test result
 above describes the initial acceptance, not this subsequent change.
+
+## Calibre bookshelf follow-up (2026-10-25)
+
+- The start screen now shows registered Calibre books and their original covers,
+  read only from the existing library mount. The deployment observed five books.
+- Added authenticated, paginated shelf/search/sort and contained cover/EPUB
+  endpoints. No Calibre database or original file is modified.
+- Kindle-inspired library navigation, mobile bottom bar, grid/list selection,
+  persistent light/dark appearance, book dialog and device EPUB download.
+- NAS Linux suite: 205 passed. Windows: 203 passed, two symlink privilege skips.
+- Real Chromium tests at 1440, 390 and 320 pixels: shelf, Unicode title/author
+  search, sorting APIs, view/theme persistence, modal, file transfer, empty state,
+  navigation and no horizontal overflow. Existing discovery/watchlist/queue tests
+  remain passing. Both browser scripts are included in CI.
+- Live NAS: health OK after container recreation; five library entries, original
+  covers and existing EPUB delivery verified. Desktop/mobile library, downloads,
+  detail dialog, theme persistence and automatic private-network access verified.
+- Previous image retained as `royalbooks:before-bookshelf-20261025`. Existing data
+  and all four delivered job records preserved. No active job interrupted.
+- EPUB reading uses the device's reading app. Built-in reader, progress sync and
+  Kindle delivery are not implemented.

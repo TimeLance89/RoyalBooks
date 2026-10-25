@@ -118,7 +118,7 @@ def test_default_browser_is_no_setup_direct_search():
     from pathlib import Path
     page = (Path(__file__).parents[1] / "royalbooks" / "static" / "index.html").read_text()
     assert "Bücher suchen" in page
-    assert "DIREKTSUCHE" in page
+    assert 'data-view-target="search"' in page
     assert "fetch('/api/books/search?'+params)" in page
     assert "Ausgabe" in page
     assert "Kein Indexer konfiguriert" not in page.split("<body>", 1)[1]
