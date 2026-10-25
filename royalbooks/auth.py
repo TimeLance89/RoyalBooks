@@ -8,7 +8,7 @@ from royalbooks.database import connect
 
 COOKIE = 'royalbooks_session'
 SESSION_SECONDS = 7 * 24 * 3600
-LINK_SECONDS = 15 * 60
+LINK_SECONDS = 24 * 3600
 
 
 def _digest(value):

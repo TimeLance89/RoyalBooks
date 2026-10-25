@@ -120,13 +120,19 @@ def main():
                     # A different device receives its own one-use link; it does
                     # not depend on the browser where the admin entered a token.
                     code = SessionStore(str(Path(folder)/'db.sqlite3')).create_device_link(token)
-                    page.goto(base+'/connect#code='+code)
-                    page.wait_for_function("!document.querySelector('#access-banner').hidden")
-                    assert page.url == base+'/'
-                    assert code not in page.content() and token not in page.content()
-                    page.reload()
-                    page.wait_for_function("!document.querySelector('#access-banner').hidden")
-                    assert page.locator('#token').input_value() == ''
+                    fresh = browser.new_page(viewport={'width':width,'height':height})
+                    fresh.on('pageerror',lambda error: errors.append(str(error)))
+                    fresh.goto(base+'/connect#code='+code)
+                    fresh.wait_for_function("!document.querySelector('#access-banner').hidden")
+                    assert fresh.url == base+'/'
+                    assert code not in fresh.content() and token not in fresh.content()
+                    fresh.reload()
+                    fresh.wait_for_function("!document.querySelector('#access-banner').hidden")
+                    assert fresh.locator('#token').input_value() == ''
+                    # Reopening the consumed link on the same device preserves login.
+                    fresh.goto(base+'/connect#code='+code)
+                    fresh.wait_for_function("!document.querySelector('#access-banner').hidden")
+                    fresh.close()
                     assert not errors, errors
                     print(name+': search, grouping, ISBNs, details, watchlist, filters, error recovery, layout OK')
                     page.close()

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import os
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
@@ -222,13 +223,26 @@ def _same_origin_write(request: Request):
         raise HTTPException(status_code=403, detail='same_origin_required')
 
 
+def _network_access(request: Request):
+    """Explicit operator allowlist; forwarded headers never grant access."""
+    if not os.getenv('ROYALBOOKS_API_TOKEN') or not request.client:
+        return False
+    try:
+        peer = ipaddress.ip_address(request.client.host)
+        networks = [ipaddress.ip_network(value.strip()) for value in
+                    os.getenv('ROYALBOOKS_TRUSTED_NETWORKS', '').split(',') if value.strip()]
+        return any(peer in network for network in networks)
+    except ValueError:
+        return False
+
+
 def admin_access(request: Request, x_api_key: str | None = Header(default=None)):
     if x_api_key:
         _guard(x_api_key)
         return
     sessions = getattr(request.app.state, 'sessions', None)
     key = os.getenv('ROYALBOOKS_API_TOKEN', '')
-    if sessions and sessions.authenticated(request.cookies.get(COOKIE), key):
+    if _network_access(request) or (sessions and sessions.authenticated(request.cookies.get(COOKIE), key)):
         if request.method not in {'GET', 'HEAD', 'OPTIONS'}:
             _same_origin_write(request)
         return
@@ -252,6 +266,9 @@ def _session_response(request: Request, value: str):
 
 @app.get('/api/auth/status')
 async def auth_status(request: Request):
+    if _network_access(request):
+        return JSONResponse({'authenticated': True, 'network_access': True},
+                            headers={'Cache-Control':'no-store'})
     sessions = getattr(request.app.state, 'sessions', None)
     valid = bool(sessions and await asyncio.to_thread(sessions.authenticated,
         request.cookies.get(COOKIE), os.getenv('ROYALBOOKS_API_TOKEN', '')))
@@ -273,6 +290,11 @@ async def connect_device(body: DeviceLinkRequest, request: Request):
     _same_origin_write(request)
     await _limit_public_search('auth:' + (request.client.host if request.client else 'unknown'))
     key = os.getenv('ROYALBOOKS_API_TOKEN', '')
+    # Reopening a bookmark or an already-consumed link must not hide a valid
+    # login on this device. Do not renew its expiry or consume another link.
+    if await asyncio.to_thread(request.app.state.sessions.authenticated,
+                               request.cookies.get(COOKIE), key):
+        return JSONResponse({'authenticated': True}, headers={'Cache-Control':'no-store'})
     if not await asyncio.to_thread(request.app.state.sessions.consume_device_link, body.code, key):
         raise HTTPException(status_code=401, detail='device_link_expired_or_used')
     value = await asyncio.to_thread(request.app.state.sessions.create_session, key)

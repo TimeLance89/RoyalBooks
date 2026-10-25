@@ -136,9 +136,17 @@ the session cookie. Logout revokes that device, and API-token rotation revokes
 all sessions. Cookie-authenticated writes require the same-origin web header;
 cross-origin requests are rejected. Existing `X-API-Key` clients still work.
 
-An administrator with SSH access can issue a one-use, 15-minute device link:
+An administrator with SSH access can issue a one-use, 24-hour device link:
 `SessionStore(db_path).create_device_link(api_token)` from `royalbooks.auth`.
 Open `/connect#code=...` on the intended device. The fragment is cleared before
 exchange, never reaches HTTP access logs, and cannot be reused by another device.
 No public endpoint creates these links. The actual phone must open its own link;
 filling a token in an assistant's browser is not a phone login.
+
+Optional private-network management access: `ROYALBOOKS_TRUSTED_NETWORKS` accepts
+comma-separated peer CIDRs. Matching devices can use watchlist and downloads
+without entering a token or retaining a cookie, including after server restarts.
+The server API token remains required and is never sent to the browser. This
+setting grants management access to every matching peer; use only for a private
+LAN/VPN deployment. Forwarded headers do not grant access; same-origin write
+checks remain enforced. Leave empty to require the normal device login.

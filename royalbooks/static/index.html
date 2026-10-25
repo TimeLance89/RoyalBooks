@@ -203,8 +203,19 @@ async function initializeAccess(){
    method:'POST',headers:{'Content-Type':'application/json','X-RoyalBooks-Client':'web'},credentials:'same-origin',body:JSON.stringify({code})
   }:{credentials:'same-origin'});
   const data=await response.json();
-  if(!response.ok)throw Error(code?'Der Anmeldelink ist abgelaufen oder wurde bereits verwendet.':'Zugang konnte nicht geprüft werden.');
+  if(!response.ok){
+   if(code){
+    const current=await fetch('/api/auth/status',{credentials:'same-origin'});
+    const access=await current.json();
+    if(current.ok&&access.authenticated){showAccess(true);return}
+   }
+   throw Error(code?'Dieser Anmeldelink ist abgelaufen oder wurde auf einem anderen Gerät verwendet. Bitte einen neuen Link anfordern.':'Zugang konnte nicht geprüft werden.');
+  }
   showAccess(data.authenticated);
+  if(data.network_access){
+   $('access-banner').textContent='Heimnetzzugang aktiv. Merkliste und EPUB-Übernahme sind dauerhaft freigeschaltet.';
+   $('admin-access').hidden=true;
+  }
  }catch(error){showAccess(false,error.message);$('admin-access').open=true}
 }
 async function signIn(){
