@@ -141,7 +141,10 @@ def main() -> None:
         if unknown:
             parser.error("Unknown or disabled providers: " + ", ".join(sorted(unknown)))
     if not registered:
-        parser.error("No enabled providers")
+        if args.live:
+            parser.error("Public-catalog benchmark unavailable in indexer mode")
+        print("DRY RUN: no public catalog providers enabled (indexer-first mode).")
+        return
     if not 1 <= args.limit <= 30:
         parser.error("--limit must be 1–30")
     if not args.live:

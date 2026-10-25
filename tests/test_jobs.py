@@ -144,6 +144,7 @@ async def test_duplicate_content_rejected(tmp_path):
 @pytest.mark.asyncio
 async def test_jobs_api_auth_and_rights(monkeypatch, tmp_path):
     monkeypatch.setenv('ROYALBOOKS_API_TOKEN', 'some-long-demo-test-token')
+    monkeypatch.setenv('ROYALBOOKS_ENABLE_LEGACY_WORKER', '1')
     app.state.jobs = JobStore(str(tmp_path / 'db.sqlite3'))
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://test') as client:
         payload={'provider':'gutendex', 'source_id':42, 'rights_confirmed':True}

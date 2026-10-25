@@ -141,6 +141,7 @@ def test_destination_is_not_overwritten(tmp_path):
 @pytest.mark.asyncio
 async def test_retry_api_requires_token_rights_and_uuid(monkeypatch,tmp_path):
     monkeypatch.setenv("ROYALBOOKS_API_TOKEN", "test-key")
+    monkeypatch.setenv("ROYALBOOKS_ENABLE_LEGACY_WORKER", "1")
     app.state.jobs = JobStore(str(tmp_path / "jobs.db"))
     job = app.state.jobs.add(92)
     app.state.jobs.claim(("queued",))

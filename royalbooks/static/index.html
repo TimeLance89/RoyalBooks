@@ -167,7 +167,7 @@ const active=result.jobs.some(job=>['queued','downloading','staged','delivering'
 if(active)jobTimer=setTimeout(()=>{
  if(document.visibilityState==='visible')loadJobs();
 },5000);
-$('job-message').textContent=result.ingest_configured?'Calibre-Übergabe ist konfiguriert.':'Kein Calibre-Importordner eingestellt. EPUBs bleiben zunächst auf dem Server.';
+$('job-message').textContent=result.legacy_worker_enabled?'Legacy-Modus aktiv.':'Alte Katalogdownloads pausiert. Die Aufträge bleiben erhalten.';
 $('job-rows').replaceChildren(...result.jobs.map(job=>{const row=document.createElement('tr');
 const info=text('td',job.error||((job.file_size||0)?job.file_size+' Bytes':'–'));
 const observations={
@@ -184,7 +184,7 @@ const observations={
 if(job.handoff_observation){
   info.append(text('p', observations[job.handoff_observation]||job.handoff_observation,'muted'));
 }
-if(job.status==='failed'&&['ReadTimeout','ConnectTimeout','ConnectError','ReadError','RemoteProtocolError','PoolTimeout','WriteTimeout','WriteError','http_429','http_500','http_502','http_503','http_504'].includes(job.error)&&job.attempts<3){
+if(result.legacy_worker_enabled&&job.status==='failed'&&['ReadTimeout','ConnectTimeout','ConnectError','ReadError','RemoteProtocolError','PoolTimeout','WriteTimeout','WriteError','http_429','http_500','http_502','http_503','http_504'].includes(job.error)&&job.attempts<3){
 const btn=text('button','Erneut versuchen','action');btn.type='button';btn.addEventListener('click',()=>retryJob(job));info.append(btn);
 }
 if(job.status==='delivered'&&result.library_configured){
