@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 import httpx
 
 from royalbooks.providers import Book, Provider, ProviderError, canonical_isbn
+from royalbooks.matching import normalize, normalize_person
 
 
 async def bounded_response(response: httpx.Response):
@@ -42,7 +43,7 @@ def analyze_query(value: str) -> SearchQuery:
     text = re.sub(r'\bSteven\s+King\b', 'Stephen King', text, flags=re.I)
     correction = original if original != text else None
     # Only a whole ISBN query is transformed; numbers inside titles stay intact.
-    candidate = re.sub(r'[\s-]', '', re.sub(r'^isbn(?:-1[03])?:?\s*', '', text, flags=re.I)).upper()
+    candidate = re.sub(r'[\s-]', '', re.sub(r'^(?:isbn(?:-1[03])?|ean|ian):?\s*', '', text, flags=re.I)).upper()
     number = canonical_isbn(candidate)
     if number:
         return SearchQuery(number, None, None, number, (number,))
@@ -80,19 +81,26 @@ class SearchCoordinator:
             task.cancel()
         await asyncio.gather(*pending, return_exceptions=True)
 
-    async def _run(self, provider, query, language, limit):
+    async def _run(self, provider, query, language, limit, mode='all', page=1):
         start = monotonic()
         if language and provider.supported_languages and language not in provider.supported_languages:
             return [], dict(provider=provider.name, status='skipped', results=0,
                             duration_ms=0, error=None, health='not_applicable')
-        books, error = [], None
+        books, error, raw_count = [], None, 0
         try:
             if self.cooldowns.get(provider.name, 0) > monotonic():
                 raise ProviderError('source_cooldown')
             async with asyncio.timeout(self.timeout):
                 async with self.slots:
                     provider_query = query if provider.name == 'dnb' else query.replace(' author:', ' ')
-                    books = await provider.search(self.client, provider_query, language, limit)
+                    if (mode!='all' or page>1) and hasattr(provider,'search_page'):
+                        books=await provider.search_page(self.client,provider_query,language,limit,page,mode)
+                    elif page==1:
+                        books = await provider.search(self.client, provider_query, language, limit)
+                    raw_count=len(books)
+                    if mode=='author':
+                        terms=set(normalize_person(provider_query).split())
+                        books=[b for b in books if any(terms<=set(normalize_person(a).split()) for a in b.authors)]
             status = 'found' if books else 'empty'
         except Exception as exc:
             status = 'error'
@@ -103,6 +111,7 @@ class SearchCoordinator:
                 self.cooldowns[provider.name] = monotonic() + 1800
         duration = int((monotonic() - start) * 1000)
         state = dict(provider=provider.name, status=status, results=len(books),
+                     has_more=bool(hasattr(provider,'search_page') and raw_count>=min(limit,25)),
                      duration_ms=duration, error=error,
                      health='unavailable' if error else ('slow' if duration > 4000 else 'available'))
         self.health[provider.name] = {**state, 'checked_at': datetime.now(timezone.utc).isoformat()}
@@ -111,10 +120,11 @@ class SearchCoordinator:
         return books, state
 
     async def _search(self, key):
-        query, language, limit = key
+        query, language, limit, mode, page, selected = key
         # Healthy sources acquire slots first; a failing source remains independent.
         providers = sorted(self.providers, key=lambda p: self.health.get(p.name, {}).get('health') == 'unavailable')
-        results = await asyncio.gather(*(self._run(p, query, language, limit) for p in providers))
+        providers=[p for p in providers if not selected or p.name in selected]
+        results = await asyncio.gather(*(self._run(p, query, language, limit,mode,page) for p in providers))
         books = [book for batch, _ in results for book in batch]
         states = [state for _, state in results]
         ttl = self.cache_seconds if all(s['status'] != 'error' for s in states) else min(10, self.cache_seconds)
@@ -124,9 +134,9 @@ class SearchCoordinator:
             self.cache.popitem(last=False)
         return books, states
 
-    async def search(self, value, language, limit):
+    async def search(self, value, language, limit, mode='all', page=1, selected=None):
         query = analyze_query(value)
-        key = (query.text, language, limit)
+        key = (query.text, language, limit, mode, page, tuple(sorted(selected or ())))
         cached = self.cache.get(key)
         if cached and cached[0] > monotonic():
             return cached[1], [{**state, 'cached': True} for state in cached[2]], query

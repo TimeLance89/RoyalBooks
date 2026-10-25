@@ -159,15 +159,16 @@ def present(entries: list[dict], query: str, language: str | None,
 
 
 async def _search_one(client: httpx.AsyncClient, mirror: str,
-                      query: str, language: str | None, limit: int, order: str | None = None, topics: str = BOOK_TOPICS) -> list[DirectBook]:
+                      query: str, language: str | None, limit: int, order: str | None = None, topics: str = BOOK_TOPICS,
+                      field: str | None = None, start_page: int = 1, page_count: int = MAX_PAGES) -> list[DirectBook]:
     # The source documents lang/ext operators in its own Google-mode help.
     # Filter upstream so German EPUBs are not buried behind foreign PDFs.
     language_filter = {'de': ' lang:ger', 'en': ' lang:eng'}.get(language, '')
-    fields = 'i' if canonical_isbn(query) else 'ta'
+    fields = {'author':'a','title':'t','isbn':'i'}.get(field) or ('i' if canonical_isbn(query) else 'ta')
     for format_filter in (' ext:epub', ''):
         collected: list[dict] = []
         seen_pages = set()
-        for page in range(1, MAX_PAGES + 1):
+        for page in range(start_page, start_page + page_count):
             url = lgsearch.build_url(mirror, query + language_filter + format_filter,
                                      topics, page, PER_PAGE, fields)
             url += '&covers=on'
@@ -288,6 +289,23 @@ class LibraryGenesis(Provider):
                 formats=(entry.format_hint,) if entry.format_hint else (),
                 language_evidence='catalog_claim_unverified', acquisition_id=acquisition_id))
         return books
+
+    async def search_page(self,client,query,language,limit,page,mode):
+        from time import monotonic
+        async with self._lock:
+            if self.cooldown_remaining():raise ProviderError('source_cooldown')
+            await asyncio.sleep(max(0,self.min_interval-(monotonic()-self._last_request)))
+            for mirror in MIRRORS:
+                self._last_request=monotonic()
+                try:
+                    entries=await _search_one(client,mirror,query,language,min(limit,25),
+                                             field=mode,start_page=page,page_count=1)
+                    return await self._books(entries,mirror)
+                except ValueError as exc:
+                    if str(exc) in {'catalogue_http_403','catalogue_http_451','catalogue_http_429','catalogue_table_missing'}:
+                        self._blocked_until=monotonic()+1800;raise ProviderError(str(exc)) from exc
+                except httpx.HTTPError:continue
+            raise ProviderError('catalogue_unavailable')
 
     async def latest(self, client, language='de', limit=24, topics=BOOK_TOPICS, year=None):
         from time import monotonic

@@ -218,8 +218,11 @@ class OpenLibrary(Provider):
     name = "openlibrary"
     purpose = "metadata"
 
-    async def search(self, client: httpx.AsyncClient, query: str, language: str | None, limit: int) -> list[Book]:
+    async def search(self, client: httpx.AsyncClient, query: str, language: str | None, limit: int, *, mode='all',page=1) -> list[Book]:
         params: dict[str, Any] = {"q": query, "limit": limit, "fields": "key,title,author_name,first_publish_year,language,cover_i,isbn"}
+        if mode in {'author','title','isbn'}:
+            params.pop('q');params[mode]=query
+        if page>1:params['offset']=(page-1)*25
         if language:
             params["lang"] = language  # Ranking preference, not a strict filter.
         data = await self.get_json(client, "https://openlibrary.org/search.json", params)
@@ -249,3 +252,6 @@ class OpenLibrary(Provider):
                 record_kind='work',
             ))
         return books
+
+    async def search_page(self,client,query,language,limit,page,mode):
+        return await self.search(client,query,language,min(limit,25),mode=mode,page=page)

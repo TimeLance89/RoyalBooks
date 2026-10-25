@@ -200,3 +200,45 @@ ISBN or Open Library work can retrieve a bounded, cached Open Library synopsis.
 Work descriptions are labeled. No synopsis or bestseller rank is fabricated.
 The personal bookshelf also exposes descriptions already present in Calibre's
 comments table, read only.
+
+## RoyalBooks platform sections
+
+RoyalDownloader's public navigation/settings structure was used as the product
+reference, adapted to books with an author/work area and a separate settings
+console. Main sections have independent reloadable URLs: `/discover`, `/search`,
+`/authors`, `/library`, `/downloads`, `/watchlist`, `/settings/general`,
+`/settings/sources`, `/settings/library`, `/settings/system` and `/settings/access`.
+Old hash links remain usable. Browser back/forward navigation is supported.
+
+Search modes are all fields, title, author and ISBN/EAN. Author mode uses actual
+LibGen author columns, DNB person fields and Open Library author queries; results
+only about an author are excluded. Works can be paged instead of being limited
+to a single result batch. ISBN-10/13 and book-EAN checksums are validated; ISBN,
+EAN and the common IAN label are understood. A catalog cannot guarantee a
+complete bibliography; the author page reports loaded works and provides paging.
+
+The source chooser persists selected catalogs and file providers, preferred
+language, result count and the default reachable-only view in SQLite. Display
+appearance is saved for the current browser. Connections expose status only,
+without publishing tokens or NAS paths. Disabled sources are excluded from new
+searches and store refreshes. Thalia's official free-book section is linked as
+an external catalog, rather than being presented as an automatic free file API.
+
+The default storefront/search/author views offer only files with a recent
+reachability result. A separate background service deduplicates checks, limits
+parallelism to three, prioritizes user searches over store checks, and caches
+positive results for 15 minutes and negative results for two minutes. Probes use
+only already indexed source-bound IDs, preserve the selected MD5 across pinned
+redirects, request an initial range and stop after the ZIP prefix. Login HTML,
+foreign redirects, wrong MD5s and oversized files are rejected. This is a
+reachability check; full ZIP/CRC/EPUB/MD5 verification still occurs on download.
+No probe adds a download job or imports a book. Optional catalog browsing can
+show other works, with download buttons disabled until their file is reachable.
+
+ISBN/EAN resolution can use an exact bibliographic match to find an EPUB of the
+same work when the supplied ISBN identifies a different edition. That fallback
+requires matching normalized title, author and language, keeps the EPUB's own
+identifiers and visibly labels it as another edition; it never assigns a paper
+ISBN to an unrelated download. Store refreshes also schedule bounded background
+reachability checks, so frequently visited shelves are ready without a fresh
+file check on every click.

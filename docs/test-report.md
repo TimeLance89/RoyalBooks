@@ -187,3 +187,41 @@ unknown redirects remain blocked. The downloads screen now refreshes itself
 while visible and presents a readable message for unsupported redirects.
 Final local suite: 233 passed, two Windows symlink skips. Final NAS suite:
 235 passed. Search browser regressions remain passing after the status update.
+
+## RoyalBooks platform sections and reachable offers (2026-10-25)
+
+- RoyalDownloader's public navigation and settings structure informed the new
+  dark/red desktop header, mobile navigation and separate settings console.
+  Authors, search, library, discovery, downloads and watchlist have reloadable
+  URLs. Settings are split into general, sources, Calibre, system and access.
+- Persistent SQLite preferences select sources, language, page size and the
+  default reachable-only display. Source changes affect search and storefront.
+  Theme stays per browser. No secrets or host paths are returned by settings.
+- Author search uses actual source author fields and loads further pages.
+  ISBN-10/13 and EAN are checksum validated. Exact bibliographic identification
+  can resolve another EPUB edition only with matching title, author and language;
+  the interface labels that distinction and retains the EPUB's own identifiers.
+- Deduplicated background range probes use three workers, a bounded queue,
+  pinned source hosts and same-MD5 redirect validation. A reachable ZIP prefix
+  is distinct from full EPUB verification at download. HTML and missing files
+  are hidden by default. Probing never creates a download or Calibre import.
+- Queue entries retain book display metadata when known, offer status filters,
+  refresh while visible and translate common upstream failures. Existing retry
+  limits and user consent remain unchanged.
+- Thalia's official free catalog is an external link. Its live NAS response was
+  HTTP 403; no automated download support or availability is claimed for it.
+- Windows suite: 248 passed, two symlink-privilege skips. NAS Linux candidate:
+  250 passed. All four real Chromium fixture suites passed; CI now runs the new
+  platform suite at desktop, 390-pixel mobile and 320-pixel small mobile widths.
+- Live NAS author query: 69 records on page one, 64 on page two; the combined
+  display contained 113 grouped works. An EAN lookup resolved three records and
+  one EPUB whose source passed the range probe. This is sampled coverage, not a
+  claim of complete author bibliographies or permanent file availability.
+- Live desktop/mobile browser verification passed author paging, reachable-file
+  gating, settings reload, enabled ISBN result, existing seven-book library,
+  readable download history, storefront and no horizontal overflow/JS errors.
+  No new download job was created by verification. Six delivered jobs and one
+  exhausted upstream HTTP-500 failure remain recorded without resetting attempts.
+- Deployment retains `royalbooks:before-platform-20261025` plus a fresh SQLite
+  backup under `/data/backups/`. Only RoyalBooks was recreated; existing Calibre
+  data and persistent LAN access were preserved.

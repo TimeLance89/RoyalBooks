@@ -10,6 +10,8 @@ from royalbooks.builtin_search import LibraryGenesis
 from royalbooks.database import connect
 from royalbooks.matching import normalize, normalize_person
 from royalbooks.providers import Book, ProviderError, canonical_isbn
+from royalbooks.catalog_labels import remember
+from royalbooks.settings import PlatformSettings
 
 SHELVES={
     'releases':('Aktuelle Ausgaben '+str(datetime.now(timezone.utc).year),'Deutschsprachige EPUB-Ausgaben mit aktuellem Erscheinungsjahr laut Katalog.','https://libgen.li/','lf'),
@@ -53,6 +55,7 @@ def parse_trending(data):
 class Storefront:
     def __init__(self,path,client):
         self.path=path;self.client=client;self.refreshing=False
+        self.availability=None
         self.libgen=LibraryGenesis(path);self.preview_slots=asyncio.Semaphore(2)
         with connect(path,timeout=5) as db:
             db.execute('CREATE TABLE IF NOT EXISTS store_snapshots (name TEXT PRIMARY KEY,payload TEXT NOT NULL,updated_at INTEGER NOT NULL,last_error TEXT)')
@@ -63,6 +66,7 @@ class Storefront:
         return (json.loads(row[0]),row[1],row[2]) if row else (None,None,None)
 
     def save(self,name,payload):
+        if isinstance(payload,list):remember(self.path,payload)
         with connect(self.path,timeout=5) as db:
             db.execute('INSERT INTO store_snapshots VALUES(?,?,?,NULL) ON CONFLICT(name) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at,last_error=NULL',(name,json.dumps(payload,ensure_ascii=False),int(time.time())))
 
@@ -82,6 +86,8 @@ class Storefront:
 
     async def refresh_one(self,name):
         try:
+            selected=(await asyncio.to_thread(PlatformSettings(self.path).get))['sources']
+            if ('openlibrary' if name=='trending' else 'libgen') not in selected:return
             async with asyncio.timeout(20):
                 if name=='trending':
                     r=await self.client.get('https://openlibrary.org/trending/daily.json',params={'limit':24})
@@ -93,6 +99,10 @@ class Storefront:
                     items=unique_books(books)
                 if not items:raise ProviderError('store_shelf_empty')
                 await asyncio.to_thread(self.save,name,items)
+                if self.availability:
+                    records=[(item['source'],int(item.get('acquisition_id') or item['source_id']))
+                             for item in items if item.get('download_supported')]
+                    await self.availability.request(records,priority=5)
         except Exception as error:
             await asyncio.to_thread(self.failed,name,error)
 

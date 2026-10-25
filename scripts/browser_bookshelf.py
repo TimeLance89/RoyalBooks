@@ -31,6 +31,7 @@ def main():
                     page=browser.new_page(viewport={'width':width,'height':height});errors=[]
                     page.on('pageerror',lambda e:errors.append(str(e)))
                     page.goto(base+'/#library')
+                    if page.locator('html').get_attribute('data-theme')=='dark':page.locator('#theme-toggle').click()
                     page.wait_for_function("document.querySelectorAll('.shelf-book').length===4")
                     assert page.locator('[data-view=library]').is_visible()
                     assert not page.locator('#token').is_visible()
@@ -53,9 +54,10 @@ def main():
                     page.locator('#library-query').fill('kein-treffer');page.wait_for_function("document.querySelector('#library-books').textContent.includes('Keine passenden')")
                     page.get_by_role('button',name='Bücher entdecken').click();assert page.locator('#q').is_visible()
                     for view in ['watchlist','download-center','library']:
-                        page.locator('[data-view-target='+view+']').click()
+                        page.locator('[data-view-target='+view+']:visible').click()
                         assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
                     page.locator('#library-query').fill('');page.wait_for_function("document.querySelectorAll('.shelf-book').length===4")
+                    page.evaluate('window.scrollTo(0,0)')
                     page.screenshot(path=str(ROOT/'data/screenshots'/('shelf-'+name+'.png')),full_page=True)
                     assert not errors,errors
                     page.close();print(name+': shelf, navigation, Unicode search, layout/theme persistence, EPUB transfer OK')

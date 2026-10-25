@@ -53,6 +53,8 @@ jobs:
         run: python scripts/browser_bookshelf.py
       - name: Cached storefront, trends and discovery browser flows
         run: python scripts/browser_store.py
+      - name: Separate platform sections, settings, author and ISBN browser flows
+        run: python scripts/browser_platform.py
       - name: Build image
         run: docker build -t royalbooks:test .
       - name: Verify runtime non-root user can import source from image

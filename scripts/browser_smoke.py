@@ -48,12 +48,13 @@ def main():
                     page.on('dialog', lambda dialog: dialog.accept())
                     errors = []
                     page.on('pageerror', lambda error: errors.append(str(error)))
+                    page.route('**/api/availability',lambda route:route.fulfill(json={'items':[{**item,'status':'available','checked_at':int(time.time()),'error':None,'size':1000} for item in route.request.post_data_json['items']]}))
                     book = dict(source='dnb', source_id='123456789', title='Faust', authors=['Goethe, Johann'],
                                 language='de', year=1808, info_url='https://d-nb.info/123456789',
                                 isbns=['9783551551672'], cover_url=None, file_evidence='metadata_only')
                     edition = {**book, 'source_id':'987654321', 'isbns':['9783531157887']}
                     file = {**book, 'source':'wikisource', 'source_id':'123', 'epub_url':'https://ws-export-app.wmcloud.org/',
-                            'formats':['EPUB'], 'file_evidence':'listed_unverified'}
+                            'formats':['EPUB'], 'file_evidence':'listed_unverified','download_supported':True}
                     data = dict(items=[book, edition, file],
                                 display_groups=[dict(primary_index=2,item_indexes=[0,1,2],epub_count=1)],
                                 sources=[dict(provider='dnb',status='found'),dict(provider='gutendex',status='error',error='http_403')],
@@ -69,6 +70,7 @@ def main():
                     assert 'EPUB' in page.locator('#books').inner_text()
                     assert page.locator('#token').is_visible() is False
                     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+                    page.evaluate('window.scrollTo(0,0)')
                     page.screenshot(path=str(args.screenshots/(name+'.png')), full_page=True)
                     page.get_by_role('button', name='Buchdetails', exact=True).click()
                     assert page.locator('#book-dialog').is_visible()
@@ -91,7 +93,7 @@ def main():
                     page.locator('#books .book').wait_for()
                     page.locator('#books').get_by_role('button', name='Auf Merkliste', exact=True).click()
                     page.wait_for_function("document.querySelector('#watchlist-items').textContent.includes('Faust')")
-                    page.locator('[data-view-target=watchlist]').click()
+                    page.locator('[data-view-target=watchlist]:visible').click()
                     page.locator('#watchlist-items').get_by_role('button', name='Entfernen').click()
                     page.wait_for_function("!document.querySelector('#watchlist-items').textContent.includes('Faust')")
                     page.locator('[data-view-target=search]').click()

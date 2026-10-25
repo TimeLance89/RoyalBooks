@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import os
+import re
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from time import perf_counter
@@ -31,12 +32,17 @@ from royalbooks.indexer_search import search_indexers
 from royalbooks.discovery import SearchCoordinator, analyze_query, bounded_response
 from royalbooks.source_profiles import profiles_for, search_evidence
 from royalbooks.matching import match_groups
+from royalbooks.matching import normalize, normalize_person
 from royalbooks.presentation import display_groups
 from royalbooks.storage import MetricsStore
 from royalbooks.auth import SessionStore, COOKIE, SESSION_SECONDS
 from royalbooks.library import bookshelf, library_file, LibraryUnavailable
 from royalbooks.storefront import Storefront
 from royalbooks.artwork import fetch_artwork
+from royalbooks.settings import PlatformSettings
+from royalbooks.availability import Availability
+from royalbooks.providers import canonical_isbn
+from royalbooks.catalog_labels import remember, apply_labels
 
 
 def downloads_enabled() -> bool:
@@ -51,6 +57,9 @@ async def lifespan(app: FastAPI):
     app.state.catalog_imports = CatalogImportService(path)
     app.state.watchlist = WatchlistStore(path)
     app.state.sessions = SessionStore(path)
+    app.state.preferences = PlatformSettings(path)
+    app.state.availability = Availability(path)
+    await app.state.availability.start()
     sources = configured_providers()
     app.state.providers = {p.name: p for p in sources}
     data = Path(path).parent
@@ -62,6 +71,7 @@ async def lifespan(app: FastAPI):
         headers={'User-Agent': 'RoyalBooks/2.0 (https://github.com/TimeLance89/RoyalBooks)'})
     app.state.discovery = SearchCoordinator(sources, app.state.search_client, app.state.store)
     app.state.storefront = Storefront(path, app.state.search_client)
+    app.state.storefront.availability = app.state.availability
     app.state.artwork_slots = asyncio.Semaphore(3)
     storefront_task = (asyncio.create_task(app.state.storefront.run())
                        if os.getenv('ROYALBOOKS_STORE_REFRESH_ENABLED', '1') != '0' else None)
@@ -78,6 +88,7 @@ async def lifespan(app: FastAPI):
             with suppress(asyncio.CancelledError):
                 await storefront_task
         await app.state.discovery.close()
+        await app.state.availability.close()
         await app.state.search_client.aclose()
         await app.state.catalog_imports.close()
         if task is not None:
@@ -111,6 +122,14 @@ async def _limit_public_search(client_ip: str) -> None:
 
 @app.get('/')
 @app.get('/connect')
+@app.get('/discover')
+@app.get('/library')
+@app.get('/search')
+@app.get('/authors')
+@app.get('/downloads')
+@app.get('/watchlist')
+@app.get('/settings')
+@app.get('/settings/{tab}')
 async def homepage():
     return FileResponse(Path(__file__).parent / 'static' / 'index.html',
                         headers={'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer'})
@@ -123,7 +142,14 @@ async def health():
 
 @app.get('/api/store')
 async def store_home():
-    return JSONResponse(await asyncio.to_thread(app.state.storefront.snapshot),
+    snapshot=await asyncio.to_thread(app.state.storefront.snapshot)
+    preferences=getattr(app.state,'preferences',None)
+    if preferences:
+        selected=(await asyncio.to_thread(preferences.get))['sources']
+        for shelf in snapshot['shelves']:
+            if ('openlibrary' if shelf['id']=='trending' else 'libgen') not in selected:shelf['status']='disabled'
+            shelf['items']=[item for item in shelf['items'] if item['source'] in selected]
+    return JSONResponse(snapshot,
                         headers={'Cache-Control':'no-store'})
 
 
@@ -185,12 +211,12 @@ async def _run(provider: Provider, client: httpx.AsyncClient, q: str, language: 
                    'duration_ms': duration_ms, 'error': error}
 
 
-async def _search(q: str, language: str, limit: int):
+async def _search(q: str, language: str, limit: int, mode='all',page=1,selected=None):
     requested = None if language == 'all' else language
     coordinator = getattr(app.state, 'discovery', None)
     if coordinator:
         try:
-            items, states, analyzed = await coordinator.search(q, requested, limit)
+            items, states, analyzed = await coordinator.search(q, requested, limit,mode,page,selected)
         except Exception as exc:
             if str(exc) == 'search_busy':
                 raise HTTPException(status_code=503, detail='search_busy') from exc
@@ -203,13 +229,41 @@ async def _search(q: str, language: str, limit: int):
                                             for p in app.state.providers.values()])
         items = [book for batch, _ in results for book in batch]
         states = [state for _, state in results]
+    fallback_ids=set();resolved_title=None
+    if coordinator and analyzed.isbn and page==1 and not any(item.as_dict()['download_supported'] for item in items):
+        reference=next((book for book in items if book.authors and any(
+            canonical_isbn(number)==analyzed.isbn for number in [*book.isbns,book.isbn13] if isinstance(number,str))),None)
+        if reference:
+            names=[p.name for p in coordinator.providers if p.purpose!='metadata' and (not selected or p.name in selected)]
+            if names:
+                query=(reference.title[:78]+' '+reference.authors[0][:38])[:120]
+                alternatives,extra_states,_=await coordinator.search(query,requested,25,'all',1,names)
+                accepted=[book for book in alternatives if book.as_dict()['download_supported'] and same_work(reference,book)]
+                if accepted:
+                    items.extend(accepted);fallback_ids={(book.source,book.source_id) for book in accepted};resolved_title=reference.title
+                    states.extend({**state,'work_fallback':True} for state in extra_states)
+    serialized=[{**item.as_dict(),**({'edition_match':'same_work_other_edition'} if (item.source,item.source_id) in fallback_ids else {})} for item in items]
+    if getattr(app.state,'store',None):
+        await asyncio.to_thread(remember,app.state.store.path,serialized)
     return {'query': analyzed.text, 'language': language, 'mode': 'integrated_providers',
+            'search_mode':mode,'page':page,'has_more':any(s.get('has_more',s['results']>=min(limit,25)) for s in states),
             'query_analysis': {'title': analyzed.title, 'author': analyzed.author,
                                'isbn': analyzed.isbn, 'variants': analyzed.variants,
                                'original_query': analyzed.original_text},
-            'items': [item.as_dict() for item in items],
+            'resolved_work':resolved_title,
+            'items': serialized,
             'match_groups': match_groups(items), 'display_groups': display_groups(items, analyzed.text),
             'search_evidence': search_evidence(items), 'sources': states}
+
+
+def same_work(reference, candidate):
+    def title(value):
+        words=normalize(value.split(':',1)[0]).split()
+        while words and words[-1] in {'roman','novel','ebook','epub','thriller','psychothriller'}:words.pop()
+        return ' '.join(words)
+    authors=lambda book:{normalize_person(re.sub(r'\[[^]]*\]','',author)) for author in book.authors}
+    return bool(title(reference.title) and title(reference.title)==title(candidate.title)
+                and authors(reference)&authors(candidate) and reference.language==candidate.language)
 
 
 @app.get('/api/search')
@@ -219,11 +273,18 @@ async def books_search(
     q: str = Query(min_length=2, max_length=120),
     language: str = Query(default='de', pattern='^(de|en|all)$'),
     limit: int = Query(default=30, ge=1, le=60),
+    mode: Literal['all','title','author','isbn'] = 'all',
+    page: int = Query(default=1,ge=1,le=40),
 ):
     await _limit_public_search(request.client.host if request.client else 'unknown')
     if len(q.strip()) < 2:
         raise HTTPException(status_code=422, detail='query_too_short')
-    return await _search(q, language, limit)
+    analyzed=analyze_query(q)
+    if mode=='isbn' and not analyzed.isbn:
+        raise HTTPException(status_code=422,detail='invalid_book_isbn_ean')
+    preferences=getattr(app.state,'preferences',None)
+    selected=(await asyncio.to_thread(preferences.get))['sources'] if preferences else None
+    return await _search(q, language, limit,mode,page,selected)
 
 
 @app.get('/api/indexers/search')
@@ -291,6 +352,53 @@ def admin_access(request: Request, x_api_key: str | None = Header(default=None))
             _same_origin_write(request)
         return
     _guard(None)
+
+
+class PreferenceUpdate(BaseModel):
+    language: Literal['de','en','all'] | None = None
+    available_only: bool | None = None
+    result_limit: Literal[25,30,60] | None = None
+    sources: list[str] | None = Field(default=None,min_length=1,max_length=9)
+
+    @field_validator('sources')
+    @classmethod
+    def valid_sources(cls,values):
+        from royalbooks.source_profiles import PROFILES
+        if values is not None and any(value not in PROFILES for value in values):raise ValueError('unknown_source')
+        return list(dict.fromkeys(values)) if values is not None else None
+
+
+@app.get('/api/settings')
+async def platform_preferences(_admin: None = Depends(admin_access)):
+    return {'preferences':await asyncio.to_thread(app.state.preferences.get),
+            'connections':{'library':bool(os.getenv('ROYALBOOKS_CWA_LIBRARY_PATH')),
+                           'ingest':bool(os.getenv('ROYALBOOKS_CWA_INGEST_PATH')),
+                           'downloads':downloads_enabled()}}
+
+
+@app.put('/api/settings')
+async def update_preferences(body: PreferenceUpdate,_admin: None = Depends(admin_access)):
+    return {'preferences':await asyncio.to_thread(app.state.preferences.save,body.model_dump(exclude_none=True))}
+
+
+class AvailabilityItem(BaseModel):
+    source: Literal['libgen','memoryoftheworld','gutendex','gutenberg_catalog','wikisource','standardebooks']
+    record_id: int = Field(gt=0,le=9007199254740991)
+
+
+class AvailabilityRequest(BaseModel):
+    items: list[AvailabilityItem] = Field(max_length=96)
+    context: Literal['search','store'] = 'search'
+
+
+@app.post('/api/availability')
+async def available_files(body: AvailabilityRequest,request: Request):
+    _same_origin_write(request)
+    await _limit_public_search('availability:'+(request.client.host if request.client else 'unknown'))
+    selected=(await asyncio.to_thread(app.state.preferences.get))['sources']
+    records=[(item.source,item.record_id) for item in body.items if item.source in selected]
+    return {'items':await app.state.availability.request(records,priority=5 if body.context=='store' else 0),
+            'notice':'Reachable catalog-listed ZIP; complete EPUB integrity is checked during download.'}
 
 
 class LoginRequest(BaseModel):
@@ -484,6 +592,7 @@ async def list_jobs(_admin: None = Depends(admin_access)):
     ingest = Path(ingest_path) if ingest_path else None
     staging = Path(app.state.jobs.path).parent / 'staging'
     records = await asyncio.to_thread(app.state.jobs.list)
+    records = await asyncio.to_thread(apply_labels,app.state.jobs.path,records)
     for job in records:
         job['handoff_observation'] = await asyncio.to_thread(observe_handoff, job, staging, ingest)
     return {'jobs': records, 'legacy_worker_enabled': os.getenv('ROYALBOOKS_ENABLE_LEGACY_WORKER') == '1',

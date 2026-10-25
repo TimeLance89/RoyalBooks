@@ -28,11 +28,16 @@ def main():
                 for name,width,height in [('desktop',1440,1000),('mobile',390,844),('small',320,740)]:
                     page=browser.new_page(viewport={'width':width,'height':height});errors=[]
                     page.on('pageerror',lambda error:errors.append(str(error)))
+                    page.route('**/api/availability',lambda route:route.fulfill(json={'items':[{**item,'status':'available','checked_at':int(time.time()),'error':None,'size':1000} for item in route.request.post_data_json['items']]}))
                     page.route('**/api/books/search?*',lambda route:route.fulfill(json={'items':[],'sources':[],'display_groups':[]}))
-                    page.goto(base);page.locator('.store-section').last.wait_for()
-                    assert page.locator('#store').is_visible() and page.locator('.store-section').count()==5
+                    page.goto(base);
+                    if page.locator('html').get_attribute('data-theme')=='dark':page.locator('#theme-toggle').click()
+                    page.locator('.store-section').last.wait_for()
+                    assert page.locator('#store').is_visible() and page.locator('.store-section').count()==4
                     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+                    page.evaluate('window.scrollTo(0,0)')
                     page.screenshot(path=str(ROOT/'data/screenshots'/('store-'+name+'.png')),full_page=True)
+                    page.locator('#store-available-only').uncheck()
                     page.locator('[data-shelf-filter=trending]').click()
                     assert page.locator('.store-section').count()==1
                     page.locator('.store-card').click();assert page.locator('#book-dialog').is_visible()
@@ -49,6 +54,7 @@ def main():
                         page.wait_for_function("document.querySelector('.store-rail').scrollLeft>0")
                     page.locator('#theme-toggle').click();assert page.locator('html').get_attribute('data-theme')=='dark'
                     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+                    page.evaluate('window.scrollTo(0,0)')
                     page.screenshot(path=str(ROOT/'data/screenshots'/('store-dark-'+name+'.png')),full_page=True)
                     assert not errors,errors
                     page.close();print(name+': persisted store, category filters, honest trend eligibility, synopsis, search handoff, carousel and dark mode OK')

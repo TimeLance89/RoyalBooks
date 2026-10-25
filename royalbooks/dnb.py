@@ -95,7 +95,7 @@ class DNB(Provider):
     purpose = "metadata"
     min_interval = 1.5
 
-    async def search(self, client: httpx.AsyncClient, query: str, language: str | None, limit: int) -> list[Book]:
+    async def search(self, client: httpx.AsyncClient, query: str, language: str | None, limit: int, *, mode='all',page=1) -> list[Book]:
         # No CQL grammar from the input is accepted, only a conservative text query.
         words = re.findall(r"[\w-]+", query, flags=re.UNICODE)
         if not words:
@@ -104,6 +104,10 @@ class DNB(Provider):
         compact = re.sub(r'[^0-9X]', '', query.upper())
         if isbn13([compact]):
             cql = f'num="{compact}"'
+        elif mode=='author':
+            cql=f'per all "{safe_title}" and mat=books'
+        elif mode=='title':
+            cql=f'tit all "{safe_title}" and mat=books'
         elif ' author:' in query:
             title, author = query.split(' author:', 1)
             title = ' '.join(re.findall(r'[\w-]+', title))
@@ -116,6 +120,7 @@ class DNB(Provider):
             cql += f' and spr={"ger" if language == "de" else "eng"}'
         params = {"version": "1.1", "operation": "searchRetrieve", "recordSchema": "MARC21-xml",
                   "maximumRecords": min(limit, 30), "query": cql}
+        if page>1:params['startRecord']=(page-1)*25+1
         async with self._lock:
             delay = max(0.0, self.min_interval - (monotonic() - self._last_request))
             if delay:
@@ -136,3 +141,6 @@ class DNB(Provider):
                         raise ProviderError(type(exc).__name__) from exc
                     await asyncio.sleep(0.5 * (2 ** attempt))
         raise ProviderError("dnb_retry_exhausted")
+
+    async def search_page(self,client,query,language,limit,page,mode):
+        return await self.search(client,query,language,min(limit,25),mode=mode,page=page)
