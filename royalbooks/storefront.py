@@ -18,11 +18,15 @@ SHELVES={
     'recent':('Neu im EPUB-Katalog','Zuletzt hinzugefügte deutsche EPUBs. Das Uploaddatum ist kein Erscheinungsdatum.','https://libgen.li/','lf'),
     'fiction':('Romane & Geschichten','Neue Einträge aus dem deutschsprachigen Belletristik-Katalog.','https://libgen.li/','f'),
     'nonfiction':('Wissen & neue Perspektiven','Sachbücher zum Weiterdenken aus dem EPUB-Katalog.','https://libgen.li/','l'),
+    'king':('Stephen King','Geschichten und Romane von Stephen King.','https://libgen.li/','author:Stephen King'),
+    'fitzek':('Sebastian Fitzek','Thriller von Sebastian Fitzek.','https://libgen.li/','author:Sebastian Fitzek'),
+    'christie':('Agatha Christie','Kriminalromane von Agatha Christie.','https://libgen.li/','author:Agatha Christie'),
+    'funke':('Cornelia Funke','Fantastische Welten von Cornelia Funke.','https://libgen.li/','author:Cornelia Funke'),
     'trending':('Angesagt weltweit','Tagestrends von Open Library. Internationale Werke; EPUB-Ausgaben werden bei der Suche geprüft.','https://openlibrary.org/trending/daily',None),
 }
 
 
-def unique_books(books,limit=18):
+def unique_books(books,limit=36):
     output=[];seen=set()
     for book in books:
         # Store curation only: raw search results are retained unchanged.
@@ -88,14 +92,19 @@ class Storefront:
         try:
             selected=(await asyncio.to_thread(PlatformSettings(self.path).get))['sources']
             if ('openlibrary' if name=='trending' else 'libgen') not in selected:return
-            async with asyncio.timeout(20):
+            async with asyncio.timeout(60):
                 if name=='trending':
                     r=await self.client.get('https://openlibrary.org/trending/daily.json',params={'limit':24})
                     if r.status_code!=200:raise ProviderError('trending_http_'+str(r.status_code))
                     items=parse_trending(r.json())
+                elif str(SHELVES[name][3]).startswith('author:'):
+                    author=SHELVES[name][3].removeprefix('author:')
+                    books=await self.libgen.search_page(self.client,author,'de',25,1,'author')
+                    wanted=set(normalize_person(author).split())
+                    items=unique_books([book for book in books if any(wanted<=set(normalize_person(person).split()) for person in book.authors)])
                 else:
                     kwargs={'year':datetime.now(timezone.utc).year} if name=='releases' else {}
-                    books=await self.libgen.latest(self.client,'de',25,topics=SHELVES[name][3],**kwargs)
+                    books=await self.libgen.latest(self.client,'de',60,topics=SHELVES[name][3],**kwargs)
                     items=unique_books(books)
                 if not items:raise ProviderError('store_shelf_empty')
                 await asyncio.to_thread(self.save,name,items)

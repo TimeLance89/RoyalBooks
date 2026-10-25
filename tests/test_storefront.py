@@ -27,12 +27,15 @@ def test_trends_do_not_invent_german_editions_or_free_downloads():
 async def test_refresh_persists_real_shelves_and_retains_last_good_on_error(tmp_path):
     calls=[]
     class Source:
+        async def search_page(self,client,author,language,limit,page,mode):
+            from dataclasses import replace
+            return [replace(book(author),authors=[author])]
         async def latest(self,client,language,limit,topics,**kwargs):
             assert language=='de';calls.append(topics);return [book(topics)]
     async with httpx.AsyncClient(transport=httpx.MockTransport(lambda req:httpx.Response(200,json=trend()))) as client:
         store=Storefront(str(tmp_path/'db.sqlite3'),client);store.libgen=Source()
         await store.refresh();snap=store.snapshot()
-        assert len(snap['shelves'])==5 and all(s['status']=='ready' for s in snap['shelves'])
+        assert len(snap['shelves'])==len(SHELVES) and all(s['status']=='ready' for s in snap['shelves'])
         assert calls==['lf','lf','f','l']
         restarted=Storefront(store.path,client)
         assert restarted.snapshot()==snap

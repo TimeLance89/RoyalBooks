@@ -43,4 +43,4 @@ def test_mobile_and_accessible_core_controls():
     # Never make the API token persistent in browser storage by default.
     assert "sessionStorage" not in source
     stored_keys = re.findall(r"localStorage\.setItem\('([^']+)'", source)
-    assert set(stored_keys) == {'royalbooks-layout', 'royalbooks-theme'}
+    assert set(stored_keys) == {'royalbooks-layout', 'royalbooks-theme', 'royalbooks-store-v2', 'royalbooks-kiosk'}

@@ -251,3 +251,22 @@ route from the cover to details. Duplicate technical metadata is removed from
 the cards. Artwork remains original-resolution and no description is invented.
 Chromium checks cover edition switching, disabled/non-file options, collapsed
 ISBN disclosure, dialog width/overflow, keyboard dismissal and existing flows.
+
+
+## Kiosk start page and shelf coverage (2026-10-25)
+
+The start page no longer hides all catalogue covers until range probes finish.
+Browsing defaults to the persisted selection; the optional immediately reachable
+filter remains separate from download eligibility. Pending/failed probes never
+enable the download action. A browser cache of public catalogue metadata renders
+immediately on return/offline visits, with background retries and no stored token.
+Shelf snapshots still survive server restarts and upstream errors. Larger source
+batches allow up to 36 distinct records per general shelf; four additional author
+shelves use actual author-field searches. Counts are based on stored records.
+
+The kiosk has large cover rails, a direct title/author/ISBN search, expanded
+all-books shelf views and an optional persistent kiosk layout/fullscreen button.
+Leaving browser fullscreen restores the normal layout. Rail positions and focus
+survive availability refreshes. The default catalogue stays browsable while file
+availability is checked. Browser checks verify cached offline display, pending
+file buttons, fullscreen toggling and expanded shelves at 1440/390/320 pixels.

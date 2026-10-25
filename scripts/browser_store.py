@@ -28,15 +28,33 @@ def main():
                 for name,width,height in [('desktop',1440,1000),('mobile',390,844),('small',320,740)]:
                     page=browser.new_page(viewport={'width':width,'height':height});errors=[]
                     page.on('pageerror',lambda error:errors.append(str(error)))
-                    page.route('**/api/availability',lambda route:route.fulfill(json={'items':[{**item,'status':'available','checked_at':int(time.time()),'error':None,'size':1000} for item in route.request.post_data_json['items']]}))
+                    availability_state={'status':'pending'}
+                    page.route('**/api/availability',lambda route:route.fulfill(json={'items':[{**item,'status':availability_state['status'],'checked_at':int(time.time()),'error':None,'size':1000} for item in route.request.post_data_json['items']]}))
                     page.route('**/api/books/search?*',lambda route:route.fulfill(json={'items':[],'sources':[],'display_groups':[]}))
                     page.goto(base);
                     if page.locator('html').get_attribute('data-theme')=='dark':page.locator('#theme-toggle').click()
                     page.locator('.store-section').last.wait_for()
-                    assert page.locator('#store').is_visible() and page.locator('.store-section').count()==4
+                    assert page.locator('#store').is_visible() and page.locator('.store-section').count()==5
                     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
                     page.evaluate('window.scrollTo(0,0)')
                     page.screenshot(path=str(ROOT/'data/screenshots'/('store-'+name+'.png')),full_page=True)
+                    assert not page.locator('#store-available-only').is_checked()
+                    assert page.locator('.store-card').count()==17
+                    page.locator('.store-card').first.click()
+                    assert page.locator('#book-dialog .download-action').is_disabled()
+                    page.keyboard.press('Escape')
+                    page.route('**/api/store',lambda route:route.abort())
+                    page.reload();page.wait_for_selector('.store-card')
+                    assert page.locator('.store-card').count()==17
+                    page.unroute('**/api/store')
+                    page.locator('#kiosk-toggle').click()
+                    assert page.locator('html').get_attribute('data-kiosk')=='true'
+                    page.locator('#kiosk-toggle').click()
+                    assert page.locator('html').get_attribute('data-kiosk')=='false'
+                    availability_state['status']='available'
+                    page.reload();page.wait_for_selector('.store-card')
+                    page.locator('#store-available-only').check()
+                    page.wait_for_function("document.querySelectorAll('.store-card').length===16",timeout=15000)
                     page.locator('#store-available-only').uncheck()
                     page.locator('[data-shelf-filter=trending]').click()
                     assert page.locator('.store-section').count()==1
@@ -50,8 +68,9 @@ def main():
                     page.locator('[data-view-target=store]').click();page.locator('[data-shelf-filter=all]').click()
                     rail=page.locator('.store-rail').first
                     if width<700:
-                        page.get_by_role('button',name='Weitere Bücher · Neu im EPUB-Katalog',exact=True).click()
-                        page.wait_for_function("document.querySelector('.store-rail').scrollLeft>0")
+                        page.locator('.shelf-all').first.click()
+                        assert page.locator('.store-rail.expanded .store-card').count()==4
+                        page.locator('[data-shelf-filter=all]').click()
                     page.locator('#theme-toggle').click();assert page.locator('html').get_attribute('data-theme')=='dark'
                     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
                     page.evaluate('window.scrollTo(0,0)')

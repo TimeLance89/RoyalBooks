@@ -56,7 +56,7 @@ def test_search_ui_has_visible_filters_and_reversible_edition_disclosure():
     html = (Path(__file__).parents[1] / "royalbooks" / "static" / "index.html").read_text(encoding="utf-8")
     assert 'id="search-filters"' in html
     assert 'id="search-notice"' in html
-    assert "Katalogeinträge / Ausgaben ansehen" in html
-    assert "renderEditionActions(edition,item,true)" in html
+    assert "Ausgaben ansehen" in html
+    assert "detail-edition-select" in html
     assert "Buchdaten · kein Downloadangebot dieser Quelle" in html
     assert "group.item_indexes.map" in html
