@@ -8,7 +8,7 @@ from pathlib import Path
 from time import perf_counter
 
 import httpx
-from fastapi import FastAPI, Header, HTTPException, Query, Path as ApiPath
+from fastapi import FastAPI, Header, HTTPException, Query, Request, Path as ApiPath
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, field_validator
 
@@ -56,7 +56,29 @@ async def lifespan(app: FastAPI):
                 await task
 
 
-app = FastAPI(title='RoyalBooks', version='0.9.0', lifespan=lifespan)
+app = FastAPI(title='RoyalBooks', version='1.0.1', lifespan=lifespan)
+
+# The ordinary search is token-free, but each LAN client has a small budget.
+# Upstream keys remain server-side; writes still require the admin token.
+_search_windows: dict[str, list[float]] = {}
+_search_rate_lock = asyncio.Lock()
+
+
+async def _limit_public_search(client_ip: str) -> None:
+    now = perf_counter()
+    async with _search_rate_lock:
+        # Expire old clients, bounding memory when exposed through a proxy.
+        for address in list(_search_windows):
+            _search_windows[address] = [t for t in _search_windows[address] if now - t < 60]
+            if not _search_windows[address]:
+                del _search_windows[address]
+        if len(_search_windows) > 1024 and client_ip not in _search_windows:
+            raise HTTPException(status_code=429, detail='search_rate_limited')
+        recent = _search_windows.setdefault(client_ip, [])
+        if len(recent) >= 30:
+            raise HTTPException(status_code=429, detail='search_rate_limited')
+        recent.append(now)
+
 
 
 @app.get('/')
@@ -66,7 +88,7 @@ async def homepage():
 
 @app.get('/api/health')
 async def health():
-    return {'status': 'ok', 'version': '0.9.0'}
+    return {'status': 'ok', 'version': '1.0.1'}
 
 
 @app.get('/api/providers')
@@ -123,12 +145,9 @@ async def search(q: str = Query(min_length=2, max_length=120),
 
 @app.get('/api/indexers/search')
 async def indexer_search(
+    request: Request,
     q: str = Query(min_length=2, max_length=120),
-    language: str = Query(default='de', pattern='^(de|en|all)$'),
-    limit: int = Query(default=30, ge=1, le=40),
-    x_api_key: str | None = Header(default=None),
-):
-    _guard(x_api_key)
+    language: str = Query(default='de', pattern='^(de|en|all)
     try:
         result = await search_indexers(q, None if language == 'all' else language, limit)
     except (OSError, ValueError):

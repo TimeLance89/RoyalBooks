@@ -281,3 +281,7 @@ The indexer feature currently provides read-only search, not automatic downloads
 These projects separate metadata/catalog search from externally configured indexers.
 Their support for German files depends on live provider availability and is not guaranteed.
 Third-party archives with fluctuating mirrors are not installed as fixed source adapters.
+
+## Token-free discovery (v1.0.1)
+
+Normal GET /api/indexers/search requests no longer require entering the RoyalBooks API token. The server retains private Prowlarr/Torznab/Newznab credentials and only exposes sanitized read-only indexer listing data. A basic per-client quota limits search traffic to 30 queries per minute, suitable for a LAN installation. Do not publish the service to the open Internet without an authenticating reverse proxy. Personal watchlist, queue history, NAS diagnostics and all management/write endpoints still require the existing RoyalBooks API token, now located in an optional collapsed admin panel rather than the main search form.
