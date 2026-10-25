@@ -1,0 +1,30 @@
+services:
+  royalbooks:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${ROYALBOOKS_BIND_IP:-127.0.0.1}:${ROYALBOOKS_PORT:-8094}:8094"
+    environment:
+      ROYALBOOKS_DB_PATH: /data/royalbooks.sqlite3
+      ROYALBOOKS_API_TOKEN: ${ROYALBOOKS_API_TOKEN:-}
+      GOOGLE_BOOKS_API_KEY: ${GOOGLE_BOOKS_API_KEY:-}
+      ROYALBOOKS_DNB_ENABLED: ${ROYALBOOKS_DNB_ENABLED:-1}
+      ROYALBOOKS_CWA_INGEST_PATH: ${ROYALBOOKS_CWA_INGEST_PATH:+/cwa-ingest}
+      ROYALBOOKS_CWA_LIBRARY_PATH: ${ROYALBOOKS_CWA_LIBRARY_PATH:+/cwa-library}
+    volumes:
+      - "${ROYALBOOKS_DATA_PATH:-./data}:/data"
+      # Set ROYALBOOKS_CWA_INGEST_PATH to the SAME host directory mounted into CWA.
+      # Without it, downloads remain staged on RoyalBooks and cannot reach Calibre.
+      - "${ROYALBOOKS_CWA_INGEST_PATH:-./data/disabled-ingest}:/cwa-ingest"
+      # Strictly read-only bind mount. Never change Calibre's metadata.db.
+      - "${ROYALBOOKS_CWA_LIBRARY_PATH:-./data/disabled-library}:/cwa-library:ro"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8094/api/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

@@ -1,0 +1,41 @@
+name: Tests
+on:
+  push:
+    branches: [main, 'feature/**']
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: pip install -e '.[test]'
+      - name: Test
+        run: pytest -q
+      - name: Check browser JavaScript
+        run: |
+          python - <<'PYCODE'
+          from pathlib import Path
+          source = Path('royalbooks/static/index.html').read_text()
+          Path('/tmp/royalbooks-ui.js').write_text(source.split('<script>', 1)[1].split('</script>', 1)[0])
+          PYCODE
+          node --check /tmp/royalbooks-ui.js
+      - name: Offline Gutenberg catalog import/search tests
+        run: pytest -q tests/test_gutenberg_catalog.py
+      - name: First-party RDF format and acquisition tests (no network)
+        run: pytest -q tests/test_gutenberg_formats.py
+      - name: Benchmark CLI smoke test (no network)
+        run: python -m royalbooks.benchmark
+      - name: Simulated NAS/CWA handoff and safety tests (offline)
+        run: pytest -q tests/test_preflight.py tests/test_e2e_simulation.py
+      - name: Real Docker mount audit unit tests (no Docker access)
+        run: |
+          pytest -q tests/test_nas_cwa_audit.py
+          python scripts/nas_cwa_audit.py --help
+      - name: Direct publisher EPUB search and guarded queue tests
+        run: pytest -q tests/test_direct_sources.py
+      - name: Build image
+        run: docker build -t royalbooks:test .
