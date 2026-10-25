@@ -10,14 +10,16 @@ import sqlite3
 from royalbooks.database import connect as db_connect
 import uuid
 import zipfile
+from time import monotonic
 from pathlib import Path, PurePosixPath
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import urljoin, urlsplit, parse_qs
 from defusedxml import ElementTree
 
 import httpx
 
 from royalbooks.providers import Gutendex, ProviderError
 from royalbooks.direct_sources import SOURCES, lookup_epub as lookup_direct_epub, safe_epub_url
+from royalbooks.libgen_links import resolve_epub, safe_file_url
 
 MAX_BYTES = 32 * 1024 * 1024
 MAX_UNCOMPRESSED = 160 * 1024 * 1024
@@ -207,6 +209,10 @@ class JobStore:
 
 async def download_epub(client: httpx.AsyncClient, url: str, destination: Path, source: str = "gutendex") -> int:
     checker = valid_url if source not in SOURCES else lambda u: safe_epub_url(source, u)
+    if source == 'libgen':
+        wanted_md5 = [value.lower() for value in parse_qs(urlsplit(url).query).get('md5', [])]
+        checker = lambda candidate: (safe_file_url(candidate) and
+            [value.lower() for value in parse_qs(urlsplit(candidate).query).get('md5', [])] == wanted_md5)
     if not checker(url):
         raise AcquisitionError("untrusted_download_host")
     for _ in range(4):
@@ -248,6 +254,9 @@ async def process_queued(job: dict, store: JobStore, staging: Path, client: http
             url = await asyncio.to_thread(lookup_direct_epub, store.path, job["source"], job["source_id"])
             if not url:
                 raise AcquisitionError("publisher_epub_metadata_missing_or_expired")
+            if job['source'] == 'libgen':
+                expected_md5 = parse_qs(urlsplit(url).query)['md5'][0].lower()
+                url = await resolve_epub(client, url)
         elif job["source"] == "gutendex":
             catalog = provider if provider is not None else Gutendex()
             item = await catalog.get_json(client, f"https://gutendex.com/books/{job['source_id']}/", {})
@@ -261,6 +270,11 @@ async def process_queued(job: dict, store: JobStore, staging: Path, client: http
             raise AcquisitionError("unsupported_source")
         size = await download_epub(client, url, temporary, source=job["source"])
         digest = validate_epub(temporary)
+        if job['source'] == 'libgen':
+            with temporary.open('rb') as downloaded:
+                actual_md5 = hashlib.file_digest(downloaded, 'md5').hexdigest()
+            if actual_md5 != expected_md5:
+                raise AcquisitionError('catalog_md5_mismatch')
         if store.sha_exists(digest, job['id']):
             raise AcquisitionError('duplicate_epub')
         os.replace(temporary, target)
@@ -317,8 +331,9 @@ async def worker(store: JobStore, data_dir: Path, ingest: Path | None,
     staging = data_dir / 'staging'
     staging.mkdir(parents=True, exist_ok=True)
     catalog = gutendex if gutendex is not None else Gutendex()
+    libgen_blocked_until = 0.0
     async with httpx.AsyncClient(timeout=httpx.Timeout(20.0), follow_redirects=False, trust_env=False,
-                                 headers={'User-Agent': 'RoyalBooks/0.3 (https://github.com/TimeLance89/RoyalBooks)'}) as client:
+                                 headers={'User-Agent': 'RoyalBooks/2.0 (https://github.com/TimeLance89/RoyalBooks)'}) as client:
         while True:
             if ingest is not None:
                 job = await asyncio.to_thread(store.claim, ('staged',), v2_only=not include_legacy)
@@ -326,10 +341,15 @@ async def worker(store: JobStore, data_dir: Path, ingest: Path | None,
                     await asyncio.to_thread(deliver_staged, job, store, staging, ingest)
                     continue
             # A 403/451 cooldown must not consume another persisted job attempt.
-            if catalog.cooldown_remaining():
+            if catalog.cooldown_remaining() or libgen_blocked_until > monotonic():
                 # Gutendex refusal must not stop independent first-party RDF jobs.
                 job = None
-                for independent in ('gutenberg_catalog', 'wikisource', 'standardebooks'):
+                candidates = ['gutenberg_catalog', *sorted(SOURCES)]
+                if not catalog.cooldown_remaining():
+                    candidates.append('gutendex')
+                for independent in candidates:
+                    if independent == 'libgen' and libgen_blocked_until > monotonic():
+                        continue
                     job = await asyncio.to_thread(store.claim, ('queued',), independent, v2_only=not include_legacy)
                     if job:
                         break
@@ -340,6 +360,10 @@ async def worker(store: JobStore, data_dir: Path, ingest: Path | None,
                     await asyncio.wait_for(process_queued(job, store, staging, client, catalog), timeout=180)
                 except TimeoutError:
                     await asyncio.to_thread(store.update, job['id'], 'failed', error='ReadTimeout')
+                if job['source'] == 'libgen':
+                    actual = await asyncio.to_thread(store.get, job['id'])
+                    if actual and actual['error'] in {'http_403', 'http_451'}:
+                        libgen_blocked_until = monotonic() + 1800
                 continue
             await asyncio.sleep(1.0)
 

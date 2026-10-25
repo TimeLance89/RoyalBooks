@@ -1,4 +1,4 @@
-"""Publisher-listed, direct EPUB sources. No guessed file URLs or bypassed access.
+"""Source-listed EPUB acquisition records. No guessed file keys or bypassed access.
 
 Wikisource: completed-book metadata provided by the public WSIndex project.
 Standard Ebooks: public 15-title *new releases* Atom feed (not members-only catalog).
@@ -21,8 +21,9 @@ from defusedxml import ElementTree
 
 from royalbooks.providers import Book, Provider, ProviderError
 from royalbooks.matching import normalize
+from royalbooks.libgen_links import safe_catalog_url, safe_file_url
 
-SOURCES = frozenset({"wikisource", "standardebooks"})
+SOURCES = frozenset({"wikisource", "standardebooks", "libgen"})
 ATOM = "{http://www.w3.org/2005/Atom}"
 MAX_XML = 2 * 1024 * 1024
 MAX_AGE = 7 * 24 * 3600
@@ -37,6 +38,8 @@ SCHEMA = """CREATE TABLE IF NOT EXISTS direct_source_catalog (
 def safe_epub_url(source: str, url: str) -> bool:
     if source not in SOURCES or not isinstance(url, str) or len(url) > 1200:
         return False
+    if source == 'libgen':
+        return safe_catalog_url(url) or safe_file_url(url)
     try:
         p = urlsplit(url)
         if p.scheme != "https" or p.username or p.password or p.port not in (None, 443) or p.fragment:

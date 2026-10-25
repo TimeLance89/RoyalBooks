@@ -74,7 +74,9 @@ def main():
                     assert '9783531157887' in page.locator('#detail-content').inner_text()
                     page.keyboard.press('Escape')
                     assert not page.locator('#book-dialog').is_visible()
-                    page.locator('#admin-access summary').click()
+                    page.locator('#books').get_by_role('button', name='EPUB übernehmen', exact=True).click()
+                    assert page.locator('#admin-access').evaluate('element=>element.open')
+                    assert page.locator('#token').evaluate('element=>element===document.activeElement')
                     page.locator('#token').fill(token)
                     page.locator('#books').get_by_role('button', name='Auf Merkliste', exact=True).click()
                     page.wait_for_function("document.querySelector('#watchlist-items').textContent.includes('Faust')")
@@ -84,6 +86,23 @@ def main():
                     assert page.locator('#books .book').count() == 0
                     page.locator('[data-filter=all]').click()
                     assert page.locator('#books .book').count() == 1
+                    # A real file listing need not already expose its transient
+                    # download URL. LibGen uses a separate server-bound ID.
+                    libgen = {**book, 'source':'libgen', 'source_id':'a'*32,
+                              'formats':['EPUB'], 'file_evidence':'listed_unverified',
+                              'acquisition_id':6002, 'download_supported':True}
+                    data['items'] = [libgen]
+                    data['display_groups'] = [dict(primary_index=0,item_indexes=[0],epub_count=1)]
+                    data['search_evidence']['epub_acquisition_candidates'] = 1
+                    page.locator('#go').click()
+                    page.wait_for_function("document.querySelector('#books').textContent.includes('Library Genesis')")
+                    page.locator('[data-filter=epub]').click()
+                    assert page.locator('#books .book').count() == 1
+                    page.route('**/api/jobs', lambda route: route.fulfill(status=202, json={'job':{'status':'queued'}})
+                               if route.request.method == 'POST' else route.continue_())
+                    with page.expect_request(lambda request: '/api/jobs' in request.url and request.method=='POST') as posted:
+                        page.locator('#books').get_by_role('button', name='EPUB übernehmen', exact=True).click()
+                    assert posted.value.post_data_json == {'provider':'libgen','source_id':6002,'rights_confirmed':True}
                     page.unroute('**/api/books/search?*')
                     page.route('**/api/books/search?*', lambda route: route.fulfill(status=503, json={'detail':'search_busy'}))
                     page.locator('#go').click()

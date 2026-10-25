@@ -134,7 +134,7 @@ dialog::backdrop{background:#070810c9}#close-detail{float:right;margin:0 0 14px 
 <p id="search-notice" class="search-notice" hidden></p>
 <div id="search-filters" class="search-filters" hidden aria-label="Suchergebnisse filtern">
 <button type="button" data-filter="all" aria-pressed="true">Alle Titel</button>
-<button type="button" data-filter="epub" aria-pressed="false">Mit EPUB-Link</button>
+<button type="button" data-filter="epub" aria-pressed="false">EPUB-Dateieinträge</button>
 <button type="button" data-filter="files" aria-pressed="false">Mit Dateieintrag</button>
 <button type="button" data-filter="metadata" aria-pressed="false">Nur Buchdaten</button>
 </div>
@@ -378,9 +378,10 @@ $('token').addEventListener('change',refreshImports);
 $('refresh').addEventListener('click',loadJobs);
 $('token').addEventListener('change',loadJobs);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&$('token').value)loadJobs()});
-async function addBook(book){if(!confirm('Hast du geprüft, dass du dieses Buch in deinem Land rechtmäßig herunterladen und speichern darfst?'))return;
-const token=$('token').value;if(!token){$('job-message').textContent='Bitte zuerst den API-Token eintragen.';return}
-try{const r=await fetch('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json','X-API-Key':token},body:JSON.stringify({provider:book.source,source_id:Number(book.source_id),rights_confirmed:true})});
+async function addBook(book){
+const token=$('token').value;if(!token){$('admin-access').open=true;$('token').focus();$('job-message').textContent='Für Downloadaufträge den RoyalBooks-Verwaltungszugang eingeben. Kein Anbieterkonto erforderlich.';return}
+if(!confirm('Hast du geprüft, dass du dieses Buch in deinem Land rechtmäßig herunterladen und speichern darfst?'))return;
+try{const r=await fetch('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json','X-API-Key':token},body:JSON.stringify({provider:book.source,source_id:Number(book.acquisition_id||book.source_id),rights_confirmed:true})});
 const data=await r.json();if(!r.ok)throw Error(data.detail||'HTTP '+r.status);$('job-message').textContent='Auftrag für '+book.title+' vorgemerkt.';loadJobs()}catch(err){$('job-message').textContent='Übernahme fehlgeschlagen: '+err.message}
 $('job-message').scrollIntoView({block:'nearest'})}
 
@@ -407,7 +408,7 @@ function renderEditionActions(container,item,compact=false){
   }
   const save=text('button',compact?'Merken':'Auf Merkliste','subtle action');
   save.type='button';save.addEventListener('click',()=>saveBook(item));container.append(save);
-  if(['gutendex','gutenberg_catalog','wikisource','standardebooks'].includes(item.source)&&item.epub_url){
+  if(item.download_supported||(['gutendex','gutenberg_catalog','wikisource','standardebooks'].includes(item.source)&&item.epub_url)){
     const button=text('button','EPUB übernehmen','action');button.type='button';
     button.addEventListener('click',()=>addBook(item));container.append(button);
   }
@@ -510,7 +511,7 @@ $('search').addEventListener('submit',async e=>{
     const succeeded=sources.filter(source=>['found','empty'].includes(source.status));
     const outages=sources.filter(source=>source.status==='error').length;
     const evidence=result.search_evidence||{};
-    $('message').textContent=(result.display_groups||[]).length+' Bücher · '+(evidence.epub_links_listed_unverified||0)+' EPUB-Angebote · '+(evidence.file_listings_unverified||0)+' weitere Dateieinträge';
+    $('message').textContent=(result.display_groups||[]).length+' Bücher · '+(evidence.epub_acquisition_candidates??evidence.epub_links_listed_unverified??0)+' EPUB-Kandidaten · '+(evidence.file_listings_unverified||0)+' Dateieinträge';
     const diagnostics=$('search-diagnostics');diagnostics.replaceChildren(...sources.map(source=>text('p',sourceName(source.provider)+': '+source.status+(source.cached?' (Cache)':'')+(source.error?' · '+source.error:''),'muted')));
     $('source-summary').textContent=outages?outages+' von '+sources.length+' Quellen momentan nicht erreichbar':'Quellenstatus ansehen';
     renderResults();

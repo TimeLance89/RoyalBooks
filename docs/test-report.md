@@ -48,7 +48,7 @@ duration, error, declared language, ISBN and listed formats.
 | Gutendex | Actual `/books/` endpoint returned German results for Faust and Kafka, with publisher EPUB listings. Some separate requests timed out. The old slashless endpoint redirected and is corrected. |
 | Wikisource | “Don Kichote” returned a German publisher-listed EPUB export. Narrow coverage; sampled German catalog had 12 rows including multilingual records. Actual export download returned **HTTP 503**, recorded as failure. |
 | Standard Ebooks | “Suspense” returned a real English EPUB enclosure. Downloaded **781,966 bytes**, validated ZIP/EPUB/CRC and SHA-256. Latest-15 feed only, not a full English catalog and no German coverage. |
-| Library Genesis | Real German file listings found. Observed listing formats: EPUB, PDF, AZW3, MOBI. A separate initial incompatible response was refused, not reported as a successful search. No automated download test or authorization inferred. |
+| Library Genesis | Real German file listings found. Observed listing formats: EPUB, PDF, AZW3, MOBI. A separate initial incompatible response was refused, not reported as a successful search. The initial audit did not download LibGen files. Follow-up: actual free-route EPUB transfer and catalog-MD5 validation passed; see [LibGen acquisition](libgen-acquisition.md). |
 | Local Gutenberg | Adapter operates independently, but actual NAS catalog was not imported; returned no results. Offline import/RDF/search/acquisition fixtures pass. No claim of live full-catalog coverage. |
 | Google Books | Optional existing adapter tested with fixtures; no live test without credentials. Not required for core search. |
 | Anna’s Archive / Z-Library | Compared through public upstream documentation and implementation research. No stable supported anonymous download path established. Not implemented as fake working providers; no account, CAPTCHA, challenge or download test attempted. |
@@ -113,3 +113,10 @@ Docker-context exclusions, unit/integration/browser checks and documentation.
 Full file list: `git diff --name-only main...feature/royalbooks-2-integrated-providers`.
 Visual evidence: [actual NAS desktop](screenshots/nas-desktop.png) and
 [actual NAS mobile](screenshots/nas-mobile.png).
+
+## LibGen follow-up
+
+The original link-only EPUB filter and missing LibGen acquisition route were
+corrected after the user identified the gap. Full follow-up results and scope:
+[free LibGen acquisition](libgen-acquisition.md). The earlier 170-test result
+above describes the initial acceptance, not this subsequent change.

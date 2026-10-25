@@ -10,8 +10,8 @@ from royalbooks.builtin_search import LibraryGenesis
 
 def configured_providers() -> list[Provider]:
     path = os.getenv('ROYALBOOKS_DB_PATH', '/data/royalbooks.sqlite3')
-    providers = [DNB(), OpenLibrary(), Wikisource(path), StandardEbooks(path),
-                 Gutendex(), GutenbergCatalog(path), LibraryGenesis()]
+    providers = [LibraryGenesis(path), DNB(), OpenLibrary(), Wikisource(path),
+                 StandardEbooks(path), Gutendex(), GutenbergCatalog(path)]
     if key := os.getenv('GOOGLE_BOOKS_API_KEY', '').strip():
         providers.append(GoogleBooks(key))
     return providers

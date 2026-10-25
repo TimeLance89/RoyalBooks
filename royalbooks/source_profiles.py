@@ -30,8 +30,8 @@ class SourceProfile:
 
 PROFILES = {
     'libgen': SourceProfile('libgen', 'Library Genesis', 'file_listing', 'edition',
-                           'multilingual', ('EPUB', 'PDF', 'AZW3', 'MOBI', 'FB2', 'DJVU', 'TXT'), False,
-                           'Unverified catalog claims only; no automatic downloads'),
+                           'multilingual', ('EPUB', 'PDF', 'AZW3', 'MOBI', 'FB2', 'DJVU', 'TXT'), True,
+                           'Source-bound EPUB acquisition; fresh GET link and integrity checks required'),
     "dnb": SourceProfile("dnb", "Deutsche Nationalbibliothek", "bibliography",
                          "edition", "de_priority", (), False,
                          "German editions and ISBNs; no downloadable files"),
@@ -71,6 +71,7 @@ def search_evidence(items: list[Book]) -> dict:
     return {
         "catalog_records": len(items),
         "epub_links_listed_unverified": len(listed),
+        "epub_acquisition_candidates": sum(book.as_dict()['download_supported'] for book in items),
         "file_listings_unverified": sum(bool(item.formats) and not item.epub_url for item in items),
         "bibliographic_records_without_epub": len(metadata),
         "german_records_declared": sum(item.language == "de" for item in items),

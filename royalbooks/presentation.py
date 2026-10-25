@@ -19,7 +19,7 @@ def _surname(book: Book) -> str:
 
 def _primary_score(book: Book) -> tuple[int, int, int, int]:
     """Prefer a downloadable entry, otherwise a useful illustrated listing."""
-    return (int(bool(book.epub_url)), int(bool(book.cover_url)),
+    return (int(bool(book.epub_url or book.acquisition_id)), int(bool(book.cover_url)),
             int(bool(book.authors)), int(bool(book.isbn13)))
 
 
@@ -64,7 +64,7 @@ def display_groups(books: list[Book], query: str = "") -> list[dict]:
             groups.append({
                 "primary_index": primary,
                 "item_indexes": indexes_for_group,
-                "epub_count": sum(bool(books[i].epub_url) for i in indexes_for_group),
+                "epub_count": sum(bool(books[i].epub_url or books[i].acquisition_id) for i in indexes_for_group),
                 "notice": "Visual grouping of similar catalog records; ISBNs and editions remain separate.",
             })
 
@@ -81,6 +81,7 @@ def display_groups(books: list[Book], query: str = "") -> list[dict]:
         book = books[group['primary_index']]
         content = set(normalize(book.title + ' ' + ' '.join(book.authors)).split())
         overlap = len(words & content) / len(words) if words else 0
-        return (relevance, -overlap, -group["epub_count"], min(group["item_indexes"]))
+        return (relevance > 1, -int(group['epub_count'] > 0), relevance, -overlap,
+                min(group["item_indexes"]))
 
     return sorted(groups, key=rank)

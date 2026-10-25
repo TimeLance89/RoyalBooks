@@ -25,7 +25,7 @@ from royalbooks.gutenberg_catalog import connect
 
 RDF_URL = "https://www.gutenberg.org/cache/epub/feeds/rdf-files.tar.bz2"
 MAX_ARCHIVE = 256 * 1024 * 1024
-MAX_RECORD = 1024 * 1024
+MAX_RECORD = 16 * 1024 * 1024
 MAX_TOTAL = 3 * 1024 * 1024 * 1024
 MAX_MEMBERS = 240000
 RDF = "{http://www.w3.org/1999/02/22-rdf-syntax-ns#}"
@@ -98,7 +98,7 @@ def parse_rdf_entry(content: bytes, ebook_id: int) -> tuple[int, str, int | None
     return ebook_id, url, size
 
 
-def import_rdf_archive(filename: str | Path, db_path: str | Path) -> dict:
+def _index_rdf_archive(filename: str | Path, db_path: str | Path) -> dict:
     path = Path(filename)
     if not path.is_file() or path.stat().st_size > MAX_ARCHIVE:
         raise ValueError("rdf_archive_missing_or_too_large")
@@ -155,6 +155,29 @@ def import_rdf_archive(filename: str | Path, db_path: str | Path) -> dict:
         raise
     finally:
         db.close()
+
+
+def import_rdf_archive(filename: str | Path, db_path: str | Path) -> dict:
+    """Parse away from the live DB; publish a complete index in one short transaction.
+
+    Official records can exceed 1 MiB (pg25851.rdf measured 1,223,615 bytes).
+    A bounded 16 MiB member allowance accommodates these real records while
+    retaining archive/member/count/expanded-size and defused-XML guards.
+    """
+    parent = Path(db_path).parent
+    parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='royalbooks-rdf-stage-', dir=parent) as folder:
+        staged = str(Path(folder)/'formats.sqlite3')
+        outcome = _index_rdf_archive(filename, staged)
+        with connect(str(db_path)) as db:
+            db.executescript(SCHEMA)
+            db.execute('ATTACH DATABASE ? AS staged', (staged,))
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('DELETE FROM gutenberg_formats')
+            db.execute('INSERT INTO gutenberg_formats SELECT * FROM staged.gutenberg_formats')
+            db.execute('DELETE FROM gutenberg_formats_meta')
+            db.execute('INSERT INTO gutenberg_formats_meta SELECT * FROM staged.gutenberg_formats_meta')
+        return outcome
 
 
 def format_status(db_path: str | Path) -> dict:

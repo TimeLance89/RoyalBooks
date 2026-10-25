@@ -26,8 +26,9 @@ API keys are **not required**.
 **Coverage is source-dependent.** DNB and Open Library are bibliographic sources,
 not downloads. Wikisource has narrow German export coverage. Standard Ebooks is
 English and its public feed contains only the latest 15 releases. LibGen returns
-unverified format listings (EPUB/PDF/AZW3/etc.) when its HTML is compatible; no
-LibGen download automation is claimed. Anna’s Archive and Z-Library have no
+unverified format listings (EPUB/PDF/AZW3/etc.). Selected EPUBs now use a fresh,
+source-listed GET link through its free download route, with pinned HTTPS
+redirects, EPUB validation and catalog MD5 verification. Anna’s Archive and Z-Library have no
 verified supported integration here. No CAPTCHA, access-control, DRM or paywall
 bypass is implemented. PDF/AZW3 acquisition is not implemented.
 
@@ -109,3 +110,19 @@ GitHub Actions runs the full Linux suite, real browser checks, image build,
 non-root package checks and actual container startup.
 
 The existing MIT parser attribution is in `royalbooks/vendor/LICENSE.libgenapp`.
+
+## Free LibGen acquisition
+
+LibGen EPUB candidates now have an **EPUB übernehmen** action and are included
+in **EPUB-Dateieinträge**, even though their short-lived download URL is resolved
+only when a job runs. No provider account, payment or user-entered provider key
+is required. RoyalBooks administration and per-job rights consent remain protected.
+
+Search identities remain MD5-based; acquisition uses separate server-bound IDs.
+Transient GET keys are read from actual source pages, never invented, persisted
+or exposed to the browser. Only pinned HTTPS catalog/CDN hosts are accepted.
+An access denial is respected. HTML-layout changes and source outages can still
+prevent a transfer; this is not a guarantee of universal archive availability.
+
+See [the LibGen follow-up](docs/libgen-acquisition.md) for actual file-transfer
+evidence and the distinction between search candidates and verified files.

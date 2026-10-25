@@ -64,3 +64,9 @@ def test_exact_query_first_and_original_index_preserved():
     groups = display_groups(books, "Harry Potter and the Goblet of Fire")
     assert groups[0]["primary_index"] == 1
     assert groups[1]["primary_index"] == 0
+
+
+def test_relevant_epub_offer_precedes_exact_metadata_only_title():
+    books = [item('dnb', 'Faust', 'Goethe'),
+             item('gutenberg_catalog', 'Faust: Eine Tragödie', 'Goethe', epub='https://example.org/book.epub')]
+    assert display_groups(books, 'Faust')[0]['primary_index'] == 1

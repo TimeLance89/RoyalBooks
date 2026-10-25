@@ -33,6 +33,7 @@ class Book:
     description: str | None = None
     language_evidence: str = "catalog_declared"
     record_kind: str = "edition"
+    acquisition_id: int | None = None
 
     def as_dict(self) -> dict[str, Any]:
         data = asdict(self)
@@ -42,6 +43,8 @@ class Book:
         data['language_evidence'] = self.language_evidence if self.language else 'ambiguous_or_unknown'
         data['download_supported'] = bool(self.epub_url) and self.source in {
             'gutendex', 'gutenberg_catalog', 'wikisource', 'standardebooks'}
+        if self.source == 'libgen' and self.acquisition_id and self.formats == ('EPUB',):
+            data['download_supported'] = True
         return data
 
 

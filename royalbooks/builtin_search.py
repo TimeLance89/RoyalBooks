@@ -17,6 +17,7 @@ from urllib.parse import urljoin
 
 import httpx
 from royalbooks.providers import Book, Provider, ProviderError
+from royalbooks.direct_sources import index_epub
 
 from royalbooks.vendor import lgsearch
 
@@ -85,6 +86,8 @@ def _source_url(mirror: str, href: object) -> str | None:
 
 def parse_html(page: str) -> list[dict]:
     """Fail explicitly on blocked/login pages, not as silent zero matches."""
+    if lgsearch.is_overloaded(page):
+        raise ValueError("catalogue_overloaded")
     if "tablelibgen" not in page:
         if any(word in page.casefold() for word in (
             "no records found", "nothing found", "no results found")):
@@ -195,12 +198,17 @@ async def search_builtin(query: str, language: str | None, limit: int = 30) -> d
 class LibraryGenesis(Provider):
     """Existing catalog parser behind the same contract as every other source.
 
-    No download URLs or inferred entitlement. An explicit access refusal stops
+    Selected EPUBs obtain source-bound acquisition IDs. No inferred entitlement.
+    An explicit access refusal stops
     fallback, rather than trying another origin to evade a restriction.
     """
     name = 'libgen'
     purpose = 'file_listing'
     min_interval = 2
+
+    def __init__(self, db_path: str | None = None):
+        super().__init__()
+        self.db_path = db_path
 
     async def search(self, client, query, language, limit):
         from time import monotonic
@@ -213,14 +221,29 @@ class LibraryGenesis(Provider):
             for mirror in MIRRORS:
                 self._last_request = monotonic()
                 try:
-                    entries = await _search_one(client, mirror, query, language, limit)
-                    return [Book(source=self.name,
-                                 source_id=b.source_id or hashlib.sha256((b.source_url or b.title).encode()).hexdigest()[:32],
-                                 title=b.title, authors=[b.author] if b.author else [],
-                                 language=b.language_hint, year=int(b.year) if re.fullmatch(r'\d{4}', b.year) else None,
-                                 cover_url=None, info_url=b.source_url or mirror,
-                                 availability=b.availability, formats=(b.format_hint,) if b.format_hint else (),
-                                 language_evidence='catalog_claim_unverified') for b in entries]
+                    try:
+                        entries = await _search_one(client, mirror, query, language, limit)
+                    except ValueError as exc:
+                        if str(exc) != 'catalogue_overloaded':
+                            raise
+                        await asyncio.sleep(.5)
+                        entries = await _search_one(client, mirror, query, language, limit)
+                    books = []
+                    for entry in entries:
+                        acquisition_id = None
+                        if self.db_path and entry.format_hint == 'EPUB':
+                            acquisition_id = await asyncio.to_thread(index_epub, self.db_path, self.name,
+                                entry.source_id, mirror + 'ads.php?md5=' + entry.source_id)
+                        books.append(Book(source=self.name,
+                            source_id=entry.source_id or hashlib.sha256((entry.source_url or entry.title).encode()).hexdigest()[:32],
+                            title=entry.title, authors=[entry.author] if entry.author else [],
+                            language=entry.language_hint,
+                            year=int(entry.year) if re.fullmatch(r'\d{4}', entry.year) else None,
+                            cover_url=None, info_url=entry.source_url or mirror,
+                            availability=entry.availability,
+                            formats=(entry.format_hint,) if entry.format_hint else (),
+                            language_evidence='catalog_claim_unverified', acquisition_id=acquisition_id))
+                    return books
                 except ValueError as exc:
                     if str(exc) in {'catalogue_http_403', 'catalogue_http_451', 'catalogue_http_429', 'catalogue_table_missing'}:
                         self._blocked_until = monotonic() + 1800
