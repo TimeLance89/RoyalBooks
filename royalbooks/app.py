@@ -8,7 +8,8 @@ from pathlib import Path
 from time import perf_counter
 
 import httpx
-from fastapi import FastAPI, Header, HTTPException, Query, Request, Path as ApiPath
+from fastapi import FastAPI, Header, HTTPException, Query, Request, Depends, Path as ApiPath
+from fastapi.responses import JSONResponse
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, field_validator
 
@@ -30,6 +31,7 @@ from royalbooks.source_profiles import profiles_for, search_evidence
 from royalbooks.matching import match_groups
 from royalbooks.presentation import display_groups
 from royalbooks.storage import MetricsStore
+from royalbooks.auth import SessionStore, COOKIE, SESSION_SECONDS
 
 
 def downloads_enabled() -> bool:
@@ -43,6 +45,7 @@ async def lifespan(app: FastAPI):
     app.state.jobs = JobStore(path)
     app.state.catalog_imports = CatalogImportService(path)
     app.state.watchlist = WatchlistStore(path)
+    app.state.sessions = SessionStore(path)
     sources = configured_providers()
     app.state.providers = {p.name: p for p in sources}
     data = Path(path).parent
@@ -94,8 +97,10 @@ async def _limit_public_search(client_ip: str) -> None:
 
 
 @app.get('/')
+@app.get('/connect')
 async def homepage():
-    return FileResponse(Path(__file__).parent / 'static' / 'index.html')
+    return FileResponse(Path(__file__).parent / 'static' / 'index.html',
+                        headers={'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer'})
 
 
 @app.get('/api/health')
@@ -207,9 +212,84 @@ def _guard(token: str | None) -> None:
         raise HTTPException(status_code=status, detail=str(exc)) from exc
 
 
+def _same_origin_write(request: Request):
+    if request.headers.get('X-RoyalBooks-Client') != 'web':
+        raise HTTPException(status_code=403, detail='same_origin_required')
+    origin = request.headers.get('origin')
+    if origin and origin.rstrip('/') != str(request.base_url).rstrip('/'):
+        raise HTTPException(status_code=403, detail='same_origin_required')
+    if request.headers.get('sec-fetch-site') == 'cross-site':
+        raise HTTPException(status_code=403, detail='same_origin_required')
+
+
+def admin_access(request: Request, x_api_key: str | None = Header(default=None)):
+    if x_api_key:
+        _guard(x_api_key)
+        return
+    sessions = getattr(request.app.state, 'sessions', None)
+    key = os.getenv('ROYALBOOKS_API_TOKEN', '')
+    if sessions and sessions.authenticated(request.cookies.get(COOKIE), key):
+        if request.method not in {'GET', 'HEAD', 'OPTIONS'}:
+            _same_origin_write(request)
+        return
+    _guard(None)
+
+
+class LoginRequest(BaseModel):
+    token: str = Field(min_length=1, max_length=512)
+
+
+class DeviceLinkRequest(BaseModel):
+    code: str = Field(min_length=32, max_length=128)
+
+
+def _session_response(request: Request, value: str):
+    response = JSONResponse({'authenticated': True}, headers={'Cache-Control':'no-store'})
+    response.set_cookie(COOKIE, value, max_age=SESSION_SECONDS, httponly=True,
+                        secure=request.url.scheme == 'https', samesite='strict', path='/')
+    return response
+
+
+@app.get('/api/auth/status')
+async def auth_status(request: Request):
+    sessions = getattr(request.app.state, 'sessions', None)
+    valid = bool(sessions and await asyncio.to_thread(sessions.authenticated,
+        request.cookies.get(COOKIE), os.getenv('ROYALBOOKS_API_TOKEN', '')))
+    return JSONResponse({'authenticated': valid}, headers={'Cache-Control':'no-store'})
+
+
+@app.post('/api/auth/login')
+async def login(body: LoginRequest, request: Request):
+    _same_origin_write(request)
+    await _limit_public_search('auth:' + (request.client.host if request.client else 'unknown'))
+    _guard(body.token)
+    value = await asyncio.to_thread(request.app.state.sessions.create_session,
+                                   os.environ['ROYALBOOKS_API_TOKEN'])
+    return _session_response(request, value)
+
+
+@app.post('/api/auth/connect')
+async def connect_device(body: DeviceLinkRequest, request: Request):
+    _same_origin_write(request)
+    await _limit_public_search('auth:' + (request.client.host if request.client else 'unknown'))
+    key = os.getenv('ROYALBOOKS_API_TOKEN', '')
+    if not await asyncio.to_thread(request.app.state.sessions.consume_device_link, body.code, key):
+        raise HTTPException(status_code=401, detail='device_link_expired_or_used')
+    value = await asyncio.to_thread(request.app.state.sessions.create_session, key)
+    return _session_response(request, value)
+
+
+@app.post('/api/auth/logout')
+async def logout(request: Request):
+    _same_origin_write(request)
+    await asyncio.to_thread(request.app.state.sessions.logout, request.cookies.get(COOKIE))
+    response = JSONResponse({'authenticated': False}, headers={'Cache-Control':'no-store'})
+    response.delete_cookie(COOKIE, path='/', httponly=True, samesite='strict')
+    return response
+
+
 @app.post('/api/jobs', status_code=202)
-async def enqueue(request: QueueRequest, x_api_key: str | None = Header(default=None)):
-    _guard(x_api_key)
+async def enqueue(request: QueueRequest, _admin: None = Depends(admin_access)):
     if not downloads_enabled():
         raise HTTPException(status_code=503, detail='downloads_disabled')
     if request.provider not in {'gutendex', 'gutenberg_catalog', *SOURCES}:
@@ -232,9 +312,8 @@ class CatalogImportRequest(BaseModel):
 
 
 @app.get('/api/catalog/imports')
-async def catalog_import_history(x_api_key: str | None = Header(default=None)):
+async def catalog_import_history(_admin: None = Depends(admin_access)):
     """Authenticated status of explicitly requested first-party feed imports."""
-    _guard(x_api_key)
     return {'imports': await asyncio.to_thread(app.state.catalog_imports.history),
             'notice': 'Catalog links are not verified downloads or copyright clearance.'}
 
@@ -242,9 +321,8 @@ async def catalog_import_history(x_api_key: str | None = Header(default=None)):
 @app.post('/api/catalog/imports', status_code=202)
 async def request_catalog_import(
     request: CatalogImportRequest,
-    x_api_key: str | None = Header(default=None),
+    _admin: None = Depends(admin_access),
 ):
-    _guard(x_api_key)
     try:
         return {'import': app.state.catalog_imports.request(request.source)}
     except CatalogImportBusy as exc:
@@ -268,15 +346,13 @@ class WatchlistRequest(BaseModel):
 
 
 @app.get("/api/watchlist")
-async def list_watchlist(x_api_key: str | None = Header(default=None)):
-    _guard(x_api_key)
+async def list_watchlist(_admin: None = Depends(admin_access)):
     return {"items": await asyncio.to_thread(app.state.watchlist.list),
             "notice": "A saved book is not a download request."}
 
 
 @app.post("/api/watchlist", status_code=201)
-async def save_to_watchlist(book: WatchlistRequest, x_api_key: str | None = Header(default=None)):
-    _guard(x_api_key)
+async def save_to_watchlist(book: WatchlistRequest, _admin: None = Depends(admin_access)):
     try:
         item = await asyncio.to_thread(app.state.watchlist.add, **book.model_dump())
     except WatchlistFull as exc:
@@ -287,9 +363,8 @@ async def save_to_watchlist(book: WatchlistRequest, x_api_key: str | None = Head
 @app.delete("/api/watchlist/{item_id}")
 async def delete_watchlist_item(
     item_id: str = ApiPath(min_length=32, max_length=32, pattern=r"^[0-9a-f]{32}$"),
-    x_api_key: str | None = Header(default=None),
+    _admin: None = Depends(admin_access),
 ):
-    _guard(x_api_key)
     removed = await asyncio.to_thread(app.state.watchlist.remove, item_id)
     if not removed:
         raise HTTPException(status_code=404, detail="item_not_found")
@@ -297,9 +372,8 @@ async def delete_watchlist_item(
 
 
 @app.get('/api/preflight')
-async def preflight_status(x_api_key: str | None = Header(default=None)):
+async def preflight_status(_admin: None = Depends(admin_access)):
     """Authenticated, read-only NAS/CWA checks; no path or token disclosure."""
-    _guard(x_api_key)
     root = str(Path(os.getenv("ROYALBOOKS_DB_PATH", "/data/royalbooks.sqlite3")).parent)
     return await asyncio.to_thread(
         diagnose,
@@ -311,8 +385,7 @@ async def preflight_status(x_api_key: str | None = Header(default=None)):
 
 
 @app.get('/api/jobs')
-async def list_jobs(x_api_key: str | None = Header(default=None)):
-    _guard(x_api_key)
+async def list_jobs(_admin: None = Depends(admin_access)):
     ingest_path = os.getenv('ROYALBOOKS_CWA_INGEST_PATH', '').strip()
     ingest = Path(ingest_path) if ingest_path else None
     staging = Path(app.state.jobs.path).parent / 'staging'
@@ -334,9 +407,8 @@ class RetryRequest(BaseModel):
 async def retry_job(
     request: RetryRequest,
     job_id: str = ApiPath(min_length=32, max_length=32, pattern=r'^[0-9a-f]{32}$'),
-    x_api_key: str | None = Header(default=None),
+    _admin: None = Depends(admin_access),
 ):
-    _guard(x_api_key)
     if not downloads_enabled():
         raise HTTPException(status_code=503, detail='downloads_disabled')
     if not request.rights_confirmed:
@@ -352,10 +424,9 @@ async def retry_job(
 @app.get('/api/jobs/{job_id}/library-check')
 async def library_check(
     job_id: str = ApiPath(min_length=32, max_length=32, pattern=r'^[0-9a-f]{32}$'),
-    x_api_key: str | None = Header(default=None),
+    _admin: None = Depends(admin_access),
 ):
     """Check only for an identical file registered in the read-only Calibre DB."""
-    _guard(x_api_key)
     job = await asyncio.to_thread(app.state.jobs.get, job_id)
     if job is None:
         raise HTTPException(status_code=404, detail='job_not_found')

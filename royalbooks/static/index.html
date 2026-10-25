@@ -131,6 +131,7 @@ dialog::backdrop{background:#070810c9}#close-detail{float:right;margin:0 0 14px 
 <p class="muted">RoyalBooks durchsucht eingebaute Buchquellen direkt. Keine zusätzlichen Programme, Indexer oder API-Schlüssel nötig. Deutsche Ausgaben werden bevorzugt.</p></section>
 <form id="search"><input type="search" id="q" placeholder="Titel, Autor oder ISBN" required minlength="2" maxlength="120" aria-label="Suche"><select id="language" aria-label="Sprache"><option value="de">Deutsch</option><option value="en">Englisch</option><option value="all">Alle</option></select><button id="go">Bücher suchen</button></form>
 <div id="message" role="status" class="muted">Suche nach einem Buch. RoyalBooks nutzt automatisch eingebaute Quellen.</div>
+<p id="access-banner" class="search-notice" role="status" hidden></p>
 <p id="search-notice" class="search-notice" hidden></p>
 <div id="search-filters" class="search-filters" hidden aria-label="Suchergebnisse filtern">
 <button type="button" data-filter="all" aria-pressed="true">Alle Titel</button>
@@ -144,9 +145,12 @@ dialog::backdrop{background:#070810c9}#close-detail{float:right;margin:0 0 14px 
 <section id="books" class="cards" aria-live="polite"></section>
 <details class="controls" id="admin-access">
 <summary style="cursor:pointer;font-weight:750">Verwaltungszugang für Merkliste und Aufträge (optional)</summary>
-<p class="muted">Die normale Buchsuche benötigt keinen Token. Für persönliche Merkliste, NAS-Prüfung und Auftragsverwaltung ist der RoyalBooks-API-Token weiterhin nötig; er wird nur in dieser Browser-Sitzung gehalten.</p>
+<p class="muted">Die Suche ist frei. Melde dieses Gerät einmal für Merkliste und Downloads an. Der Zugang bleibt sieben Tage erhalten; der API-Token wird nicht im Browser gespeichert.</p>
 <label for="token">RoyalBooks-API-Token</label>
 <input id="token" type="password" autocomplete="off" placeholder="Token aus deiner NAS-.env">
+<button id="access-login" type="button">Dieses Gerät anmelden</button>
+<button id="access-logout" type="button" class="subtle" hidden>Abmelden</button>
+<p id="access-status" class="muted" role="status" aria-live="polite">Zugang wird geprüft …</p>
 </details>
 <section class="controls" id="watchlist">
 <h2>Meine Merkliste</h2>
@@ -172,6 +176,53 @@ dialog::backdrop{background:#070810c9}#close-detail{float:right;margin:0 0 14px 
 <script>
 const $=id=>document.getElementById(id);
 const text=(tag,value,cls)=>{const el=document.createElement(tag);el.textContent=value;if(cls)el.className=cls;return el};
+let adminAuthenticated=false;
+let authReady=Promise.resolve();
+function authHeaders(extra={}){
+ const headers={'X-RoyalBooks-Client':'web',...extra};
+ if($('token').value)headers['X-API-Key']=$('token').value;
+ return headers;
+}
+function showAccess(active,message=''){
+ adminAuthenticated=active;
+ $('access-banner').hidden=!active;
+ $('access-banner').textContent=active?'Dieses Gerät ist angemeldet. Merkliste und EPUB-Übernahme sind freigeschaltet.':'';
+ $('token').hidden=active;$('access-login').hidden=active;$('access-logout').hidden=!active;
+ $('access-status').textContent=message||(active?'Dieses Gerät ist für Downloads und Merkliste angemeldet.':'Dieses Gerät ist noch nicht angemeldet.');
+}
+async function adminFetch(url,options={}){
+ const response=await fetch(url,{...options,credentials:'same-origin',headers:{...authHeaders(),...(options.headers||{})}});
+ if(response.status===401)showAccess(false,'Zugang abgelaufen. Bitte erneut anmelden.');
+ return response;
+}
+async function initializeAccess(){
+ const code=new URLSearchParams(location.hash.slice(1)).get('code');
+ if(code)history.replaceState(null,'','/');
+ try{
+  const response=await fetch(code?'/api/auth/connect':'/api/auth/status',code?{
+   method:'POST',headers:{'Content-Type':'application/json','X-RoyalBooks-Client':'web'},credentials:'same-origin',body:JSON.stringify({code})
+  }:{credentials:'same-origin'});
+  const data=await response.json();
+  if(!response.ok)throw Error(code?'Der Anmeldelink ist abgelaufen oder wurde bereits verwendet.':'Zugang konnte nicht geprüft werden.');
+  showAccess(data.authenticated);
+ }catch(error){showAccess(false,error.message);$('admin-access').open=true}
+}
+async function signIn(){
+ try{
+  const response=await fetch('/api/auth/login',{method:'POST',credentials:'same-origin',
+   headers:{'Content-Type':'application/json','X-RoyalBooks-Client':'web'},body:JSON.stringify({token:$('token').value})});
+  if(!response.ok)throw Error(response.status===401?'Der Token ist ungültig.':'Anmeldung fehlgeschlagen.');
+  $('token').value='';showAccess(true);await loadJobs();
+ }catch(error){showAccess(false,error.message)}
+}
+$('access-login').addEventListener('click',signIn);
+$('token').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();signIn()}});
+$('access-logout').addEventListener('click',async()=>{
+ const response=await fetch('/api/auth/logout',{method:'POST',credentials:'same-origin',headers:{'X-RoyalBooks-Client':'web'}});
+ if(response.ok){$('token').value='';showAccess(false);$('job-rows').replaceChildren();$('watchlist-items').replaceChildren();
+  if(jobTimer){clearTimeout(jobTimer);jobTimer=null}if(catalogTimer){clearTimeout(catalogTimer);catalogTimer=null}}
+});
+
 function safeUrl(raw){try{const u=new URL(raw);return u.protocol==='https:'&&!u.username&&!u.password?u.href:null}catch{return null}}
 async function loadStats(){try{
  const response=await fetch('/api/providers');if(!response.ok)return;
@@ -195,8 +246,8 @@ const jobStatusLabels={
  delivered:'An Importordner übergeben',failed:'Fehlgeschlagen',
  needs_review:'Manuelle Prüfung erforderlich'
 };
-async function loadJobs(){const token=$('token').value;if(!token){$('job-message').textContent='API-Token eingeben, um die Aufträge zu sehen.';return}
-try{const r=await fetch('/api/jobs',{headers:{'X-API-Key':token}});if(!r.ok)throw Error('HTTP '+r.status);const result=await r.json();
+async function loadJobs(){const token=$('token').value;if(!token&&!adminAuthenticated){$('job-message').textContent='API-Token eingeben, um die Aufträge zu sehen.';return}
+try{const r=await adminFetch('/api/jobs',{headers:authHeaders()});if(!r.ok)throw Error('HTTP '+r.status);const result=await r.json();
 if(jobTimer){clearTimeout(jobTimer);jobTimer=null}
 const active=result.jobs.some(job=>['queued','downloading','staged','delivering'].includes(job.status));
 if(active)jobTimer=setTimeout(()=>{
@@ -229,10 +280,10 @@ if(job.status==='delivered'&&result.library_configured){
 row.append(text('td',sourceName(job.source)+' / '+job.source_id),text('td',((job.status==='queued'&&!job.v2_authorized&&!result.legacy_worker_enabled)?'Historisch · pausiert':(jobStatusLabels[job.status]||job.status))+' · Versuch '+job.attempts+'/3'),info);return row}))}catch(err){$('job-message').textContent='Aufträge nicht abrufbar: '+err.message}}
 async function retryJob(job){
 if(!confirm('Darf dieses Buch weiterhin rechtmäßig heruntergeladen werden, und möchtest du den Auftrag erneut starten?'))return;
-const token=$('token').value;if(!token){$('job-message').textContent='API-Token fehlt.';return}
+const token=$('token').value;if(!token&&!adminAuthenticated){$('job-message').textContent='API-Token fehlt.';return}
 try{
- const r=await fetch('/api/jobs/'+encodeURIComponent(job.id)+'/retry',{method:'POST',
- headers:{'Content-Type':'application/json','X-API-Key':token},
+ const r=await adminFetch('/api/jobs/'+encodeURIComponent(job.id)+'/retry',{method:'POST',
+ headers:authHeaders({'Content-Type':'application/json'}),
  body:JSON.stringify({rights_confirmed:true})});
  const data=await r.json();if(!r.ok)throw Error(data.detail||'HTTP '+r.status);
  $('job-message').textContent='Auftrag erneut eingereiht: '+job.source_id;loadJobs();
@@ -240,10 +291,10 @@ try{
 }
 async function checkLibrary(job){
 const token=$('token').value;
-if(!token){$('job-message').textContent='API-Token fehlt.';return}
+if(!token&&!adminAuthenticated){$('job-message').textContent='API-Token fehlt.';return}
 try{
- const response=await fetch('/api/jobs/'+encodeURIComponent(job.id)+'/library-check',
-   {headers:{'X-API-Key':token}});
+ const response=await adminFetch('/api/jobs/'+encodeURIComponent(job.id)+'/library-check',
+   {headers:authHeaders()});
  const data=await response.json();if(!response.ok)throw Error(data.detail||'HTTP '+response.status);
  const status=data.verification.status;
  const explanations={
@@ -261,11 +312,11 @@ try{
 $('preflight').addEventListener('click',async ()=>{
   const output=$('preflight-results');
   const token=$('token').value;
-  if(!token){output.replaceChildren(text('p','Bitte zuerst den API-Token eingeben.','muted'));return}
+  if(!token&&!adminAuthenticated){output.replaceChildren(text('p','Bitte zuerst den API-Token eingeben.','muted'));return}
   $('preflight').disabled=true;
   output.replaceChildren(text('p','NAS-Einstellungen werden ausschließlich lesend geprüft …','muted'));
   try{
-    const response=await fetch('/api/preflight',{headers:{'X-API-Key':token}});
+    const response=await adminFetch('/api/preflight',{headers:authHeaders()});
     if(!response.ok)throw Error('HTTP '+response.status);
     const result=await response.json();
     const checks=Array.isArray(result.checks)?result.checks:[];
@@ -283,9 +334,9 @@ $('preflight').addEventListener('click',async ()=>{
 });
 async function loadWatchlist(){
   const token=$('token').value;
-  if(!token){$('watchlist-message').textContent='Bitte den Verwaltungszugang oberhalb der Merkliste öffnen.';return}
+  if(!token&&!adminAuthenticated){$('watchlist-message').textContent='Bitte den Verwaltungszugang oberhalb der Merkliste öffnen.';return}
   try{
-    const response=await fetch('/api/watchlist',{headers:{'X-API-Key':token}});
+    const response=await adminFetch('/api/watchlist',{headers:authHeaders()});
     if(!response.ok)throw Error('HTTP '+response.status);
     const data=await response.json(), items=data.items||[];
     $('watchlist-message').textContent=items.length+' gespeicherte Bücher · Speicherung löst keinen Download aus.';
@@ -300,8 +351,8 @@ async function loadWatchlist(){
       remove.addEventListener('click',async ()=>{
         if(!confirm('Dieses Buch aus der Merkliste entfernen?'))return;
         try{
-          const response=await fetch('/api/watchlist/'+encodeURIComponent(book.id),
-              {method:'DELETE',headers:{'X-API-Key':$('token').value}});
+          const response=await adminFetch('/api/watchlist/'+encodeURIComponent(book.id),
+              {method:'DELETE',headers:authHeaders()});
           if(!response.ok)throw Error('HTTP '+response.status);
           await loadWatchlist();
         }catch(error){$('watchlist-message').textContent='Entfernen fehlgeschlagen: '+error.message}
@@ -312,7 +363,7 @@ async function loadWatchlist(){
 }
 async function saveBook(book){
   const token=$('token').value;
-  if(!token){$('watchlist-message').textContent='Zum Merken zuerst den API-Token eingeben.';return}
+  if(!token&&!adminAuthenticated){$('watchlist-message').textContent='Zum Merken zuerst den API-Token eingeben.';return}
   const payload={
     source:book.source,source_id:String(book.source_id),title:book.title,
     authors:(book.authors||[]).slice(0,8).map(name=>name.slice(0,120)),
@@ -320,8 +371,8 @@ async function saveBook(book){
     info_url:safeUrl(book.info_url)
   };
   try{
-    const response=await fetch('/api/watchlist',{method:'POST',
-      headers:{'Content-Type':'application/json','X-API-Key':token},body:JSON.stringify(payload)});
+    const response=await adminFetch('/api/watchlist',{method:'POST',
+      headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify(payload)});
     const data=await response.json();
     if(!response.ok)throw Error(data.detail||'HTTP '+response.status);
     $('watchlist-message').textContent=book.title+' gespeichert.';
@@ -333,9 +384,9 @@ let catalogTimer=null;
 const importLabels={queued:'Wartend',downloading:'Offizielle Daten werden geladen',indexing:'Daten werden lokal indexiert',completed:'Import abgeschlossen',failed:'Import fehlgeschlagen',interrupted:'Import durch Neustart unterbrochen'};
 async function refreshImports(){
   const token=$('token').value;
-  if(!token){$('import-status').textContent='Für den Import bitte zuerst den API-Token eingeben.';return}
+  if(!token&&!adminAuthenticated){$('import-status').textContent='Für den Import bitte zuerst den API-Token eingeben.';return}
   try{
-    const response=await fetch('/api/catalog/imports',{headers:{'X-API-Key':token}});
+    const response=await adminFetch('/api/catalog/imports',{headers:authHeaders()});
     if(!response.ok) throw Error('HTTP '+response.status);
     const data=await response.json(), imports=data.imports||[];
     const active=imports.some(job=>['queued','downloading','indexing'].includes(job.status));
@@ -357,13 +408,13 @@ async function refreshImports(){
 }
 async function startImport(source){
   const token=$('token').value;
-  if(!token){$('import-status').textContent='Bitte den API-Token für die Katalogverwaltung eingeben.';return}
+  if(!token&&!adminAuthenticated){$('import-status').textContent='Bitte den API-Token für die Katalogverwaltung eingeben.';return}
   const message=source==='csv'?'Offiziellen Gutenberg-Buchkatalog jetzt herunterladen und neu indexieren?':
   'Das offizielle RDF-Archiv herunterladen und EPUB-Formate indexieren? Das Archiv kann über 100 MB groß sein.';
   if(!confirm(message))return;
   $('sync-csv').disabled=true;$('sync-rdf').disabled=true;
   try{
-    const response=await fetch('/api/catalog/imports',{method:'POST',headers:{'Content-Type':'application/json','X-API-Key':token},
+    const response=await adminFetch('/api/catalog/imports',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),
       body:JSON.stringify({source})});
     const body=await response.json();
     if(!response.ok)throw Error(body.detail||'HTTP '+response.status);
@@ -377,11 +428,12 @@ $('sync-refresh').addEventListener('click',refreshImports);
 $('token').addEventListener('change',refreshImports);
 $('refresh').addEventListener('click',loadJobs);
 $('token').addEventListener('change',loadJobs);
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&$('token').value)loadJobs()});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&($('token').value||adminAuthenticated))loadJobs()});
 async function addBook(book){
-const token=$('token').value;if(!token){$('admin-access').open=true;$('token').focus();$('job-message').textContent='Für Downloadaufträge den RoyalBooks-Verwaltungszugang eingeben. Kein Anbieterkonto erforderlich.';return}
+await authReady;
+const token=$('token').value;if(!token&&!adminAuthenticated){$('admin-access').open=true;$('token').focus();$('job-message').textContent='Für Downloadaufträge den RoyalBooks-Verwaltungszugang eingeben. Kein Anbieterkonto erforderlich.';return}
 if(!confirm('Hast du geprüft, dass du dieses Buch in deinem Land rechtmäßig herunterladen und speichern darfst?'))return;
-try{const r=await fetch('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json','X-API-Key':token},body:JSON.stringify({provider:book.source,source_id:Number(book.acquisition_id||book.source_id),rights_confirmed:true})});
+try{const r=await adminFetch('/api/jobs',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({provider:book.source,source_id:Number(book.acquisition_id||book.source_id),rights_confirmed:true})});
 const data=await r.json();if(!r.ok)throw Error(data.detail||'HTTP '+r.status);$('job-message').textContent='Auftrag für '+book.title+' vorgemerkt.';loadJobs()}catch(err){$('job-message').textContent='Übernahme fehlgeschlagen: '+err.message}
 $('job-message').scrollIntoView({block:'nearest'})}
 
@@ -521,4 +573,6 @@ $('search').addEventListener('submit',async e=>{
   finally{$('go').disabled=false}
 });
 loadStats();
+authReady=initializeAccess();
+authReady.then(()=>{if(adminAuthenticated)loadJobs()});
 </script></body></html>

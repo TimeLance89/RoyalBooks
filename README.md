@@ -54,7 +54,7 @@ Optional settings:
 
 | Variable | Meaning |
 | --- | --- |
-| `ROYALBOOKS_API_TOKEN` | Protects watchlist, queue, catalog imports and NAS diagnostics. Search works without it; downloads remain disabled without a token. Enter once in the collapsed administration panel; never stored in browser storage. |
+| `ROYALBOOKS_API_TOKEN` | Protects watchlist, queue, catalog imports and NAS diagnostics. Search works without it; downloads remain disabled without a token. Enter once in the administration panel and choose **Dieses Gerät anmelden**. A revocable HttpOnly session lasts seven days; the API token is never persisted in browser storage. |
 | `ROYALBOOKS_CWA_INGEST_PATH` | Actual **host** directory mounted as `/cwa-book-ingest` in CWA. RoyalBooks mounts it as `/cwa-ingest`; UID 10001 needs write access. |
 | `ROYALBOOKS_CWA_LIBRARY_PATH` | Actual **host** Calibre library directory; mounted read-only in RoyalBooks. Used only for optional presence checks. |
 | `ROYALBOOKS_DOWNLOADS_ENABLED=0` | Pauses automatic processing and new/retried jobs. Default is enabled for newly consented v2 jobs. |
@@ -126,3 +126,19 @@ prevent a transfer; this is not a guarantee of universal archive availability.
 
 See [the LibGen follow-up](docs/libgen-acquisition.md) for actual file-transfer
 evidence and the distinction between search candidates and verified files.
+
+## Phone and browser access
+
+Signing in on a desktop does not sign in a phone. Each device now has its own
+revocable seven-day session, retained across page reloads and container restarts.
+The API token stays on the server after sign-in; browser JavaScript cannot read
+the session cookie. Logout revokes that device, and API-token rotation revokes
+all sessions. Cookie-authenticated writes require the same-origin web header;
+cross-origin requests are rejected. Existing `X-API-Key` clients still work.
+
+An administrator with SSH access can issue a one-use, 15-minute device link:
+`SessionStore(db_path).create_device_link(api_token)` from `royalbooks.auth`.
+Open `/connect#code=...` on the intended device. The fragment is cleared before
+exchange, never reaches HTTP access logs, and cannot be reused by another device.
+No public endpoint creates these links. The actual phone must open its own link;
+filling a token in an assistant's browser is not a phone login.

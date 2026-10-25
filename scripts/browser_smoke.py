@@ -11,6 +11,7 @@ import urllib.request
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
+from royalbooks.auth import SessionStore
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -78,6 +79,14 @@ def main():
                     assert page.locator('#admin-access').evaluate('element=>element.open')
                     assert page.locator('#token').evaluate('element=>element===document.activeElement')
                     page.locator('#token').fill(token)
+                    page.locator('#access-login').click()
+                    page.wait_for_function("document.querySelector('#access-status').textContent.includes('ist für Downloads')")
+                    assert page.locator('#token').input_value() == ''
+                    page.reload()
+                    page.wait_for_function("document.querySelector('#access-status').textContent.includes('ist für Downloads')")
+                    page.locator('#q').fill('Faust')
+                    page.locator('#go').click()
+                    page.locator('#books .book').wait_for()
                     page.locator('#books').get_by_role('button', name='Auf Merkliste', exact=True).click()
                     page.wait_for_function("document.querySelector('#watchlist-items').textContent.includes('Faust')")
                     page.locator('#watchlist-items').get_by_role('button', name='Entfernen').click()
@@ -108,6 +117,16 @@ def main():
                     page.locator('#go').click()
                     page.wait_for_function("document.querySelector('#message').textContent.includes('fehlgeschlagen')")
                     assert page.locator('#go').is_enabled()
+                    # A different device receives its own one-use link; it does
+                    # not depend on the browser where the admin entered a token.
+                    code = SessionStore(str(Path(folder)/'db.sqlite3')).create_device_link(token)
+                    page.goto(base+'/connect#code='+code)
+                    page.wait_for_function("!document.querySelector('#access-banner').hidden")
+                    assert page.url == base+'/'
+                    assert code not in page.content() and token not in page.content()
+                    page.reload()
+                    page.wait_for_function("!document.querySelector('#access-banner').hidden")
+                    assert page.locator('#token').input_value() == ''
                     assert not errors, errors
                     print(name+': search, grouping, ISBNs, details, watchlist, filters, error recovery, layout OK')
                     page.close()
