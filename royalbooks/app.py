@@ -24,6 +24,7 @@ from royalbooks.watchlist import WatchlistStore, WatchlistFull
 from typing import Literal
 from royalbooks.providers import Book, GoogleBooks, Gutendex, OpenLibrary, Provider
 from royalbooks.source_registry import configured_providers
+from royalbooks.source_profiles import profiles_for, search_evidence
 from royalbooks.matching import match_groups
 from royalbooks.presentation import display_groups
 from royalbooks.storage import MetricsStore
@@ -69,6 +70,7 @@ async def providers():
     return {'catalog': catalog_status(os.getenv("ROYALBOOKS_DB_PATH", "/data/royalbooks.sqlite3")),
             'format_catalog': format_status(os.getenv("ROYALBOOKS_DB_PATH", "/data/royalbooks.sqlite3")),
             'providers': [{'name': p.name, 'purpose': p.purpose} for p in app.state.providers.values()],
+            'source_profiles': profiles_for(app.state.providers.keys()),
             'recent_metrics': app.state.store.stats()}
 
 
@@ -104,6 +106,7 @@ async def search(q: str = Query(min_length=2, max_length=120),
     return {'query': q, 'language': language, 'items': [item.as_dict() for item in items],
             'match_groups': match_groups(items),
             'display_groups': display_groups(items, q),
+            'search_evidence': search_evidence(items),
             'sources': [status for _, status in results], 'rights_notice':
             'Public-domain classification may be US-only; check German law before requesting a download.'}
 
