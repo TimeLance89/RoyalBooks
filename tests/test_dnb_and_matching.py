@@ -51,7 +51,7 @@ async def test_dnb_query_cql_is_escaped_and_source_metadata_only():
     def handler(req):
         assert req.url.host == "services.dnb.de"
         query = req.url.params["query"]
-        assert query.startswith('tit all "Harry Potter drop table"')
+        assert query.startswith('woe all "Harry Potter drop table"')
         assert "spr=ger" in query and "mat=books" in query
         return httpx.Response(200, content=wrap(marc_record()))
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:

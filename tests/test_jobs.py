@@ -130,7 +130,7 @@ async def test_duplicate_content_rejected(tmp_path):
     epub = example_epub()
     def handler(request):
         if request.url.host == 'gutendex.com':
-            book_id = int(request.url.path.split('/')[-1])
+            book_id = int(request.url.path.rstrip('/').split('/')[-1])
             return httpx.Response(200, json={'id': book_id, 'copyright': False,
                  'formats': {'application/epub+zip': 'https://www.gutenberg.org/ebooks/3.epub'}})
         return httpx.Response(200, content=epub)

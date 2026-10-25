@@ -39,13 +39,29 @@ jobs:
         run: pytest -q tests/test_direct_sources.py
       - name: Provider evidence contract (offline)
         run: pytest -q tests/test_source_profiles.py
-      - name: Indexer-first API checks
+      - name: Optional indexer API compatibility
         run: pytest -q tests/test_indexer_search.py
       - name: No-setup direct book search tests
         run: pytest -q tests/test_builtin_search.py
+      - name: Install browser checks
+        run: |
+          pip install -e '.[browser]'
+          python -m playwright install --with-deps chromium
+      - name: Desktop and mobile browser flows (explicit fixtures)
+        run: python scripts/browser_smoke.py
       - name: Build image
         run: docker build -t royalbooks:test .
       - name: Verify runtime non-root user can import source from image
         run: |
           docker run --rm --entrypoint python royalbooks:test -c 'import os, pathlib, royalbooks, royalbooks.app; assert os.geteuid() == 10001; assert pathlib.Path("/app/royalbooks/__init__.py").is_file(); print("Non-root package import OK")'
           docker run --rm --entrypoint sh royalbooks:test -c 'test -r /app/royalbooks/__init__.py && test -r /app/royalbooks/static/index.html && test -x /app/royalbooks && test -x /app/royalbooks/static'
+      - name: Start real service without indexers and test persistent non-root runtime
+        run: |
+          docker run -d --name royalbooks-smoke -p 127.0.0.1:18094:8094 royalbooks:test
+          trap 'docker logs royalbooks-smoke; docker rm -f royalbooks-smoke' EXIT
+          for attempt in $(seq 1 30); do
+            curl --fail --silent http://127.0.0.1:18094/api/health && break
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:18094/api/providers | python -c 'import json,sys; d=json.load(sys.stdin); assert d["search_mode"] == "integrated_providers"; assert len(d["providers"]) >= 6'
+          docker exec royalbooks-smoke python -c 'import os; from royalbooks.watchlist import WatchlistStore; assert os.geteuid()==10001; s=WatchlistStore("/data/royalbooks.sqlite3"); assert s.list()==[]'

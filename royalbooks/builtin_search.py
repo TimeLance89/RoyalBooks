@@ -11,10 +11,12 @@ from __future__ import annotations
 
 import asyncio
 import re
+import hashlib
 from dataclasses import asdict, dataclass
 from urllib.parse import urljoin
 
 import httpx
+from royalbooks.providers import Book, Provider, ProviderError
 
 from royalbooks.vendor import lgsearch
 
@@ -46,6 +48,7 @@ class DirectBook:
     publisher: str
     year: str
     availability: str = "catalog_listing_unverified"
+    source_id: str = ""
 
     def as_dict(self) -> dict:
         return asdict(self)
@@ -130,6 +133,7 @@ def present(entries: list[dict], query: str, language: str | None,
             source_url=_source_url(mirror, item.get("href")),
             publisher=str(item.get("publisher", ""))[:100],
             year=str(item.get("year", ""))[:12],
+            source_id=md5.lower(),
         ))
     # German before unknown, with EPUB and title relevance as tie breakers.
     books.sort(key=lambda x: (-x.score, x.format_hint != "EPUB", x.title.casefold()))
@@ -186,3 +190,41 @@ async def search_builtin(query: str, language: str | None, limit: int = 30) -> d
     return {"configured": True, "items": [], "sources": states,
             "mode": "built_in_direct",
             "notice": "Every built-in catalogue mirror was unavailable or incompatible."}
+
+
+class LibraryGenesis(Provider):
+    """Existing catalog parser behind the same contract as every other source.
+
+    No download URLs or inferred entitlement. An explicit access refusal stops
+    fallback, rather than trying another origin to evade a restriction.
+    """
+    name = 'libgen'
+    purpose = 'file_listing'
+    min_interval = 2
+
+    async def search(self, client, query, language, limit):
+        from time import monotonic
+        async with self._lock:
+            if self.cooldown_remaining():
+                raise ProviderError('source_cooldown')
+            delay = max(0, self.min_interval - (monotonic() - self._last_request))
+            if delay:
+                await asyncio.sleep(delay)
+            for mirror in MIRRORS:
+                self._last_request = monotonic()
+                try:
+                    entries = await _search_one(client, mirror, query, language, limit)
+                    return [Book(source=self.name,
+                                 source_id=b.source_id or hashlib.sha256((b.source_url or b.title).encode()).hexdigest()[:32],
+                                 title=b.title, authors=[b.author] if b.author else [],
+                                 language=b.language_hint, year=int(b.year) if re.fullmatch(r'\d{4}', b.year) else None,
+                                 cover_url=None, info_url=b.source_url or mirror,
+                                 availability=b.availability, formats=(b.format_hint,) if b.format_hint else (),
+                                 language_evidence='catalog_claim_unverified') for b in entries]
+                except ValueError as exc:
+                    if str(exc) in {'catalogue_http_403', 'catalogue_http_451', 'catalogue_http_429', 'catalogue_table_missing'}:
+                        self._blocked_until = monotonic() + 1800
+                        raise ProviderError(str(exc)) from exc
+                except httpx.HTTPError:
+                    continue
+            raise ProviderError('catalogue_unavailable')

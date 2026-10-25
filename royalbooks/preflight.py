@@ -9,6 +9,8 @@ import argparse
 import json
 import os
 import sqlite3
+from royalbooks.database import connect as db_connect
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -37,7 +39,7 @@ def diagnose(*, data_path: str, ingest_path: str | None = None, library_path: st
                          "Persistent writable /data directory" if state == "ok" else state))
     if data:
         try:
-            free = os.statvfs(data).f_bavail * os.statvfs(data).f_frsize
+            free = shutil.disk_usage(data).free
             checks.append(_check("data_free_space", "ok" if free >= 128 * 1024 * 1024 else "warning",
                                  f"{free // (1024 * 1024)} MiB available"))
         except OSError:
@@ -61,7 +63,7 @@ def diagnose(*, data_path: str, ingest_path: str | None = None, library_path: st
             checks.append(_check("cwa_ingest_isolation", "ok", "Ingest and data mounts appear separated"))
         if ingest:
             try:
-                free = os.statvfs(ingest).f_bavail * os.statvfs(ingest).f_frsize
+                free = shutil.disk_usage(ingest).free
                 checks.append(_check("cwa_ingest_free_space", "ok" if free >= 64 * 1024 * 1024 else "warning",
                                      f"{free // (1024 * 1024)} MiB available"))
             except OSError:
@@ -86,7 +88,7 @@ def diagnose(*, data_path: str, ingest_path: str | None = None, library_path: st
             else:
                 try:
                     # Use only read-only SQLite; no metadata.db modifications.
-                    with sqlite3.connect(metadata.as_uri() + "?mode=ro", uri=True, timeout=1) as db:
+                    with db_connect(metadata.as_uri() + "?mode=ro", uri=True, timeout=1) as db:
                         db.execute("PRAGMA query_only=ON")
                         tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
                         if {"books", "data"} <= tables:

@@ -10,7 +10,9 @@ import asyncio
 import hashlib
 import re
 import sqlite3
+from royalbooks.database import connect as db_connect
 import time
+from time import monotonic
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
@@ -43,14 +45,16 @@ def safe_epub_url(source: str, url: str) -> bool:
             if p.hostname not in {"ws-export-app.wmcloud.org", "ws-export.wmcloud.org"} or p.path not in ("", "/"):
                 return False
             args = parse_qs(p.query, keep_blank_values=True)
-            return (set(args) == {"format", "lang", "page"} and
+            return (set(args) in ({"format", "lang", "page"}, {"format", "lang", "page", "credits"}) and
+                    ('credits' not in args or args['credits'] == ['false']) and
                     args["format"] == ["epub-3"] and args["lang"] in (["de"], ["en"]) and
                     len(args["page"]) == 1 and 1 <= len(args["page"][0]) <= 200)
         if source == "standardebooks":
             return (p.hostname in {"standardebooks.org", "www.standardebooks.org",
                                    "downloads.standardebooks.org"}
                     and p.path.startswith("/ebooks/") and "/downloads/" in p.path
-                    and p.path.lower().endswith(".epub") and not p.query)
+                    and p.path.lower().endswith(".epub")
+                    and (not p.query or parse_qs(p.query, keep_blank_values=True) == {'source': ['feed']}))
     except ValueError:
         return False
     return False
@@ -67,7 +71,7 @@ def index_epub(db_path: str, source: str, original_id: str, url: str) -> int:
         raise ValueError("untrusted_direct_source_metadata")
     record_id = _record_id(source, original_id)
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(db_path, timeout=10) as db:
+    with db_connect(db_path, timeout=10) as db:
         db.execute(SCHEMA)
         existing = db.execute(
             "SELECT original_id FROM direct_source_catalog WHERE source=? AND source_id=?",
@@ -85,7 +89,7 @@ def lookup_epub(db_path: str, source: str, record_id: int) -> str | None:
     if source not in SOURCES or type(record_id) is not int or record_id <= 0:
         return None
     try:
-        with sqlite3.connect(db_path, timeout=10) as db:
+        with db_connect(db_path, timeout=10) as db:
             row = db.execute("""SELECT epub_url, discovered_at FROM direct_source_catalog
                                 WHERE source=? AND source_id=?""",
                              (source, record_id)).fetchone()
@@ -117,7 +121,7 @@ def parse_standard_feed(payload: bytes, query: str, limit: int) -> list[tuple[st
             continue
         authors = [_text(author, f"{ATOM}name") for author in entry.findall(f"{ATOM}author")]
         authors = [a for a in authors if a]
-        if needle not in normalize(title + " " + " ".join(authors)):
+        if not set(needle.split()) <= set(normalize(title + " " + " ".join(authors)).split()):
             continue
         eid = _text(entry, f"{ATOM}id")
         if not eid or len(eid) > 300:
@@ -137,29 +141,44 @@ class StandardEbooks(Provider):
     name = "standardebooks"
     purpose = "publisher_epub"
     min_interval = 3
+    supported_languages = frozenset({'en'})
 
     def __init__(self, db_path: str):
         super().__init__()
         self.db_path = db_path
+        self._feed = None
+        self._feed_expires = 0
 
     async def search(self, client: httpx.AsyncClient, query: str, language: str | None, limit: int) -> list[Book]:
         if language not in (None, "en"):
             return []
         async with self._lock:
-            response = await client.get("https://standardebooks.org/feeds/atom/new-releases",
-                                        headers={"Accept": "application/atom+xml"}, follow_redirects=False)
-            if response.status_code != 200:
-                raise ProviderError(f"standardebooks_http_{response.status_code}")
-            if len(response.content) > MAX_XML:
-                raise ProviderError("feed_too_large")
-            entries = parse_standard_feed(response.content, query, limit)
+            if self._feed is None or monotonic() >= self._feed_expires:
+                delay = max(0, self.min_interval - (monotonic() - self._last_request))
+                if delay:
+                    await asyncio.sleep(delay)
+                self._last_request = monotonic()
+                response = await client.get("https://standardebooks.org/feeds/atom/new-releases",
+                                            headers={"Accept": "application/atom+xml"}, follow_redirects=False)
+                if response.status_code != 200:
+                    raise ProviderError(f"standardebooks_http_{response.status_code}")
+                if len(response.content) > MAX_XML:
+                    raise ProviderError("feed_too_large")
+                self._feed = response.content
+                self._feed_expires = monotonic() + 300
+            entries = parse_standard_feed(self._feed, query, limit)
+            root = ElementTree.fromstring(self._feed)
+            descriptions = {_text(entry, f'{ATOM}id'): _text(entry, f'{ATOM}summary')[:6000]
+                            for entry in root.findall(f'{ATOM}entry')}
         output = []
         for external_id, title, authors, url in entries:
             record_id = await asyncio.to_thread(index_epub, self.db_path, self.name, external_id, url)
             output.append(Book(source=self.name, source_id=str(record_id), title=title,
                                authors=authors, language="en", year=None, cover_url=None,
                                info_url="https://standardebooks.org/ebooks",
-                               epub_url=url, availability="publisher_listed_epub_check_local_rights"))
+                               epub_url=url, availability="publisher_listed_epub_check_local_rights",
+                               description=descriptions.get(external_id),
+                               ))
         return output
 
 
@@ -173,10 +192,10 @@ class Wikisource(Provider):
         self.db_path = db_path
 
     async def search(self, client: httpx.AsyncClient, query: str, language: str | None, limit: int) -> list[Book]:
-        # WSIndex lists completed works; its API is browsed one bounded page at a time.
-        # This is not a global fulltext search. The result subset is filtered locally.
+        # WSIndex performs server-side title/author search. Only the first
+        # bounded page is consumed; local matching checks returned records.
         lang = language
-        params = {"page_size": min(100, max(limit * 6, 30))}
+        params = {"search": query, "page_size": min(100, max(limit * 6, 30))}
         if lang in ("de", "en"):
             params["languages"] = lang
         data = await self.get_json(client, "https://wsindex.toolforge.org/books/", params)
@@ -193,7 +212,7 @@ class Wikisource(Provider):
                     authors.append(entry)
                 elif isinstance(entry, dict) and isinstance(entry.get("name"), str):
                     authors.append(entry["name"])
-            if normalize(query) not in normalize(title + " " + " ".join(authors)):
+            if not set(normalize(query).split()) <= set(normalize(title + " " + " ".join(authors)).split()):
                 continue
             if not isinstance(url, str) or not safe_epub_url(self.name, url):
                 continue
@@ -205,9 +224,13 @@ class Wikisource(Provider):
             lang_value = parse_qs(urlsplit(url).query).get("lang", [None])[0]
             if lang in ("de", "en") and lang_value != lang:
                 continue
+            # QIDs identify works, not language-specific editions/exports.
+            external_id = external_id + ':' + ws_url
             record_id = await asyncio.to_thread(index_epub, self.db_path, self.name, external_id, url)
             result.append(Book(source=self.name, source_id=str(record_id), title=title,
-                               authors=authors[:5], language=lang_value, year=None, cover_url=None,
+                               authors=authors[:5], language=lang_value if row.get('languages') == [lang_value] else None,
+                               year=int(row['date_of_publication'][:4]) if isinstance(row.get('date_of_publication'), str) and re.match(r'^\d{4}', row['date_of_publication']) else None,
+                               cover_url=row.get('thumbnail_url') if isinstance(row.get('thumbnail_url'), str) and row['thumbnail_url'].startswith('https://thumb.wikimedia.org/') else None,
                                info_url=ws_url, epub_url=url,
                                availability="publisher_export_epub_check_local_rights"))
             if len(result) >= limit:

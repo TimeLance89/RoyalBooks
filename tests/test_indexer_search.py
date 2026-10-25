@@ -128,7 +128,7 @@ async def test_indexer_api_returns_sanitized_search(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_legacy_download_api_is_paused_by_default(monkeypatch, tmp_path):
+async def test_new_consent_enables_jobs_without_legacy_flag(monkeypatch, tmp_path):
     monkeypatch.setenv("ROYALBOOKS_API_TOKEN", "private-api-token")
     monkeypatch.delenv("ROYALBOOKS_ENABLE_LEGACY_WORKER", raising=False)
     from royalbooks.jobs import JobStore
@@ -137,18 +137,19 @@ async def test_legacy_download_api_is_paused_by_default(monkeypatch, tmp_path):
         r = await client.post("/api/jobs", json={"provider":"gutendex","source_id":42,
                                                 "rights_confirmed":True},
                               headers={"X-API-Key":"private-api-token"})
-        assert r.status_code == 410
+        assert r.status_code == 202
+        assert r.json()["job"]["v2_authorized"] == 1
         state = await client.get("/api/jobs", headers={"X-API-Key":"private-api-token"})
         assert state.json()["legacy_worker_enabled"] is False
 
 
-def test_indexer_first_browser_controls():
+def test_integrated_browser_controls():
     from pathlib import Path
     page = (Path(__file__).parents[1] / "royalbooks" / "static" / "index.html").read_text()
     assert "Bücher suchen" in page
     assert "/api/books/search?" in page
-    assert "releaseCard(item)" in page
-    assert 'id="catalog-controls" hidden' in page
+    assert "resultCard(group,items)" in page
+    assert '<details class="controls" id="catalog-controls">' in page
 
 @pytest.mark.asyncio
 async def test_token_free_search_has_basic_rate_limit(monkeypatch):
@@ -171,7 +172,7 @@ def test_search_form_has_no_token_and_admin_access_is_separate():
     assert 'id="token"' not in search
     assert 'id="token"' in admin
     assert "fetch('/api/books/search?'+params);" in markup
-    assert "headers:{'X-API-Key':token}" not in markup.split("function releaseCard", 1)[1]
+    assert "headers:{'X-API-Key':token}" not in markup.split("$('search').addEventListener", 1)[1]
 
 
 

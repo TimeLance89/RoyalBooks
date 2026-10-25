@@ -25,11 +25,15 @@ from typing import Literal
 from royalbooks.providers import Book, GoogleBooks, Gutendex, OpenLibrary, Provider
 from royalbooks.source_registry import configured_providers
 from royalbooks.indexer_search import search_indexers
-from royalbooks.builtin_search import search_builtin, MIRRORS as BUILT_IN_MIRRORS
+from royalbooks.discovery import SearchCoordinator, analyze_query, bounded_response
 from royalbooks.source_profiles import profiles_for, search_evidence
 from royalbooks.matching import match_groups
 from royalbooks.presentation import display_groups
 from royalbooks.storage import MetricsStore
+
+
+def downloads_enabled() -> bool:
+    return os.getenv('ROYALBOOKS_DOWNLOADS_ENABLED', '1') != '0'
 
 
 @asynccontextmanager
@@ -43,13 +47,22 @@ async def lifespan(app: FastAPI):
     app.state.providers = {p.name: p for p in sources}
     data = Path(path).parent
     ingest_path = os.getenv('ROYALBOOKS_CWA_INGEST_PATH', '').strip()
+    app.state.search_client = httpx.AsyncClient(
+        timeout=httpx.Timeout(5.0), follow_redirects=False, trust_env=False,
+        limits=httpx.Limits(max_connections=8, max_keepalive_connections=8),
+        event_hooks={'response': [bounded_response]},
+        headers={'User-Agent': 'RoyalBooks/2.0 (https://github.com/TimeLance89/RoyalBooks)'})
+    app.state.discovery = SearchCoordinator(sources, app.state.search_client, app.state.store)
     task = None
-    if os.getenv('ROYALBOOKS_ENABLE_LEGACY_WORKER') == '1':
+    if downloads_enabled() and os.getenv('ROYALBOOKS_API_TOKEN'):
         task = asyncio.create_task(worker(app.state.jobs, data,
-            Path(ingest_path) if ingest_path else None, app.state.providers.get('gutendex'))) 
+            Path(ingest_path) if ingest_path else None, app.state.providers.get('gutendex'),
+            include_legacy=os.getenv('ROYALBOOKS_ENABLE_LEGACY_WORKER') == '1'))
     try:
         yield
     finally:
+        await app.state.discovery.close()
+        await app.state.search_client.aclose()
         await app.state.catalog_imports.close()
         if task is not None:
             task.cancel()
@@ -57,7 +70,7 @@ async def lifespan(app: FastAPI):
                 await task
 
 
-app = FastAPI(title='RoyalBooks', version='1.1.0', lifespan=lifespan)
+app = FastAPI(title='RoyalBooks', version='2.0.0', lifespan=lifespan)
 
 # Normal book searches need no administrator token, but traffic is rate limited.
 _search_windows: dict[str, list[float]] = {}
@@ -87,19 +100,21 @@ async def homepage():
 
 @app.get('/api/health')
 async def health():
-    return {'status': 'ok', 'version': '1.1.0'}
+    return {'status': 'ok', 'version': '2.0.0'}
 
 
 @app.get('/api/providers')
 async def providers():
+    coordinator = getattr(app.state, 'discovery', None)
     return {'active_indexers': [], 'indexer_configuration_error': None,
-            'built_in_sources': [{'name': 'Library Genesis', 'enabled': True,
-                                   'mirrors': len(BUILT_IN_MIRRORS), 'access': 'no_configuration'}],
-            'search_mode': 'built_in_direct', 'catalog': catalog_status(os.getenv("ROYALBOOKS_DB_PATH", "/data/royalbooks.sqlite3")),
-            'format_catalog': format_status(os.getenv("ROYALBOOKS_DB_PATH", "/data/royalbooks.sqlite3")),
-            'providers': [{'name': p.name, 'purpose': p.purpose} for p in app.state.providers.values()],
+            'search_mode': 'integrated_providers',
+            'catalog': await asyncio.to_thread(catalog_status, app.state.jobs.path),
+            'format_catalog': await asyncio.to_thread(format_status, app.state.jobs.path),
+            'providers': [{'name': p.name, 'purpose': p.purpose,
+                           **(coordinator.health.get(p.name, {}) if coordinator else {})}
+                          for p in app.state.providers.values()],
             'source_profiles': profiles_for(app.state.providers.keys()),
-            'recent_metrics': app.state.store.stats()}
+            'recent_metrics': await asyncio.to_thread(app.state.store.stats)}
 
 
 async def _run(provider: Provider, client: httpx.AsyncClient, q: str, language: str | None, limit: int):
@@ -121,35 +136,45 @@ async def _run(provider: Provider, client: httpx.AsyncClient, q: str, language: 
                    'duration_ms': duration_ms, 'error': error}
 
 
+async def _search(q: str, language: str, limit: int):
+    requested = None if language == 'all' else language
+    coordinator = getattr(app.state, 'discovery', None)
+    if coordinator:
+        try:
+            items, states, analyzed = await coordinator.search(q, requested, limit)
+        except Exception as exc:
+            if str(exc) == 'search_busy':
+                raise HTTPException(status_code=503, detail='search_busy') from exc
+            raise
+    else:
+        # Also supports embedders which explicitly supply their own registry.
+        analyzed = analyze_query(q)
+        async with httpx.AsyncClient(timeout=5, follow_redirects=False, trust_env=False) as client:
+            results = await asyncio.gather(*[_run(p, client, analyzed.text, requested, limit)
+                                            for p in app.state.providers.values()])
+        items = [book for batch, _ in results for book in batch]
+        states = [state for _, state in results]
+    return {'query': analyzed.text, 'language': language, 'mode': 'integrated_providers',
+            'query_analysis': {'title': analyzed.title, 'author': analyzed.author,
+                               'isbn': analyzed.isbn, 'variants': analyzed.variants},
+            'items': [item.as_dict() for item in items],
+            'match_groups': match_groups(items), 'display_groups': display_groups(items, analyzed.text),
+            'search_evidence': search_evidence(items), 'sources': states}
+
+
 @app.get('/api/search')
-async def search(q: str = Query(min_length=2, max_length=120),
-                 language: str = Query(default='de', pattern='^(de|en|all)$'),
-                 limit: int = Query(default=10, ge=1, le=30)):
-    requested_language = None if language == 'all' else language
-    agents = list(app.state.providers.values())
-    async with httpx.AsyncClient(timeout=httpx.Timeout(7.0), follow_redirects=False,
-                                 headers={'User-Agent': 'RoyalBooks/0.2 (https://github.com/TimeLance89/RoyalBooks)'}) as client:
-        results = await asyncio.gather(*[_run(provider, client, q, requested_language, limit) for provider in agents])
-    items: list[Book] = [item for books, _ in results for item in books]
-    return {'query': q, 'language': language, 'items': [item.as_dict() for item in items],
-            'match_groups': match_groups(items),
-            'display_groups': display_groups(items, q),
-            'search_evidence': search_evidence(items),
-            'sources': [status for _, status in results], 'rights_notice':
-            'Public-domain classification may be US-only; check German law before requesting a download.'}
-
-
 @app.get('/api/books/search')
 async def books_search(
     request: Request,
     q: str = Query(min_length=2, max_length=120),
     language: str = Query(default='de', pattern='^(de|en|all)$'),
-    limit: int = Query(default=30, ge=1, le=40),
+    limit: int = Query(default=10, ge=1, le=30),
 ):
-    """Built-in, tokenless and rate-limited book catalog discovery."""
     await _limit_public_search(request.client.host if request.client else 'unknown')
-    result = await search_builtin(q, None if language == 'all' else language, limit)
-    return {'query': q, 'language': language, **result}
+    if len(q.strip()) < 2:
+        raise HTTPException(status_code=422, detail='query_too_short')
+    return await _search(q, language, limit)
+
 
 @app.get('/api/indexers/search')
 async def indexer_search(
@@ -185,8 +210,8 @@ def _guard(token: str | None) -> None:
 @app.post('/api/jobs', status_code=202)
 async def enqueue(request: QueueRequest, x_api_key: str | None = Header(default=None)):
     _guard(x_api_key)
-    if os.getenv('ROYALBOOKS_ENABLE_LEGACY_WORKER') != '1':
-        raise HTTPException(status_code=410, detail='legacy_downloads_disabled')
+    if not downloads_enabled():
+        raise HTTPException(status_code=503, detail='downloads_disabled')
     if request.provider not in {'gutendex', 'gutenberg_catalog', *SOURCES}:
         raise HTTPException(status_code=400, detail='unsupported_download_provider')
     if not request.rights_confirmed:
@@ -199,7 +224,7 @@ async def enqueue(request: QueueRequest, x_api_key: str | None = Header(default=
         lookup_direct_epub, app.state.jobs.path, request.provider, request.source_id
     ):
         raise HTTPException(status_code=409, detail='publisher_epub_metadata_missing_or_expired')
-    return {'job': app.state.jobs.add(request.source_id, request.provider)}
+    return {'job': await asyncio.to_thread(app.state.jobs.add, request.source_id, request.provider, v2_authorized=True)}
 
 
 class CatalogImportRequest(BaseModel):
@@ -220,8 +245,6 @@ async def request_catalog_import(
     x_api_key: str | None = Header(default=None),
 ):
     _guard(x_api_key)
-    if os.getenv('ROYALBOOKS_ENABLE_LEGACY_WORKER') != '1':
-        raise HTTPException(status_code=410, detail='legacy_catalog_import_disabled')
     try:
         return {'import': app.state.catalog_imports.request(request.source)}
     except CatalogImportBusy as exc:
@@ -229,7 +252,7 @@ async def request_catalog_import(
 
 
 class WatchlistRequest(BaseModel):
-    source: Literal["gutendex", "gutenberg_catalog", "openlibrary", "dnb", "google_books"]
+    source: Literal["gutendex", "gutenberg_catalog", "openlibrary", "dnb", "google_books", "libgen", "wikisource", "standardebooks"]
     source_id: str = Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_-]+$")
     title: str = Field(min_length=2, max_length=250)
     authors: list[str] = Field(default_factory=list, max_length=8)
@@ -297,6 +320,7 @@ async def list_jobs(x_api_key: str | None = Header(default=None)):
     for job in records:
         job['handoff_observation'] = await asyncio.to_thread(observe_handoff, job, staging, ingest)
     return {'jobs': records, 'legacy_worker_enabled': os.getenv('ROYALBOOKS_ENABLE_LEGACY_WORKER') == '1',
+            'downloads_enabled': downloads_enabled(),
             'ingest_configured': bool(ingest_path),
             'library_configured': bool(os.getenv('ROYALBOOKS_CWA_LIBRARY_PATH', '').strip()),
             'handoff_notice': 'A disappearing ingest file does not confirm a successful Calibre import.'}
@@ -313,12 +337,12 @@ async def retry_job(
     x_api_key: str | None = Header(default=None),
 ):
     _guard(x_api_key)
-    if os.getenv('ROYALBOOKS_ENABLE_LEGACY_WORKER') != '1':
-        raise HTTPException(status_code=410, detail='legacy_downloads_disabled')
+    if not downloads_enabled():
+        raise HTTPException(status_code=503, detail='downloads_disabled')
     if not request.rights_confirmed:
         raise HTTPException(status_code=400, detail='local_rights_confirmation_required')
     try:
-        updated = await asyncio.to_thread(app.state.jobs.retry_failed, job_id)
+        updated = await asyncio.to_thread(app.state.jobs.retry_failed, job_id, v2_authorized=True)
         return {'job': updated}
     except JobStateError as exc:
         code = 404 if str(exc) == 'job_not_found' else 409

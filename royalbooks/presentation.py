@@ -7,24 +7,14 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from royalbooks.matching import normalize
+from royalbooks.matching import normalize, normalize_person
 from royalbooks.providers import Book
 
 
 def _surname(book: Book) -> str:
     if not book.authors:
         return ""
-    name = book.authors[0]
-    if "," in name:
-        candidate = normalize(name.split(",", 1)[0])
-        return candidate.split()[-1] if candidate else ""
-    words = normalize(name).split()
-    # Catalogs sometimes give an unpunctuated "Rowling J K": favor the
-    # only non-initial surname over the last initial.
-    substantive = [w for w in words if len(w) >= 3]
-    if len(substantive) == 1:
-        return substantive[0]
-    return substantive[-1] if substantive else ""
+    return normalize_person(book.authors[0])
 
 
 def _primary_score(book: Book) -> tuple[int, int, int, int]:
@@ -87,6 +77,10 @@ def display_groups(books: list[Book], query: str = "") -> list[dict]:
             relevance = 1
         else:
             relevance = 2
-        return (relevance, -group["epub_count"], min(group["item_indexes"]))
+        words = set(needle.split())
+        book = books[group['primary_index']]
+        content = set(normalize(book.title + ' ' + ' '.join(book.authors)).split())
+        overlap = len(words & content) / len(words) if words else 0
+        return (relevance, -overlap, -group["epub_count"], min(group["item_indexes"]))
 
     return sorted(groups, key=rank)

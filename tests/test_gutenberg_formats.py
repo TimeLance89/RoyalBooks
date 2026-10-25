@@ -168,12 +168,14 @@ async def test_blocked_gutendex_does_not_block_first_party_job(indexed, monkeypa
     independent = store.add(42, "gutenberg_catalog")
     gutendex = Gutendex()
     gutendex._blocked_until = monotonic() + 300
+    processed = asyncio.Event()
     async def fake_process(job, store, staging, client, provider):
         store.update(job["id"], "staged")
+        processed.set()
     monkeypatch.setattr("royalbooks.jobs.process_queued", fake_process)
     task = asyncio.create_task(worker(store, db.parent, None, gutendex))
     try:
-        await asyncio.sleep(0.15)
+        await asyncio.wait_for(processed.wait(), timeout=5)
     finally:
         task.cancel()
         with pytest.raises(asyncio.CancelledError):

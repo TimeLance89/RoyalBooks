@@ -1,0 +1,102 @@
+"""Real Chromium UI checks with explicit catalog fixtures and real private API storage."""
+import argparse
+import json
+import os
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.request
+from pathlib import Path
+
+from playwright.sync_api import sync_playwright
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--screenshots', type=Path, default=ROOT/'data/screenshots')
+    args = parser.parse_args()
+    args.screenshots.mkdir(parents=True, exist_ok=True)
+    with socket.socket() as sock:
+        sock.bind(('127.0.0.1', 0))
+        port = sock.getsockname()[1]
+    with tempfile.TemporaryDirectory() as folder:
+        token = 'browser-fixture-private-token'
+        env = {**os.environ, 'ROYALBOOKS_DB_PATH': str(Path(folder)/'db.sqlite3'),
+               'ROYALBOOKS_API_TOKEN': token, 'ROYALBOOKS_DOWNLOADS_ENABLED': '0'}
+        process = subprocess.Popen([sys.executable, '-m', 'uvicorn', 'royalbooks.app:app',
+                                    '--host', '127.0.0.1', '--port', str(port)],
+                                   cwd=ROOT, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        base = f'http://127.0.0.1:{port}'
+        try:
+            for _ in range(100):
+                try:
+                    urllib.request.urlopen(base+'/api/health', timeout=1)
+                    break
+                except OSError:
+                    time.sleep(.1)
+            else:
+                raise RuntimeError('UI test server failed to start')
+            with sync_playwright() as browser_runtime:
+                browser = browser_runtime.chromium.launch()
+                for name, width, height in [('desktop', 1440, 1000), ('mobile', 390, 844)]:
+                    page = browser.new_page(viewport={'width': width, 'height': height})
+                    page.on('dialog', lambda dialog: dialog.accept())
+                    errors = []
+                    page.on('pageerror', lambda error: errors.append(str(error)))
+                    book = dict(source='dnb', source_id='123456789', title='Faust', authors=['Goethe, Johann'],
+                                language='de', year=1808, info_url='https://d-nb.info/123456789',
+                                isbns=['9783551551672'], cover_url=None, file_evidence='metadata_only')
+                    edition = {**book, 'source_id':'987654321', 'isbns':['9783531157887']}
+                    file = {**book, 'source':'wikisource', 'source_id':'123', 'epub_url':'https://ws-export-app.wmcloud.org/',
+                            'formats':['EPUB'], 'file_evidence':'listed_unverified'}
+                    data = dict(items=[book, edition, file],
+                                display_groups=[dict(primary_index=2,item_indexes=[0,1,2],epub_count=1)],
+                                sources=[dict(provider='dnb',status='found'),dict(provider='gutendex',status='error',error='http_403')],
+                                search_evidence=dict(epub_links_listed_unverified=1, file_listings_unverified=0))
+                    page.route('**/api/books/search?*', lambda route: route.fulfill(json=data))
+                    page.goto(base)
+                    assert page.locator('#language').input_value() == 'de'
+                    page.locator('#q').fill('Faust')
+                    page.locator('#go').click()
+                    page.locator('#books .book').wait_for()
+                    assert page.locator('#books .book').count() == 1
+                    assert 'EPUB' in page.locator('#books').inner_text()
+                    assert page.locator('#token').is_visible() is False
+                    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+                    page.screenshot(path=str(args.screenshots/(name+'.png')), full_page=True)
+                    page.get_by_role('button', name='Buchdetails', exact=True).click()
+                    assert page.locator('#book-dialog').is_visible()
+                    assert '9783551551672' in page.locator('#detail-content').inner_text()
+                    assert '9783531157887' in page.locator('#detail-content').inner_text()
+                    page.keyboard.press('Escape')
+                    assert not page.locator('#book-dialog').is_visible()
+                    page.locator('#admin-access summary').click()
+                    page.locator('#token').fill(token)
+                    page.locator('#books').get_by_role('button', name='Auf Merkliste', exact=True).click()
+                    page.wait_for_function("document.querySelector('#watchlist-items').textContent.includes('Faust')")
+                    page.locator('#watchlist-items').get_by_role('button', name='Entfernen').click()
+                    page.wait_for_function("!document.querySelector('#watchlist-items').textContent.includes('Faust')")
+                    page.locator('[data-filter=metadata]').click()
+                    assert page.locator('#books .book').count() == 0
+                    page.locator('[data-filter=all]').click()
+                    assert page.locator('#books .book').count() == 1
+                    page.unroute('**/api/books/search?*')
+                    page.route('**/api/books/search?*', lambda route: route.fulfill(status=503, json={'detail':'search_busy'}))
+                    page.locator('#go').click()
+                    page.wait_for_function("document.querySelector('#message').textContent.includes('fehlgeschlagen')")
+                    assert page.locator('#go').is_enabled()
+                    assert not errors, errors
+                    print(name+': search, grouping, ISBNs, details, watchlist, filters, error recovery, layout OK')
+                    page.close()
+                browser.close()
+        finally:
+            process.terminate()
+            process.wait(timeout=10)
+
+
+if __name__ == '__main__':
+    main()

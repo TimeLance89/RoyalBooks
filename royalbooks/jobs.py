@@ -7,6 +7,7 @@ import os
 import secrets
 import shutil
 import sqlite3
+from royalbooks.database import connect as db_connect
 import uuid
 import zipfile
 from pathlib import Path, PurePosixPath
@@ -83,6 +84,8 @@ def validate_epub(path: Path) -> str:
             if not any(ref.attrib.get("full-path") in filenames and ref.attrib.get("media-type") == "application/oebps-package+xml"
                        for ref in refs):
                 raise AcquisitionError("invalid_epub_manifest")
+            if len(filenames) != len(entries) or archive.testzip() is not None:
+                raise AcquisitionError('invalid_epub_crc')
     except (OSError, zipfile.BadZipFile, ElementTree.ParseError, RuntimeError, KeyError) as exc:
         raise AcquisitionError("invalid_epub_archive") from exc
     return digest.hexdigest()
@@ -103,6 +106,9 @@ class JobStore:
             columns = {row[1] for row in db.execute("PRAGMA table_info(jobs)")}
             if "attempts" not in columns:
                 db.execute("ALTER TABLE jobs ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0")
+            if "v2_authorized" not in columns:
+                # Existing queued jobs remain preserved but paused on upgrade.
+                db.execute("ALTER TABLE jobs ADD COLUMN v2_authorized INTEGER NOT NULL DEFAULT 0")
             # Download attempts are counted on claim, including interrupted attempts.
             db.execute("""UPDATE jobs SET status='failed', error='interrupted_attempt_limit',
                         updated_at=CURRENT_TIMESTAMP
@@ -115,16 +121,19 @@ class JobStore:
                         updated_at=CURRENT_TIMESTAMP WHERE status='delivering'""")
 
     def _db(self):
-        db = sqlite3.connect(self.path, timeout=10)
+        db = db_connect(self.path, timeout=10)
         db.row_factory = sqlite3.Row
         return db
 
-    def add(self, source_id: int, source: str = "gutendex") -> dict:
+    def add(self, source_id: int, source: str = "gutendex", *, v2_authorized: bool = False) -> dict:
         if source not in {"gutendex", "gutenberg_catalog", *SOURCES}:
             raise JobStateError("unsupported_source")
         with self._db() as db:
-            db.execute("INSERT OR IGNORE INTO jobs(id,source,source_id,status) VALUES (?,?,?,'queued')",
-                       (uuid.uuid4().hex, source, source_id))
+            db.execute("INSERT OR IGNORE INTO jobs(id,source,source_id,status,v2_authorized) VALUES (?,?,?,'queued',?)",
+                       (uuid.uuid4().hex, source, source_id, int(v2_authorized)))
+            if v2_authorized:
+                db.execute("UPDATE jobs SET v2_authorized=1 WHERE source=? AND source_id=? AND status='queued'",
+                           (source, source_id))
             row = db.execute("SELECT * FROM jobs WHERE source=? AND source_id=?", (source, source_id)).fetchone()
             return dict(row)
 
@@ -132,7 +141,7 @@ class JobStore:
         with self._db() as db:
             return [dict(x) for x in db.execute("SELECT * FROM jobs ORDER BY created_at DESC LIMIT 100")]
 
-    def claim(self, statuses: tuple[str, ...], source: str | None = None) -> dict | None:
+    def claim(self, statuses: tuple[str, ...], source: str | None = None, *, v2_only: bool = False) -> dict | None:
         with self._db() as db:
             db.execute("BEGIN IMMEDIATE")
             for status in statuses:
@@ -141,11 +150,14 @@ class JobStore:
                     db.execute("""UPDATE jobs SET status='failed', error='interrupted_attempt_limit',
                                 updated_at=CURRENT_TIMESTAMP
                                 WHERE status='queued' AND attempts >= ?""", (MAX_ATTEMPTS,))
-                if source is None:
-                    row = db.execute("SELECT * FROM jobs WHERE status=? ORDER BY created_at LIMIT 1", (status,)).fetchone()
-                else:
-                    row = db.execute("SELECT * FROM jobs WHERE status=? AND source=? ORDER BY created_at LIMIT 1",
-                                     (status, source)).fetchone()
+                sql = 'SELECT * FROM jobs WHERE status=?'
+                args = [status]
+                if source is not None:
+                    sql += ' AND source=?'
+                    args.append(source)
+                if v2_only:
+                    sql += ' AND v2_authorized=1'
+                row = db.execute(sql + ' ORDER BY created_at LIMIT 1', args).fetchone()
                 if row:
                     next_status = 'downloading' if status == 'queued' else 'delivering'
                     db.execute("""UPDATE jobs
@@ -173,7 +185,7 @@ class JobStore:
             row = db.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
             return dict(row) if row else None
 
-    def retry_failed(self, job_id: str) -> dict:
+    def retry_failed(self, job_id: str, *, v2_authorized: bool = False) -> dict:
         """Limited, atomic retry for transient failures; no ambiguous handoff repeats."""
         with self._db() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -187,8 +199,9 @@ class JobStore:
             if row["attempts"] >= MAX_ATTEMPTS:
                 raise JobStateError("retry_limit_reached")
             db.execute("""UPDATE jobs SET status='queued',error=NULL,sha256=NULL,
+                        v2_authorized=CASE WHEN ? THEN 1 ELSE v2_authorized END,
                         file_size=NULL,updated_at=CURRENT_TIMESTAMP
-                        WHERE id=? AND status='failed'""", (job_id,))
+                        WHERE id=? AND status='failed'""", (int(v2_authorized), job_id))
             return dict(db.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone())
 
 
@@ -237,7 +250,7 @@ async def process_queued(job: dict, store: JobStore, staging: Path, client: http
                 raise AcquisitionError("publisher_epub_metadata_missing_or_expired")
         elif job["source"] == "gutendex":
             catalog = provider if provider is not None else Gutendex()
-            item = await catalog.get_json(client, f"https://gutendex.com/books/{job['source_id']}", {})
+            item = await catalog.get_json(client, f"https://gutendex.com/books/{job['source_id']}/", {})
             if item.get("id") != job['source_id'] or item.get('copyright') is not False:
                 raise AcquisitionError('source_not_eligible')
             formats = item.get('formats')
@@ -300,15 +313,15 @@ def deliver_staged(job: dict, store: JobStore, staging: Path, ingest: Path) -> N
 
 
 async def worker(store: JobStore, data_dir: Path, ingest: Path | None,
-                 gutendex: Gutendex | None = None) -> None:
+                 gutendex: Gutendex | None = None, *, include_legacy: bool = True) -> None:
     staging = data_dir / 'staging'
     staging.mkdir(parents=True, exist_ok=True)
     catalog = gutendex if gutendex is not None else Gutendex()
-    async with httpx.AsyncClient(timeout=httpx.Timeout(20.0), follow_redirects=False,
+    async with httpx.AsyncClient(timeout=httpx.Timeout(20.0), follow_redirects=False, trust_env=False,
                                  headers={'User-Agent': 'RoyalBooks/0.3 (https://github.com/TimeLance89/RoyalBooks)'}) as client:
         while True:
             if ingest is not None:
-                job = await asyncio.to_thread(store.claim, ('staged',))
+                job = await asyncio.to_thread(store.claim, ('staged',), v2_only=not include_legacy)
                 if job:
                     await asyncio.to_thread(deliver_staged, job, store, staging, ingest)
                     continue
@@ -317,13 +330,16 @@ async def worker(store: JobStore, data_dir: Path, ingest: Path | None,
                 # Gutendex refusal must not stop independent first-party RDF jobs.
                 job = None
                 for independent in ('gutenberg_catalog', 'wikisource', 'standardebooks'):
-                    job = await asyncio.to_thread(store.claim, ('queued',), independent)
+                    job = await asyncio.to_thread(store.claim, ('queued',), independent, v2_only=not include_legacy)
                     if job:
                         break
             else:
-                job = await asyncio.to_thread(store.claim, ('queued',))
+                job = await asyncio.to_thread(store.claim, ('queued',), v2_only=not include_legacy)
             if job:
-                await process_queued(job, store, staging, client, catalog)
+                try:
+                    await asyncio.wait_for(process_queued(job, store, staging, client, catalog), timeout=180)
+                except TimeoutError:
+                    await asyncio.to_thread(store.update, job['id'], 'failed', error='ReadTimeout')
                 continue
             await asyncio.sleep(1.0)
 

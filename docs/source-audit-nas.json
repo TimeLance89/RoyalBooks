@@ -1,0 +1,1182 @@
+{
+  "tested_at": "2026-10-25T07:38:30.005322+00:00",
+  "cases": [
+    {
+      "query": "Faust",
+      "language": "de",
+      "sources": [
+        {
+          "provider": "dnb",
+          "status": "found",
+          "results": 10,
+          "duration_ms": 897,
+          "error": null,
+          "health": "available"
+        },
+        {
+          "provider": "openlibrary",
+          "status": "found",
+          "results": 4,
+          "duration_ms": 3378,
+          "error": null,
+          "health": "available"
+        },
+        {
+          "provider": "wikisource",
+          "status": "empty",
+          "results": 0,
+          "duration_ms": 368,
+          "error": null,
+          "health": "available"
+        },
+        {
+          "provider": "standardebooks",
+          "status": "empty",
+          "results": 0,
+          "duration_ms": 0,
+          "error": null,
+          "health": "available"
+        },
+        {
+          "provider": "gutendex",
+          "status": "found",
+          "results": 7,
+          "duration_ms": 2385,
+          "error": null,
+          "health": "available"
+        },
+        {
+          "provider": "gutenberg_catalog",
+          "status": "empty",
+          "results": 0,
+          "duration_ms": 4,
+          "error": null,
+          "health": "available"
+        },
+        {
+          "provider": "libgen",
+          "status": "found",
+          "results": 7,
+          "duration_ms": 2871,
+          "error": null,
+          "health": "available"
+        }
+      ],
+      "results": [
+        {
+          "source": "dnb",
+          "id": "1173819355",
+          "language": "de",
+          "isbn": "9783531157887",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "125686871X",
+          "language": "de",
+          "isbn": "9783755300274",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "123337642X",
+          "language": "de",
+          "isbn": "9783446467200",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "1421548275",
+          "language": "de",
+          "isbn": "9783458646921",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "1397333081",
+          "language": "de",
+          "isbn": "9783835362321",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "1209562340",
+          "language": "de",
+          "isbn": "9783835338098",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "1421367130",
+          "language": "de",
+          "isbn": "9783890296036",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "1186920211",
+          "language": "de",
+          "isbn": "9783947337132",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "1374312452",
+          "language": "de",
+          "isbn": "9783060662920",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "1385910305",
+          "language": "de",
+          "isbn": "9783695157211",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL52456W",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL453718W",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL653213W",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL26181139W",
+          "language": "de",
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "gutendex",
+          "id": "2229",
+          "language": "de",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": true
+        },
+        {
+          "source": "gutendex",
+          "id": "21000",
+          "language": "de",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": true
+        },
+        {
+          "source": "gutendex",
+          "id": "2230",
+          "language": "de",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": true
+        },
+        {
+          "source": "gutendex",
+          "id": "14223",
+          "language": "de",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": true
+        },
+        {
+          "source": "gutendex",
+          "id": "54730",
+          "language": "de",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": true
+        },
+        {
+          "source": "gutendex",
+          "id": "59265",
+          "language": "de",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": true
+        },
+        {
+          "source": "gutendex",
+          "id": "77226",
+          "language": "de",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": true
+        },
+        {
+          "source": "libgen",
+          "id": "9e8274b4f441a73168470491ace0d6ae",
+          "language": "de",
+          "isbn": null,
+          "listed_formats": [
+            "PDF"
+          ],
+          "epub_listed": false
+        },
+        {
+          "source": "libgen",
+          "id": "cb91052bfdebb9fda0a14630f8ac998f",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": false
+        },
+        {
+          "source": "libgen",
+          "id": "7bd95eb0ca9488c7cf8bd43268820211",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": false
+        },
+        {
+          "source": "libgen",
+          "id": "a7966932ffeb1ec4b55cc1fc294c6fba",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": false
+        },
+        {
+          "source": "libgen",
+          "id": "89bbc5ff79715c96c5e686ce2f30101e",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": false
+        },
+        {
+          "source": "libgen",
+          "id": "f3678de9b192c2da476f0dcf23b232ef",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": false
+        },
+        {
+          "source": "libgen",
+          "id": "9aa7379d5075a7235e8c30263e7c34d6",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [
+            "MOBI"
+          ],
+          "epub_listed": false
+        }
+      ]
+    },
+    {
+      "query": "Don Kichote",
+      "language": "de",
+      "sources": [
+        {
+          "provider": "dnb",
+          "status": "found",
+          "results": 1,
+          "duration_ms": 121,
+          "error": null,
+          "health": "available"
+        },
+        {
+          "provider": "openlibrary",
+          "status": "found",
+          "results": 2,
+          "duration_ms": 326,
+          "error": null,
+          "health": "available"
+        },
+        {
+          "provider": "wikisource",
+          "status": "found",
+          "results": 1,
+          "duration_ms": 155,
+          "error": null,
+          "health": "available"
+        },
+        {
+          "provider": "standardebooks",
+          "status": "empty",
+          "results": 0,
+          "duration_ms": 0,
+          "error": null,
+          "health": "available"
+        },
+        {
+          "provider": "gutendex",
+          "status": "empty",
+          "results": 0,
+          "duration_ms": 62,
+          "error": null,
+          "health": "available"
+        },
+        {
+          "provider": "gutenberg_catalog",
+          "status": "empty",
+          "results": 0,
+          "duration_ms": 2,
+          "error": null,
+          "health": "available"
+        },
+        {
+          "provider": "libgen",
+          "status": "empty",
+          "results": 0,
+          "duration_ms": 245,
+          "error": null,
+          "health": "available"
+        }
+      ],
+      "results": [
+        {
+          "source": "dnb",
+          "id": "571738117",
+          "language": "de",
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL503666W",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL20685131W",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "wikisource",
+          "id": "5116990776823450",
+          "language": "de",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": true
+        }
+      ]
+    },
+    {
+      "query": "Kafka",
+      "language": "de",
+      "sources": [
+        {
+          "provider": "dnb",
+          "status": "found",
+          "results": 10,
+          "duration_ms": 1336,
+          "error": null,
+          "health": "available"
+        },
+        {
+          "provider": "openlibrary",
+          "status": "found",
+          "results": 10,
+          "duration_ms": 1338,
+          "error": null,
+          "health": "available"
+        },
+        {
+          "provider": "wikisource",
+          "status": "empty",
+          "results": 0,
+          "duration_ms": 1812,
+          "error": null,
+          "health": "available"
+        },
+        {
+          "provider": "standardebooks",
+          "status": "empty",
+          "results": 0,
+          "duration_ms": 0,
+          "error": null,
+          "health": "available"
+        },
+        {
+          "provider": "gutendex",
+          "status": "found",
+          "results": 10,
+          "duration_ms": 238,
+          "error": null,
+          "health": "available"
+        },
+        {
+          "provider": "gutenberg_catalog",
+          "status": "empty",
+          "results": 0,
+          "duration_ms": 0,
+          "error": null,
+          "health": "available"
+        },
+        {
+          "provider": "libgen",
+          "status": "found",
+          "results": 4,
+          "duration_ms": 2837,
+          "error": null,
+          "health": "available"
+        }
+      ],
+      "results": [
+        {
+          "source": "dnb",
+          "id": "1306459214",
+          "language": "de",
+          "isbn": "9783100381682",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "1306459370",
+          "language": "de",
+          "isbn": "9783100381637",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "1420663313",
+          "language": "de",
+          "isbn": "9783498007966",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "1395282102",
+          "language": "de",
+          "isbn": "9783328115373",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "1421547953",
+          "language": "de",
+          "isbn": "9783458646846",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "1395280398",
+          "language": "de",
+          "isbn": "9783328115380",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "1422466426",
+          "language": "de",
+          "isbn": "9783328605904",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "1396367241",
+          "language": "de",
+          "isbn": "9783150114629",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "1382822804",
+          "language": "de",
+          "isbn": "9783142032450",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "1329331222",
+          "language": "de",
+          "isbn": "9783963173967",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL2625431W",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL498556W",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL498463W",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL498434W",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL498623W",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL498411W",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL498788W",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL777563W",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL498787W",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL498793W",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "gutendex",
+          "id": "22367",
+          "language": "de",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": true
+        },
+        {
+          "source": "gutendex",
+          "id": "69327",
+          "language": "de",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": true
+        },
+        {
+          "source": "gutendex",
+          "id": "21593",
+          "language": "de",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": true
+        },
+        {
+          "source": "gutendex",
+          "id": "25791",
+          "language": "de",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": true
+        },
+        {
+          "source": "gutendex",
+          "id": "21989",
+          "language": "de",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": true
+        },
+        {
+          "source": "gutendex",
+          "id": "23532",
+          "language": "de",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": true
+        },
+        {
+          "source": "gutendex",
+          "id": "30655",
+          "language": "de",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": true
+        },
+        {
+          "source": "gutendex",
+          "id": "16304",
+          "language": "de",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": true
+        },
+        {
+          "source": "gutendex",
+          "id": "30753",
+          "language": "de",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": true
+        },
+        {
+          "source": "gutendex",
+          "id": "30570",
+          "language": "de",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": true
+        },
+        {
+          "source": "libgen",
+          "id": "88c56eb90fcb89392dc38d2c9c898727",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": false
+        },
+        {
+          "source": "libgen",
+          "id": "377901a2b3da58d04a3faecd2a956929",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [
+            "AZW3"
+          ],
+          "epub_listed": false
+        },
+        {
+          "source": "libgen",
+          "id": "d33f23cbe7ed3ce371a3a40e4e1d619a",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [
+            "MOBI"
+          ],
+          "epub_listed": false
+        },
+        {
+          "source": "libgen",
+          "id": "dd94bf7c0e59795a91342236b670099e",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [
+            "PDF"
+          ],
+          "epub_listed": false
+        }
+      ]
+    },
+    {
+      "query": "Suspense",
+      "language": "en",
+      "sources": [
+        {
+          "provider": "dnb",
+          "status": "found",
+          "results": 10,
+          "duration_ms": 202,
+          "error": null,
+          "health": "available"
+        },
+        {
+          "provider": "openlibrary",
+          "status": "found",
+          "results": 10,
+          "duration_ms": 643,
+          "error": null,
+          "health": "available"
+        },
+        {
+          "provider": "wikisource",
+          "status": "empty",
+          "results": 0,
+          "duration_ms": 993,
+          "error": null,
+          "health": "available"
+        },
+        {
+          "provider": "standardebooks",
+          "status": "found",
+          "results": 1,
+          "duration_ms": 741,
+          "error": null,
+          "health": "available"
+        },
+        {
+          "provider": "gutendex",
+          "status": "found",
+          "results": 6,
+          "duration_ms": 60,
+          "error": null,
+          "health": "available"
+        },
+        {
+          "provider": "gutenberg_catalog",
+          "status": "empty",
+          "results": 0,
+          "duration_ms": 1,
+          "error": null,
+          "health": "available"
+        },
+        {
+          "provider": "libgen",
+          "status": "found",
+          "results": 10,
+          "duration_ms": 1340,
+          "error": null,
+          "health": "available"
+        }
+      ],
+      "results": [
+        {
+          "source": "dnb",
+          "id": "142221169X",
+          "language": "en",
+          "isbn": "9783989780989",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "1394123507",
+          "language": null,
+          "isbn": "9783982732169",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "1397227206",
+          "language": "en",
+          "isbn": "9798896230489",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "1392532752",
+          "language": "en",
+          "isbn": "9781405972215",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "1394122381",
+          "language": null,
+          "isbn": "9783982732152",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "1410176916",
+          "language": "en",
+          "isbn": "9783565563371",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "1409765210",
+          "language": "en",
+          "isbn": "9783565560592",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "1379189047",
+          "language": "en",
+          "isbn": "9783989780941",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "1368623034",
+          "language": "en",
+          "isbn": "9783658489250",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "dnb",
+          "id": "1415793891",
+          "language": "en",
+          "isbn": "9783565622658",
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL3503801W",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL8136624W",
+          "language": "en",
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL24315820W",
+          "language": "en",
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL19651194W",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL261692W",
+          "language": "en",
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL39033W",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL59484W",
+          "language": null,
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL20043519W",
+          "language": "en",
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL17316239W",
+          "language": "en",
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "openlibrary",
+          "id": "OL1951902W",
+          "language": "en",
+          "isbn": null,
+          "listed_formats": [],
+          "epub_listed": false
+        },
+        {
+          "source": "standardebooks",
+          "id": "6880571270782618",
+          "language": "en",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": true
+        },
+        {
+          "source": "gutendex",
+          "id": "78262",
+          "language": "en",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": true
+        },
+        {
+          "source": "gutendex",
+          "id": "75240",
+          "language": "en",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": true
+        },
+        {
+          "source": "gutendex",
+          "id": "66156",
+          "language": "en",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": true
+        },
+        {
+          "source": "gutendex",
+          "id": "74460",
+          "language": "en",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": true
+        },
+        {
+          "source": "gutendex",
+          "id": "74461",
+          "language": "en",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": true
+        },
+        {
+          "source": "gutendex",
+          "id": "74462",
+          "language": "en",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": true
+        },
+        {
+          "source": "libgen",
+          "id": "1995631e5319e630594e9e64cfee6d5d",
+          "language": "en",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": false
+        },
+        {
+          "source": "libgen",
+          "id": "858a8753b6d1ec79150e847f53d9c1af",
+          "language": "en",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": false
+        },
+        {
+          "source": "libgen",
+          "id": "a62aa9b7a7465164347278f8da81bb9f",
+          "language": "en",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": false
+        },
+        {
+          "source": "libgen",
+          "id": "2587ba03dd5a78a353c7a806a8b1d1a6",
+          "language": "en",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": false
+        },
+        {
+          "source": "libgen",
+          "id": "218b5b8c58ccc080b2b4bc136fd2c6de",
+          "language": "en",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": false
+        },
+        {
+          "source": "libgen",
+          "id": "7f9296a4cfe4e48eb7ae27f46836f5b3",
+          "language": "en",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": false
+        },
+        {
+          "source": "libgen",
+          "id": "759775d243c6dc62b3755d41624c425e",
+          "language": "en",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": false
+        },
+        {
+          "source": "libgen",
+          "id": "efc4fd50216b58091c610f21ac64f35b",
+          "language": "en",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": false
+        },
+        {
+          "source": "libgen",
+          "id": "53cd57581077a59a6da62e16cce54fa0",
+          "language": "en",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": false
+        },
+        {
+          "source": "libgen",
+          "id": "29d1e22c7b3bec6192f55b347a6b1b70",
+          "language": "en",
+          "isbn": null,
+          "listed_formats": [
+            "EPUB"
+          ],
+          "epub_listed": false
+        }
+      ]
+    }
+  ],
+  "notice": "Catalog responses are not file verification or copyright clearance.",
+  "download": {
+    "status": "not_requested"
+  },
+  "downloads": []
+}

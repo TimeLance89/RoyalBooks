@@ -102,7 +102,12 @@ def test_symlinks_to_files_outside_library_ignored(tmp_path):
     target.write_bytes(b"secret")
     nested = root / "Example"
     nested.mkdir()
-    (nested / "Book.epub").symlink_to(target)
+    try:
+        (nested / "Book.epub").symlink_to(target)
+    except OSError as exc:
+        if getattr(exc, "winerror", None) == 1314:
+            pytest.skip("Windows account lacks symlink privilege; exercised in Linux CI")
+        raise
     with sqlite3.connect(root / "metadata.db") as conn:
         conn.executescript("CREATE TABLE books(id INTEGER PRIMARY KEY,title TEXT,path TEXT);"
                            "CREATE TABLE data(book INTEGER,format TEXT,uncompressed_size INTEGER,name TEXT);")

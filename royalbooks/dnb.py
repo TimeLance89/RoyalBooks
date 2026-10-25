@@ -13,7 +13,7 @@ from xml.etree import ElementTree as ET
 import httpx
 from defusedxml import ElementTree as SafeET
 
-from royalbooks.providers import Book, Provider, ProviderError, isbn13
+from royalbooks.providers import Book, Provider, ProviderError, isbn13, valid_isbn10, canonical_isbn
 
 SRU = "https://services.dnb.de/sru/dnb"
 MARC = "{http://www.loc.gov/MARC21/slim}"
@@ -28,7 +28,7 @@ def _subfields(record: ET.Element, tag: str, codes: tuple[str, ...] = ("a",)) ->
             continue
         for element in field.findall(f"{MARC}subfield"):
             if element.get("code") in codes and element.text and element.text.strip():
-                values.append(element.text.strip())
+                values.append(''.join(c for c in element.text if ord(c) >= 32 and not 127 <= ord(c) <= 159).strip())
     return values
 
 
@@ -66,6 +66,8 @@ def parse_records(xml: bytes, limit: int, language: str | None) -> list[Book]:
         if not marker and control008 and len(control008) >= 38:
             marker = control008[35:38].lower()
         parsed_lang = {"ger": "de", "deu": "de", "eng": "en"}.get(marker, None)
+        if len(set(langs)) > 1:
+            parsed_lang = None
         # If a record explicitly carries a different language, don't mislabel it.
         if language and parsed_lang and parsed_lang != language:
             continue
@@ -75,11 +77,13 @@ def parse_records(xml: bytes, limit: int, language: str | None) -> list[Book]:
         for raw in _subfields(record, "020"):
             cleaned = re.sub(r"[^0-9X]", "", raw.split("(")[0].upper())
             isbn_values.append(cleaned)
-        books_isbn = isbn13(isbn_values)
+        books_isbn = isbn13(isbn_values) or next((canonical_isbn(n) for n in isbn_values if valid_isbn10(n)), None)
         records.append(Book(
             source="dnb", source_id=source_id, title=title, authors=authors,
             language=parsed_lang, year=int(match.group()) if match else None,
             cover_url=None, info_url=f"https://d-nb.info/{source_id}", isbn13=books_isbn,
+            isbns=tuple(dict.fromkeys(n for n in isbn_values if isbn13([n]) or valid_isbn10(n))),
+            description=' '.join(_subfields(record, '520'))[:6000] or None,
         ))
         if len(records) >= limit:
             break
@@ -97,7 +101,17 @@ class DNB(Provider):
         if not words:
             return []
         safe_title = " ".join(words)[:120]
-        cql = f'tit all "{safe_title}" and mat=books'
+        compact = re.sub(r'[^0-9X]', '', query.upper())
+        if isbn13([compact]):
+            cql = f'num="{compact}"'
+        elif ' author:' in query:
+            title, author = query.split(' author:', 1)
+            title = ' '.join(re.findall(r'[\w-]+', title))
+            author = ' '.join(re.findall(r'[\w-]+', author))
+            cql = f'tit all "{title}" and per all "{author}" and mat=books'
+        else:
+            # The default index includes both title and author, unlike tit.
+            cql = f'woe all "{safe_title}" and mat=books'
         if language in ("de", "en"):
             cql += f' and spr={"ger" if language == "de" else "eng"}'
         params = {"version": "1.1", "operation": "searchRetrieve", "recordSchema": "MARC21-xml",

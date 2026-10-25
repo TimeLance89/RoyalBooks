@@ -1,8 +1,11 @@
 .env
+pw.txt
 .venv/
 __pycache__/
 .pytest_cache/
 *.py[cod]
 *.sqlite*
 data/
+backups/
+.codex-*
 *.egg-info/

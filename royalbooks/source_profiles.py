@@ -29,6 +29,9 @@ class SourceProfile:
 
 
 PROFILES = {
+    'libgen': SourceProfile('libgen', 'Library Genesis', 'file_listing', 'edition',
+                           'multilingual', ('EPUB', 'PDF', 'AZW3', 'MOBI', 'FB2', 'DJVU', 'TXT'), False,
+                           'Unverified catalog claims only; no automatic downloads'),
     "dnb": SourceProfile("dnb", "Deutsche Nationalbibliothek", "bibliography",
                          "edition", "de_priority", (), False,
                          "German editions and ISBNs; no downloadable files"),
@@ -63,11 +66,12 @@ def profiles_for(names) -> list[dict]:
 def search_evidence(items: list[Book]) -> dict:
     """Separate file listings from bibliographic records without HTTP assumptions."""
     listed = [item for item in items if bool(item.epub_url)]
-    metadata = [item for item in items if not item.epub_url]
+    metadata = [item for item in items if not item.epub_url and not item.formats]
     unknown = sum(not item.language for item in items)
     return {
         "catalog_records": len(items),
         "epub_links_listed_unverified": len(listed),
+        "file_listings_unverified": sum(bool(item.formats) and not item.epub_url for item in items),
         "bibliographic_records_without_epub": len(metadata),
         "german_records_declared": sum(item.language == "de" for item in items),
         "unknown_language_records": unknown,
