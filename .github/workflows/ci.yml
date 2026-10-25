@@ -39,3 +39,7 @@ jobs:
         run: pytest -q tests/test_direct_sources.py
       - name: Build image
         run: docker build -t royalbooks:test .
+      - name: Verify runtime non-root user can import source from image
+        run: |
+          docker run --rm --entrypoint python royalbooks:test -c 'import os, pathlib, royalbooks, royalbooks.app; assert os.geteuid() == 10001; assert pathlib.Path("/app/royalbooks/__init__.py").is_file(); print("Non-root package import OK")'
+          docker run --rm --entrypoint sh royalbooks:test -c 'test -r /app/royalbooks/__init__.py && test -r /app/royalbooks/static/index.html && test -x /app/royalbooks && test -x /app/royalbooks/static'
