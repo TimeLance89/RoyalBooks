@@ -295,3 +295,10 @@ These work listings are not claimed as downloadable EPUBs. Additional-provider
 audit: all three tested Anna's Archive mirrors (`.gl`, `.pk`, `.gd`) returned HTTP
 403 after their normal redirects. No challenge was bypassed and no nonfunctional
 provider was enabled. No book download or import was created by these audits.
+
+Live deployment verification passed at 1440/390/320 pixels: Fantasy/de displayed
+36 records, 61 after loading page two, with direct reload and no JS errors or
+horizontal overflow. Both catalogue sources were reachable in that later live
+check; eleven entries were EPUB candidates, not asserted completed downloads.
+Slow cover images retain their title placeholder until a usable image loads;
+the platform browser test delays an image response to verify that behavior.

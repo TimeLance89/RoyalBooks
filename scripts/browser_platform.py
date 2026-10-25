@@ -78,9 +78,23 @@ def main():
                         rows=[make_book('Weitere Geschichte',103)] if params.get('page')==['2'] else genre_items
                         route.fulfill(json={'genre':'fantasy','title':'Fantasy','items':rows,'has_more':params.get('page')!=['2'],'sources':[]})
                     page.route('**/api/genres/fantasy?*',genre_route)
+                    image_state={'ready':False,'routes':[]}
+                    svg='<svg xmlns="http://www.w3.org/2000/svg" width="40" height="60"><rect width="40" height="60" fill="blue"/></svg>'
+                    def cover_route(route):
+                        if image_state['ready']:route.fulfill(content_type='image/svg+xml',body=svg)
+                        else:image_state['routes'].append(route)
+                    page.route('**/999-L.jpg',cover_route)
+                    genre_items[0]['cover_url']='https://covers.openlibrary.org/b/id/999-L.jpg'
                     page.goto(base+'/genres');page.locator('[data-genre=fantasy]').click()
                     page.wait_for_function("document.querySelectorAll('#genre-books .book').length===3")
                     assert page.url.endswith('/genres?genre=fantasy&language=de')
+                    first_cover=page.locator('#genre-books .cover-slot').first
+                    assert first_cover.locator('.cover-fallback').is_visible()
+                    page.wait_for_function("document.querySelector('#genre-books .cover').src.includes('999-L.jpg')")
+                    image_state['ready']=True
+                    for image_route in image_state['routes']:image_route.fulfill(content_type='image/svg+xml',body=svg)
+                    page.wait_for_selector('#genre-books .cover-ready')
+                    assert first_cover.locator('.cover-fallback').is_hidden()
                     page.locator('#genre-available-only').check()
                     page.wait_for_function("document.querySelectorAll('#genre-books .book').length===1")
                     page.locator('#genre-more').click()
