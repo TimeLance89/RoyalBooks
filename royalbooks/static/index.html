@@ -69,7 +69,7 @@ button.subtle,.subtle.action{background:#30313c;border:1px solid #5b505e}
 .release-symbol{display:flex;align-items:center;justify-content:center;width:58px;height:72px;border-radius:10px;background:#513943;color:var(--gold);font-size:28px}
 .release-meta{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
 .release-meta span{font-size:11px;border:1px solid #4b4752;border-radius:100px;padding:4px 8px;color:#e5cfb0}
-#token{width:min(100%,245px)}
+#token{width:min(100%,420px)}
 @media(max-width:680px){.release-card{grid-template-columns:55px minmax(0,1fr)}#token{width:100%;flex-basis:100%}}
 .book a{display:inline-block;font-size:12px;font-weight:700;color:var(--gold);margin:6px 0}
 .action{margin:10px 7px 0 0;font-size:12px;padding:8px 11px;border-radius:9px}
@@ -109,12 +109,12 @@ form select,form button{flex:1}
 }</style></head>
 <body><header><span class="accent">✦ ROYALBOOKS</span>
 <nav aria-label="Navigation"><a href="#search">Entdecken</a><a href="#watchlist">Merkliste</a><a href="#source-details">Indexer</a><a href="#download-center">Downloads</a></nav>
-<span class="chip">INDEXER · v1.0 ALPHA</span></header>
+<span class="chip">INDEXER · v1.0.1</span></header>
 <section class="hero"><p class="eyebrow">DEINE DIGITALE BIBLIOTHEK</p>
 <h1>Finde die richtige Buchausgabe.</h1>
 <p class="muted">Indexer-basierte E-Book-Suche mit Deutsch-Priorität, Format- und Quellenhinweisen. Treffer sind vor der Dateiprüfung noch unbestätigt.</p></section>
-<form id="search"><input type="search" id="q" placeholder="Titel oder Autor, z. B. Kafka" required minlength="2" maxlength="120" aria-label="Suche"><select id="language" aria-label="Sprache"><option value="de">Deutsch</option><option value="en">Englisch</option><option value="all">Alle</option></select><input id="token" type="password" autocomplete="off" placeholder="RoyalBooks API-Token" aria-label="API-Token"><button id="go">Indexer durchsuchen</button></form>
-<div id="message" role="status" class="muted">Konfiguriere zunächst mindestens einen Indexer in der NAS-.env oder data/indexers.json.</div>
+<form id="search"><input type="search" id="q" placeholder="Titel oder Autor, z. B. Kafka" required minlength="2" maxlength="120" aria-label="Suche"><select id="language" aria-label="Sprache"><option value="de">Deutsch</option><option value="en">Englisch</option><option value="all">Alle</option></select><button id="go">Indexer durchsuchen</button></form>
+<div id="message" role="status" class="muted">Bereit für die Buchsuche. Kein API-Token erforderlich.</div>
 <p id="search-notice" class="search-notice" hidden></p>
 <div id="search-filters" class="search-filters" hidden aria-label="Suchergebnisse filtern">
 <button type="button" data-filter="all" aria-pressed="true">Alle Titel</button>
@@ -124,9 +124,15 @@ form select,form button{flex:1}
 <details id="source-details"><summary class="muted">Quellenstatus und Diagnose anzeigen</summary>
 <section id="stats" class="stats" aria-label="Providerstatus"></section></details>
 <section id="books" class="cards" aria-live="polite"></section>
+<details class="controls" id="admin-access">
+<summary style="cursor:pointer;font-weight:750">Verwaltungszugang für Merkliste und Aufträge (optional)</summary>
+<p class="muted">Die normale Buchsuche benötigt keinen Token. Für persönliche Merkliste, NAS-Prüfung und Auftragsverwaltung ist der RoyalBooks-API-Token weiterhin nötig; er wird nur in dieser Browser-Sitzung gehalten.</p>
+<label for="token">RoyalBooks-API-Token</label>
+<input id="token" type="password" autocomplete="off" placeholder="Token aus deiner NAS-.env">
+</details>
 <section class="controls" id="watchlist">
 <h2>Meine Merkliste</h2>
-<p class="muted">Interessante Bücher speichern, auch wenn noch keine passende EPUB verfügbar ist. Merken löst keinen Download aus.</p>
+<p class="muted">Gespeicherte ältere Einträge bleiben erhalten. Zum Öffnen der persönlichen Merkliste wird der optionale Verwaltungszugang benötigt.</p>
 <button type="button" id="watchlist-refresh" class="subtle">Merkliste öffnen</button>
 <div id="watchlist-message" role="status" class="muted"></div>
 <div id="watchlist-items" aria-live="polite"></div>
@@ -141,7 +147,7 @@ form select,form button{flex:1}
 <div id="import-status" class="muted" role="status" aria-live="polite">Für den Import den API-Token unten eingeben.</div>
 </section>
 <section class="controls" id="download-center"><h2>Auftragsarchiv und Calibre</h2><p class="muted">Frühere Downloadaufträge bleiben gespeichert. Die alten Katalog-Downloader sind standardmäßig pausiert; Indexer-Suchergebnisse lösen keine automatischen Downloads aus.</p>
-<p class="muted">Der API-Token wird oben in der Suchzeile eingegeben und nicht im Browser gespeichert.</p>
+<p class="muted">Für Auftragsdetails den optionalen Verwaltungszugang oberhalb der Merkliste öffnen.</p>
 <button id="refresh" class="subtle" type="button">Aufträge aktualisieren</button> <button id="preflight" class="subtle" type="button">NAS-Einrichtung prüfen</button><div id="preflight-results" role="status" aria-live="polite"></div><div id="job-message" role="status" class="muted"></div><div style="overflow:auto"><table class="jobs"><thead><tr><th>Gutenberg-ID</th><th>Status</th><th>Details</th></tr></thead><tbody id="job-rows"></tbody></table></div></section>
 <footer class="muted">Die Übergabe an Calibre-Web Automated wird als „delivered“ angezeigt, nicht als bestätigter Bibliotheksimport. Keine unbekannten Downloadserver, keine Kopierschutz-Umgehung.</footer>
 <script>
@@ -470,8 +476,6 @@ function releaseCard(item){
 }
 $('search').addEventListener('submit',async e=>{
   e.preventDefault();
-  const token=$('token').value;
-  if(!token){$('message').textContent='Bitte zuerst den RoyalBooks-API-Token eingeben.';return}
   $('go').disabled=true;
   $('message').textContent='Buchindexer werden durchsucht …';
   $('books').replaceChildren();
@@ -479,9 +483,7 @@ $('search').addEventListener('submit',async e=>{
   $('search-notice').hidden=true;
   try{
     const params=new URLSearchParams({q:$('q').value.trim(),language:$('language').value});
-    const response=await fetch('/api/indexers/search?'+params,{
-      headers:{'X-API-Key':token}
-    });
+    const response=await fetch('/api/indexers/search?'+params);
     const result=await response.json();
     if(!response.ok)throw Error(typeof result.detail==='string'?result.detail:'HTTP '+response.status);
     const items=Array.isArray(result.items)?result.items:[];

@@ -97,14 +97,13 @@ async def test_prowlarr_request_read_only_and_category_scoped():
 
 
 @pytest.mark.asyncio
-async def test_auth_and_absent_config_are_explicit(monkeypatch):
+async def test_token_free_search_and_absent_config_are_explicit(monkeypatch):
     monkeypatch.setenv("ROYALBOOKS_API_TOKEN", "private-api-token")
     monkeypatch.delenv("ROYALBOOKS_PROWLARR_URL", raising=False)
     monkeypatch.delenv("ROYALBOOKS_PROWLARR_API_KEY", raising=False)
     monkeypatch.setenv("ROYALBOOKS_INDEXERS_PATH", "/nonexistent/indexers.json")
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-        assert (await client.get("/api/indexers/search?q=Test")).status_code == 401
-        response = await client.get("/api/indexers/search?q=Test", headers={"X-API-Key": "private-api-token"})
+        response = await client.get("/api/indexers/search?q=Test")
     assert response.status_code == 200
     assert response.json()["configured"] is False
     assert response.json()["items"] == []
@@ -122,7 +121,7 @@ async def test_indexer_api_returns_sanitized_search(monkeypatch):
                            "format_hint": "EPUB", "size_bytes": 12000, "score": 100}]}
     monkeypatch.setattr("royalbooks.app.search_indexers", fake_search)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-        res = await client.get("/api/indexers/search?q=Faust", headers={"X-API-Key": "private-api-token"})
+        res = await client.get("/api/indexers/search?q=Faust")
     assert res.status_code == 200
     assert res.json()["mode"] == "read_only"
     assert "downloadUrl" not in res.text
@@ -150,3 +149,26 @@ def test_indexer_first_browser_controls():
     assert "/api/indexers/search?" in page
     assert "releaseCard(item)" in page
     assert 'id="catalog-controls" hidden' in page
+
+@pytest.mark.asyncio
+async def test_token_free_search_has_basic_rate_limit(monkeypatch):
+    from royalbooks.app import _search_windows
+    import royalbooks.app as application
+    _search_windows.clear()
+    for _ in range(30):
+        await application._limit_public_search('192.0.2.9')
+    with pytest.raises(Exception) as exc:
+        await application._limit_public_search('192.0.2.9')
+    assert getattr(exc.value, 'status_code', None) == 429
+    _search_windows.clear()
+
+
+def test_search_form_has_no_token_and_admin_access_is_separate():
+    from pathlib import Path
+    markup = (Path(__file__).parents[1] / 'royalbooks' / 'static' / 'index.html').read_text()
+    search = markup.split('<form id="search">', 1)[1].split('</form>', 1)[0]
+    admin = markup.split('<details class="controls" id="admin-access">', 1)[1].split('</details>', 1)[0]
+    assert 'id="token"' not in search
+    assert 'id="token"' in admin
+    assert "fetch('/api/indexers/search?'+params);" in markup
+    assert "headers:{'X-API-Key':token}" not in markup.split("function releaseCard", 1)[1]
