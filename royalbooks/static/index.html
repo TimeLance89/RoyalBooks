@@ -5,6 +5,7 @@
 :root{color-scheme:dark;font-family:Inter,system-ui,"Segoe UI",sans-serif;background:#0d1017;color:#f7f1e9;
   --gold:#f3c875;--gold-muted:#bfa16c;--line:#34313b;--red:#a73b51;--surface:#1b1d27;--muted:#b3adb3}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html{scroll-behavior:smooth}
 body{max-width:1520px;margin:0 auto;padding:26px clamp(18px,3vw,48px) 50px;min-height:100vh;position:relative}
 body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;
@@ -349,7 +350,7 @@ let lastSearchResult=null;
 let searchFilter='all';
 
 function renderEditionInfo(container,item){
-  container.append(text('p',sourceName(item.source)+' · '+(item.language||'Sprache unbekannt')+(item.year?' · '+item.year:''),'pill'));
+  container.append(text('p',sourceName(item.source)+' · '+(item.language||(item.source==='openlibrary'?'Sprache je nach Ausgabe':'Sprache unbekannt'))+(item.year?' · '+item.year:''),'pill'));
   if(item.isbn13)container.append(text('p','ISBN-13: '+item.isbn13,'muted'));
   if(item.epub_url)container.append(text('p','EPUB-Link gelistet · Verfügbarkeit und Rechte noch prüfen','pill'));
   else container.append(text('p','Buchdaten · kein Downloadangebot dieser Quelle','muted'));
