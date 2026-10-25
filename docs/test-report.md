@@ -225,3 +225,15 @@ Final local suite: 233 passed, two Windows symlink skips. Final NAS suite:
 - Deployment retains `royalbooks:before-platform-20261025` plus a fresh SQLite
   backup under `/data/backups/`. Only RoyalBooks was recreated; existing Calibre
   data and persistent LAN access were preserved.
+
+
+## Cover resolution correction (2026-10-25)
+
+Live source samples exposed 63x100 / 84x100-pixel catalog thumbnails being
+stretched over book cards. The same pinned cover paths without `_small` returned
+314x500 and 420x500 originals (34-241 KiB). The JPEG proxy now fetches these
+originals, upgrades existing cached thumbnails lazily and preserves the original
+cache when catalog results register the thumbnail URL again. A versioned browser
+URL bypasses the previous one-day thumbnail cache. Open Library covers use its
+large variant. Existing origin, redirect, JPEG and 512-KiB limits remain intact.
+Twelve artwork checks and the three-width storefront browser suite passed.

@@ -17,6 +17,7 @@ async def test_artwork_uses_source_referer_then_persistent_cache(tmp_path):
     def handler(req):
         seen.append(req.url)
         assert req.headers['referer']=='https://libgen.li/'
+        assert str(req.url)==URL.replace('_small.jpg','.jpg')
         return httpx.Response(200,content=content)
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         assert await fetch_artwork(path,MD5,client)==content
@@ -39,3 +40,21 @@ async def test_artwork_does_not_follow_redirects(tmp_path):
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         assert await fetch_artwork(path,MD5,client) is None
     assert len(seen)==1
+
+
+@pytest.mark.asyncio
+async def test_existing_thumbnail_cache_upgrades_without_catalog_refresh(tmp_path):
+    from royalbooks.database import connect
+    path=str(tmp_path/'db.sqlite3');register_artwork(path,MD5,URL)
+    thumbnail=b'\xff\xd8\xffold-thumbnail';original=b'\xff\xd8\xfforiginal-cover'
+    with connect(path) as db:
+        db.execute('UPDATE catalog_artwork SET url=?,content=? WHERE md5=?',(URL,thumbnail,MD5))
+    seen=[]
+    def handler(req):
+        seen.append(str(req.url));return httpx.Response(200,content=original)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        assert await fetch_artwork(path,MD5,client)==original
+        register_artwork(path,MD5,URL)
+        assert await fetch_artwork(path,MD5,client)==original
+    assert seen==[URL.replace('_small.jpg','.jpg')]
+    assert read_artwork(path,MD5)==(URL.replace('_small.jpg','.jpg'),original)

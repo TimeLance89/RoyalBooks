@@ -246,7 +246,7 @@ class OpenLibrary(Provider):
                 source=self.name, source_id=key.removeprefix("/works/"),
                 title=item["title"], authors=_str_list(item.get("author_name")), language=lang,
                 year=item.get("first_publish_year") if isinstance(item.get("first_publish_year"), int) else None,
-                cover_url=f"https://covers.openlibrary.org/b/id/{cover_id}-M.jpg" if isinstance(cover_id, int) else None,
+                cover_url=f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg" if isinstance(cover_id, int) else None,
                 # Work-level ISBN lists mix different editions: never treat them as one exact edition.
                 info_url=f"https://openlibrary.org{key}", isbn13=None,
                 record_kind='work',

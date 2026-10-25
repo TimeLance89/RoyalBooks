@@ -18,9 +18,10 @@ def safe_artwork(md5,url):
 
 def register_artwork(path,md5,url):
     if not safe_artwork(md5,url):return
+    url=url.removesuffix('_small.jpg')+'.jpg' if url.endswith('_small.jpg') else url
     with connect(path,timeout=5) as db:
         db.execute('CREATE TABLE IF NOT EXISTS catalog_artwork (md5 TEXT PRIMARY KEY,url TEXT NOT NULL,touched INTEGER NOT NULL,content BLOB)')
-        db.execute('INSERT INTO catalog_artwork VALUES(?,?,?,NULL) ON CONFLICT(md5) DO UPDATE SET url=excluded.url,touched=excluded.touched',(md5,url,int(time.time())))
+        db.execute('INSERT INTO catalog_artwork VALUES(?,?,?,NULL) ON CONFLICT(md5) DO UPDATE SET content=CASE WHEN catalog_artwork.url<>excluded.url THEN NULL ELSE catalog_artwork.content END,url=excluded.url,touched=excluded.touched',(md5,url,int(time.time())))
         db.execute('DELETE FROM catalog_artwork WHERE md5 NOT IN (SELECT md5 FROM catalog_artwork ORDER BY touched DESC LIMIT 500)')
 
 
@@ -31,8 +32,8 @@ def read_artwork(path,md5):
     return row if row and safe_artwork(md5,row[0]) else None
 
 
-def save_artwork(path,md5,content):
-    with connect(path,timeout=5) as db:db.execute('UPDATE catalog_artwork SET content=? WHERE md5=?',(content,md5))
+def save_artwork(path,md5,content,url):
+    with connect(path,timeout=5) as db:db.execute('UPDATE catalog_artwork SET content=?,url=? WHERE md5=?',(content,url,md5))
 
 
 async def fetch_artwork(path,md5,client):
@@ -40,11 +41,13 @@ async def fetch_artwork(path,md5,client):
     row=await asyncio.to_thread(read_artwork,path,md5)
     if not row:return None
     url,cached=row
+    if url.endswith('_small.jpg'):
+        url=url.removesuffix('_small.jpg')+'.jpg';cached=None
     if cached:return bytes(cached)
     p=urlsplit(url)
     response=await client.get(url,headers={'Referer':f'https://{p.hostname}/'},follow_redirects=False)
     content=response.content
     if response.status_code!=200 or not 3<len(content)<=512*1024 or not content.startswith(b'\xff\xd8\xff'):
         return None
-    await asyncio.to_thread(save_artwork,path,md5,content)
+    await asyncio.to_thread(save_artwork,path,md5,content,url)
     return content

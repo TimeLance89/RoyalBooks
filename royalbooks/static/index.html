@@ -388,7 +388,7 @@ function resultCard(group,items){
   wrap.style.setProperty('--jacket',jacketColor(main.title));
   wrap.append(text('span',main.title,'cover-fallback'));
   const cover=main.cover_url||members.find(item=>item.cover_url)?.cover_url||(main.source==='dnb'&&main.isbn13?
-       'https://covers.openlibrary.org/b/isbn/'+encodeURIComponent(main.isbn13)+'-M.jpg?default=false':null);
+       'https://covers.openlibrary.org/b/isbn/'+encodeURIComponent(main.isbn13)+'-L.jpg?default=false':null);
   if(coverUrl(cover)){
     const img=document.createElement('img');img.className='cover';img.alt='Covervorschau (falls für diese Ausgabe verfügbar)';
     img.loading='lazy';
@@ -512,8 +512,9 @@ function coverUrl(raw){
  if(/^\/api\/library\/[0-9]+\/cover$/.test(raw))return raw;
  const safe=safeUrl(raw);if(!safe)return null;
  const url=new URL(safe),match=url.pathname.match(/^\/(?:covers|fictioncovers)\/[0-9]+\/([a-f0-9]{32})(?:_small)?\.jpg$/);
- if(['libgen.li','libgen.gl','libgen.bz','libgen.la'].includes(url.hostname)&&match)return '/api/catalog-cover/'+match[1];
- return safe;
+ if(['libgen.li','libgen.gl','libgen.bz','libgen.la'].includes(url.hostname)&&match)return '/api/catalog-cover/'+match[1]+'?quality=original';
+ if(url.hostname==='covers.openlibrary.org')url.pathname=url.pathname.replace(/-[SM]\.jpg$/, '-L.jpg');
+ return url.href;
 }
 function makeJacket(book){
  const cover=text('div','','jacket');cover.style.setProperty('--jacket',jacketColor(book.title));
