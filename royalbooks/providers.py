@@ -197,15 +197,18 @@ class OpenLibrary(Provider):
             key = item.get("key", "")
             if not isinstance(key, str) or not key.startswith("/works/") or not key.removeprefix("/works/").isalnum():
                 continue
-            lang = _language(item.get("language"))
-            if language and lang and language not in _str_list(item.get("language")) and not any(
-                code in _str_list(item.get("language")) for code in ({"de": ["ger", "deu"], "en": ["eng"]}.get(language, []))
-            ):
+            # An Open Library work can represent editions in MANY languages.
+            # "lang" is a ranking hint; never label a multilingual work as
+            # German merely because some German edition exists.
+            available = {_language([code]) for code in _str_list(item.get("language"))}
+            available.discard(None)
+            if language and available and language not in available:
                 continue
+            lang = next(iter(available)) if len(available) == 1 else None
             cover_id = item.get("cover_i")
             books.append(Book(
                 source=self.name, source_id=key.removeprefix("/works/"),
-                title=item["title"], authors=_str_list(item.get("author_name")), language=language if language and lang else lang,
+                title=item["title"], authors=_str_list(item.get("author_name")), language=lang,
                 year=item.get("first_publish_year") if isinstance(item.get("first_publish_year"), int) else None,
                 cover_url=f"https://covers.openlibrary.org/b/id/{cover_id}-M.jpg" if isinstance(cover_id, int) else None,
                 # Work-level ISBN lists mix different editions: never treat them as one exact edition.
