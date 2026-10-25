@@ -333,3 +333,16 @@ origins returned no GET link; an inspected HTTP-200 response was the nginx welco
 page. This is an upstream outage, not evidence of a working file. The deployment
 does not claim these two books were recovered. Prior image and SQLite backup were
 retained before recreating only RoyalBooks, after confirming no active transfer.
+
+
+Live recovery outcome: the persisted retry of the existing Cornelia Funke job ran
+automatically at its due time, on attempt three. It downloaded and validated
+1,554,392 bytes, then handed the EPUB to CWA. CWA logs bind the exact RoyalBooks
+job filename to a successful import, book ID 14. A read-only query of Calibre's
+metadata.db confirmed the expected title and an existing EPUB file (1,555,147
+bytes after CWA's EPUB fixer rewrote it). The hash-only verification endpoint
+cannot establish identity after that rewrite; log + database + file evidence
+confirms this import separately. No attempt counter was reset and the exhausted
+Freida McFadden job remains failed. The provider outage observed earlier was
+therefore temporary for at least this recovered file. Pull-request CI at runtime
+commit 5688761 passed all checks, including all four Chromium suites and Docker.
