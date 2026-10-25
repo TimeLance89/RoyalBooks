@@ -172,3 +172,44 @@ def test_search_form_has_no_token_and_admin_access_is_separate():
     assert 'id="token"' in admin
     assert "fetch('/api/indexers/search?'+params);" in markup
     assert "headers:{'X-API-Key':token}" not in markup.split("function releaseCard", 1)[1]
+
+
+
+def test_german_ebook_category_kept_without_comic_confusion():
+    rows = [
+        listing("Hermann Hesse Steppenwolf GERMAN EPUB", category=7120),
+        listing("Comics German CBZ", category=7130),
+    ]
+    rows_out = parse_prowlarr(rows, "Hermann Hesse", "de", 10)
+    assert len(rows_out) == 1
+    assert rows_out[0].language_hint == "de"
+
+
+def test_german_rss_ebook_category():
+    rss = b'''<rss xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/">
+    <channel><item><title>Goethe German EPUB</title>
+    <newznab:attr name="category" value="7120"/></item></channel></rss>'''
+    source = Indexer("German News", "newznab", "https://example.org/api", "private")
+    result = parse_rss(rss, source, "Goethe", "de", 10)
+    assert len(result) == 1
+
+
+@pytest.mark.asyncio
+async def test_german_search_repeats_category_query_for_prowlarr():
+    def handler(req):
+        assert req.url.params.get_list("categories") == ["7020", "7120"]
+        return httpx.Response(200, json=[listing("Goethe German EPUB", category=7120)])
+    source = Indexer("Prowlarr", "prowlarr", "http://localhost:9696", "private")
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await fetch_indexer(client, source, "Goethe", "de", 10)
+    assert len(result) == 1
+
+
+@pytest.mark.asyncio
+async def test_german_newznab_query_includes_localized_category():
+    def handler(req):
+        assert req.url.params["cat"] == "7020,7120"
+        return httpx.Response(200, content=b'<rss><channel/></rss>')
+    source = Indexer("News", "newznab", "https://example.org/api", "private")
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        assert await fetch_indexer(client, source, "Goethe", "de", 10) == []
