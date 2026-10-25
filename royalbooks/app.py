@@ -24,6 +24,7 @@ from royalbooks.watchlist import WatchlistStore, WatchlistFull
 from typing import Literal
 from royalbooks.providers import Book, GoogleBooks, Gutendex, OpenLibrary, Provider
 from royalbooks.source_registry import configured_providers
+from royalbooks.indexer_search import configured_indexers, search_indexers
 from royalbooks.source_profiles import profiles_for, search_evidence
 from royalbooks.matching import match_groups
 from royalbooks.presentation import display_groups
@@ -41,15 +42,18 @@ async def lifespan(app: FastAPI):
     app.state.providers = {p.name: p for p in sources}
     data = Path(path).parent
     ingest_path = os.getenv('ROYALBOOKS_CWA_INGEST_PATH', '').strip()
-    task = asyncio.create_task(worker(app.state.jobs, data, Path(ingest_path) if ingest_path else None,
-                                      app.state.providers.get('gutendex')))
+    task = None
+    if os.getenv('ROYALBOOKS_ENABLE_LEGACY_WORKER') == '1':
+        task = asyncio.create_task(worker(app.state.jobs, data,
+            Path(ingest_path) if ingest_path else None, app.state.providers.get('gutendex'))) 
     try:
         yield
     finally:
         await app.state.catalog_imports.close()
-        task.cancel()
-        with suppress(asyncio.CancelledError):
-            await task
+        if task is not None:
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
 
 
 app = FastAPI(title='RoyalBooks', version='0.9.0', lifespan=lifespan)
@@ -67,7 +71,13 @@ async def health():
 
 @app.get('/api/providers')
 async def providers():
-    return {'catalog': catalog_status(os.getenv("ROYALBOOKS_DB_PATH", "/data/royalbooks.sqlite3")),
+    try:
+        names = [source.name for source in configured_indexers()]
+        config_error = None
+    except (ValueError, OSError):
+        names, config_error = [], 'invalid_indexer_configuration'
+    return {'active_indexers': names, 'indexer_configuration_error': config_error,
+            'search_mode': 'indexers', 'catalog': catalog_status(os.getenv("ROYALBOOKS_DB_PATH", "/data/royalbooks.sqlite3")),
             'format_catalog': format_status(os.getenv("ROYALBOOKS_DB_PATH", "/data/royalbooks.sqlite3")),
             'providers': [{'name': p.name, 'purpose': p.purpose} for p in app.state.providers.values()],
             'source_profiles': profiles_for(app.state.providers.keys()),
@@ -111,6 +121,23 @@ async def search(q: str = Query(min_length=2, max_length=120),
             'Public-domain classification may be US-only; check German law before requesting a download.'}
 
 
+@app.get('/api/indexers/search')
+async def indexer_search(
+    q: str = Query(min_length=2, max_length=120),
+    language: str = Query(default='de', pattern='^(de|en|all)$'),
+    limit: int = Query(default=30, ge=1, le=40),
+    x_api_key: str | None = Header(default=None),
+):
+    _guard(x_api_key)
+    try:
+        result = await search_indexers(q, None if language == 'all' else language, limit)
+    except (OSError, ValueError):
+        raise HTTPException(status_code=503, detail='invalid_indexer_configuration')
+    return {'query': q, 'language': language, **result,
+            'mode': 'read_only',
+            'notice': 'Indexer listings are unverified.'}
+
+
 class QueueRequest(BaseModel):
     provider: str = 'gutendex'
     source_id: int = Field(gt=0, le=9223372036854775807)
@@ -128,6 +155,8 @@ def _guard(token: str | None) -> None:
 @app.post('/api/jobs', status_code=202)
 async def enqueue(request: QueueRequest, x_api_key: str | None = Header(default=None)):
     _guard(x_api_key)
+    if os.getenv('ROYALBOOKS_ENABLE_LEGACY_WORKER') != '1':
+        raise HTTPException(status_code=410, detail='legacy_downloads_disabled')
     if request.provider not in {'gutendex', 'gutenberg_catalog', *SOURCES}:
         raise HTTPException(status_code=400, detail='unsupported_download_provider')
     if not request.rights_confirmed:
@@ -161,6 +190,8 @@ async def request_catalog_import(
     x_api_key: str | None = Header(default=None),
 ):
     _guard(x_api_key)
+    if os.getenv('ROYALBOOKS_ENABLE_LEGACY_WORKER') != '1':
+        raise HTTPException(status_code=410, detail='legacy_catalog_import_disabled')
     try:
         return {'import': app.state.catalog_imports.request(request.source)}
     except CatalogImportBusy as exc:
@@ -235,7 +266,8 @@ async def list_jobs(x_api_key: str | None = Header(default=None)):
     records = await asyncio.to_thread(app.state.jobs.list)
     for job in records:
         job['handoff_observation'] = await asyncio.to_thread(observe_handoff, job, staging, ingest)
-    return {'jobs': records, 'ingest_configured': bool(ingest_path),
+    return {'jobs': records, 'legacy_worker_enabled': os.getenv('ROYALBOOKS_ENABLE_LEGACY_WORKER') == '1',
+            'ingest_configured': bool(ingest_path),
             'library_configured': bool(os.getenv('ROYALBOOKS_CWA_LIBRARY_PATH', '').strip()),
             'handoff_notice': 'A disappearing ingest file does not confirm a successful Calibre import.'}
 
@@ -251,6 +283,8 @@ async def retry_job(
     x_api_key: str | None = Header(default=None),
 ):
     _guard(x_api_key)
+    if os.getenv('ROYALBOOKS_ENABLE_LEGACY_WORKER') != '1':
+        raise HTTPException(status_code=410, detail='legacy_downloads_disabled')
     if not request.rights_confirmed:
         raise HTTPException(status_code=400, detail='local_rights_confirmation_required')
     try:

@@ -87,6 +87,7 @@ async def test_download_failure_does_not_claim_indexed(monkeypatch, tmp_path):
 async def test_catalog_management_requires_token(monkeypatch, tmp_path):
     token = "use-a-long-server-side-only-secret-value"
     monkeypatch.setenv("ROYALBOOKS_API_TOKEN", token)
+    monkeypatch.setenv("ROYALBOOKS_ENABLE_LEGACY_WORKER", "1")
     manager = CatalogImportService(str(tmp_path / "service.sqlite3"))
     app.state.catalog_imports = manager
     gate = asyncio.Event()

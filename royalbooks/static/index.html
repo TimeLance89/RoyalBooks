@@ -65,6 +65,12 @@ button.subtle,.subtle.action{background:#30313c;border:1px solid #5b505e}
 .search-notice{font-size:13px;color:#e5c58b;margin:6px 0 14px}
 .source-label{color:#e2cfb8}
 .book p{font-size:12px;margin:4px 0}
+.release-card{grid-template-columns:60px minmax(0,1fr);min-height:130px}
+.release-symbol{display:flex;align-items:center;justify-content:center;width:58px;height:72px;border-radius:10px;background:#513943;color:var(--gold);font-size:28px}
+.release-meta{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
+.release-meta span{font-size:11px;border:1px solid #4b4752;border-radius:100px;padding:4px 8px;color:#e5cfb0}
+#token{width:min(100%,245px)}
+@media(max-width:680px){.release-card{grid-template-columns:55px minmax(0,1fr)}#token{width:100%;flex-basis:100%}}
 .book a{display:inline-block;font-size:12px;font-weight:700;color:var(--gold);margin:6px 0}
 .action{margin:10px 7px 0 0;font-size:12px;padding:8px 11px;border-radius:9px}
 .controls{margin:23px 0;background:linear-gradient(130deg,#1b1d28,#1b1b23);
@@ -102,13 +108,13 @@ form select,form button{flex:1}
 #catalog-controls button{flex:1}
 }</style></head>
 <body><header><span class="accent">✦ ROYALBOOKS</span>
-<nav aria-label="Navigation"><a href="#search">Entdecken</a><a href="#watchlist">Merkliste</a><a href="#catalog-controls">Quellen</a><a href="#download-center">Downloads</a></nav>
-<span class="chip">VORSCHAU · v0.9</span></header>
+<nav aria-label="Navigation"><a href="#search">Entdecken</a><a href="#watchlist">Merkliste</a><a href="#source-details">Indexer</a><a href="#download-center">Downloads</a></nav>
+<span class="chip">INDEXER · v1.0 ALPHA</span></header>
 <section class="hero"><p class="eyebrow">DEINE DIGITALE BIBLIOTHEK</p>
-<h1>Jedes Buch beginnt mit einer Entdeckung.</h1>
-<p class="muted">Suche über mehrere Buchkataloge, merke dir spannende Titel und übernimm rechtmäßig verfügbare EPUBs in deine Bibliothek.</p></section>
-<form id="search"><input type="search" id="q" placeholder="Titel oder Autor, z. B. Kafka" required minlength="2" maxlength="120" aria-label="Suche"><select id="language" aria-label="Sprache"><option value="de">Deutsch</option><option value="en">Englisch</option><option value="all">Alle</option></select><button id="go">Suchen</button></form>
-<div id="message" role="status" class="muted">Bereit für die erste Suche.</div>
+<h1>Finde die richtige Buchausgabe.</h1>
+<p class="muted">Indexer-basierte E-Book-Suche mit Deutsch-Priorität, Format- und Quellenhinweisen. Treffer sind vor der Dateiprüfung noch unbestätigt.</p></section>
+<form id="search"><input type="search" id="q" placeholder="Titel oder Autor, z. B. Kafka" required minlength="2" maxlength="120" aria-label="Suche"><select id="language" aria-label="Sprache"><option value="de">Deutsch</option><option value="en">Englisch</option><option value="all">Alle</option></select><input id="token" type="password" autocomplete="off" placeholder="RoyalBooks API-Token" aria-label="API-Token"><button id="go">Indexer durchsuchen</button></form>
+<div id="message" role="status" class="muted">Konfiguriere zunächst mindestens einen Indexer in der NAS-.env oder data/indexers.json.</div>
 <p id="search-notice" class="search-notice" hidden></p>
 <div id="search-filters" class="search-filters" hidden aria-label="Suchergebnisse filtern">
 <button type="button" data-filter="all" aria-pressed="true">Alle Titel</button>
@@ -125,7 +131,7 @@ form select,form button{flex:1}
 <div id="watchlist-message" role="status" class="muted"></div>
 <div id="watchlist-items" aria-live="polite"></div>
 </section>
-<section class="controls" id="catalog-controls">
+<section class="controls" id="catalog-controls" hidden>
 <h2>Offiziellen Gutenberg-Katalog einrichten</h2>
 <p class="muted">Ohne Kommandozeile: erst Buchdaten (CSV), dann EPUB-Formatinformationen (RDF) importieren. Der zweite Schritt verarbeitet ein großes Archiv. Die Abfragen erfolgen nur nach deinem Klick.</p>
 <div style="display:flex;flex-wrap:wrap;gap:9px;margin:14px 0">
@@ -134,15 +140,19 @@ form select,form button{flex:1}
 <button type="button" class="subtle" id="sync-refresh">Status prüfen</button></div>
 <div id="import-status" class="muted" role="status" aria-live="polite">Für den Import den API-Token unten eingeben.</div>
 </section>
-<section class="controls" id="download-center"><h2>Download-Center</h2><p class="muted">Für Gutenberg-EPUBs mit geprüftem Quellenstatus. Prüfe zusätzlich, ob das Werk in deinem Land gemeinfrei ist. Dein API-Token wird nur bis zum Neuladen dieser Seite im Arbeitsspeicher gehalten.</p>
-<label for="token">API-Token aus deiner lokalen .env</label><input id="token" type="password" autocomplete="off" placeholder="ROYALBOOKS_API_TOKEN">
+<section class="controls" id="download-center"><h2>Auftragsarchiv und Calibre</h2><p class="muted">Frühere Downloadaufträge bleiben gespeichert. Die alten Katalog-Downloader sind standardmäßig pausiert; Indexer-Suchergebnisse lösen keine automatischen Downloads aus.</p>
+<p class="muted">Der API-Token wird oben in der Suchzeile eingegeben und nicht im Browser gespeichert.</p>
 <button id="refresh" class="subtle" type="button">Aufträge aktualisieren</button> <button id="preflight" class="subtle" type="button">NAS-Einrichtung prüfen</button><div id="preflight-results" role="status" aria-live="polite"></div><div id="job-message" role="status" class="muted"></div><div style="overflow:auto"><table class="jobs"><thead><tr><th>Gutenberg-ID</th><th>Status</th><th>Details</th></tr></thead><tbody id="job-rows"></tbody></table></div></section>
 <footer class="muted">Die Übergabe an Calibre-Web Automated wird als „delivered“ angezeigt, nicht als bestätigter Bibliotheksimport. Keine unbekannten Downloadserver, keine Kopierschutz-Umgehung.</footer>
 <script>
 const $=id=>document.getElementById(id);
 const text=(tag,value,cls)=>{const el=document.createElement(tag);el.textContent=value;if(cls)el.className=cls;return el};
 function safeUrl(raw){try{const u=new URL(raw);return u.protocol==='https:'?u.href:null}catch{return null}}
-async function loadStats(){try{const r=await fetch('/api/providers');if(!r.ok)return;const v=await r.json();$('stats').replaceChildren(...v.providers.map(p=>{const s=v.recent_metrics.find(x=>x.provider===p.name);return text('span',p.name+': '+(s ? s.found+' Treffer-Suchen / '+s.errors+' Fehler (letzte '+s.attempts+')' : 'noch ungetestet'),'stat')}));
+async function loadStats(){try{const r=await fetch('/api/providers');if(!r.ok)return;const v=await r.json();if(v.search_mode==='indexers'){
+ const labels=(v.active_indexers||[]).map(name=>text('span',name+' · konfiguriert','stat'));
+ if(!labels.length)labels.push(text('span',v.indexer_configuration_error||'Kein Indexer konfiguriert','stat'));
+ $('stats').replaceChildren(...labels);return;
+}$('stats').replaceChildren(...v.providers.map(p=>{const s=v.recent_metrics.find(x=>x.provider===p.name);return text('span',p.name+': '+(s ? s.found+' Treffer-Suchen / '+s.errors+' Fehler (letzte '+s.attempts+')' : 'noch ungetestet'),'stat')}));
 if(Array.isArray(v.source_profiles)){
   for(const p of v.source_profiles.filter(x=>x.enabled)){
     const label=p.role==='bibliography'?'Buchdaten':p.role==='epub_catalog'?'EPUB-Katalog':'EPUB-Quelle';
@@ -167,7 +177,7 @@ const active=result.jobs.some(job=>['queued','downloading','staged','delivering'
 if(active)jobTimer=setTimeout(()=>{
  if(document.visibilityState==='visible')loadJobs();
 },5000);
-$('job-message').textContent=result.ingest_configured?'Calibre-Übergabe ist konfiguriert.':'Kein Calibre-Importordner eingestellt. EPUBs bleiben zunächst auf dem Server.';
+$('job-message').textContent=result.legacy_worker_enabled?'Legacy-Modus aktiv.':'Alte Katalogdownloads pausiert. Die Aufträge bleiben erhalten.';
 $('job-rows').replaceChildren(...result.jobs.map(job=>{const row=document.createElement('tr');
 const info=text('td',job.error||((job.file_size||0)?job.file_size+' Bytes':'–'));
 const observations={
@@ -184,7 +194,7 @@ const observations={
 if(job.handoff_observation){
   info.append(text('p', observations[job.handoff_observation]||job.handoff_observation,'muted'));
 }
-if(job.status==='failed'&&['ReadTimeout','ConnectTimeout','ConnectError','ReadError','RemoteProtocolError','PoolTimeout','WriteTimeout','WriteError','http_429','http_500','http_502','http_503','http_504'].includes(job.error)&&job.attempts<3){
+if(result.legacy_worker_enabled&&job.status==='failed'&&['ReadTimeout','ConnectTimeout','ConnectError','ReadError','RemoteProtocolError','PoolTimeout','WriteTimeout','WriteError','http_429','http_500','http_502','http_503','http_504'].includes(job.error)&&job.attempts<3){
 const btn=text('button','Erneut versuchen','action');btn.type='button';btn.addEventListener('click',()=>retryJob(job));info.append(btn);
 }
 if(job.status==='delivered'&&result.library_configured){
@@ -440,40 +450,60 @@ document.querySelectorAll('#search-filters button').forEach(button=>button.addEv
   renderResults();
 }));
 
+
+function releaseCard(item){
+  const card=text('article','','book release-card');
+  card.append(text('div','▤','release-symbol'));
+  const info=text('div','','book-detail');
+  info.append(text('h3',item.title||'Titel nicht angegeben'));
+  info.append(text('p',(item.indexer||'Indexer')+' · '+(item.protocol||'Unbekannt'),'muted'));
+  const labels=text('div','','release-meta');
+  labels.append(text('span',item.language_hint==='de'?'Deutsch (unbestätigt)':item.language_hint==='en'?'Englisch (unbestätigt)':'Sprache unbekannt'));
+  labels.append(text('span',item.format_hint||'Format unbekannt'));
+  if(Number.isInteger(item.size_bytes)&&item.size_bytes>0){
+    labels.append(text('span',(item.size_bytes/1048576).toFixed(1)+' MiB'));
+  }
+  labels.append(text('span','Trefferwert '+item.score+'/100'));
+  info.append(labels);
+  info.append(text('p','Indexer-Eintrag · Datei und Berechtigung nicht verifiziert','muted'));
+  card.append(info);return card;
+}
 $('search').addEventListener('submit',async e=>{
   e.preventDefault();
+  const token=$('token').value;
+  if(!token){$('message').textContent='Bitte zuerst den RoyalBooks-API-Token eingeben.';return}
   $('go').disabled=true;
-  $('message').textContent='Buchkataloge werden durchsucht …';
+  $('message').textContent='Buchindexer werden durchsucht …';
+  $('books').replaceChildren();
   $('search-filters').hidden=true;
   $('search-notice').hidden=true;
-  $('books').replaceChildren();
-  lastSearchResult=null;
   try{
     const params=new URLSearchParams({q:$('q').value.trim(),language:$('language').value});
-    const r=await fetch('/api/search?'+params);
-    if(!r.ok)throw Error('HTTP '+r.status);
-    const result=await r.json();
-    lastSearchResult=result;
-    searchFilter='all';
-    for(const other of document.querySelectorAll('#search-filters button'))
-      other.setAttribute('aria-pressed',String(other.dataset.filter==='all'));
-    const found=result.items||[];
-    const groups=result.display_groups||found.map((_,i)=>({item_indexes:[i]}));
-    const epub=result.search_evidence?.epub_links_listed_unverified??found.filter(item=>item.epub_url).length;
-    const errors=(result.sources||[]).filter(x=>x.status==='error');
-    $('message').textContent=groups.length+' Titelübersichten aus '+found.length+' Katalogeinträgen · '+
-        epub+' EPUB-Link'+(epub===1?'':'s')+' gelistet';
+    const response=await fetch('/api/indexers/search?'+params,{
+      headers:{'X-API-Key':token}
+    });
+    const result=await response.json();
+    if(!response.ok)throw Error(typeof result.detail==='string'?result.detail:'HTTP '+response.status);
+    const items=Array.isArray(result.items)?result.items:[];
+    if(!result.configured){
+      $('message').textContent='Noch kein Buchindexer eingerichtet. Prowlarr oder einen Torznab/Newznab-Indexer auf dem NAS konfigurieren.';
+    }else{
+      const errors=(result.sources||[]).filter(x=>x.status!=='ok');
+      $('message').textContent=items.length+' Suchtreffer · '+(result.sources||[]).length+' Indexer'+
+        (errors.length?' · '+errors.length+' nicht erreichbar':'');
+    }
+    if(!items.length){
+      $('books').append(text('p',result.configured?
+        'Keine passenden Angebote gemeldet. Prüfe deine Indexer-Konfiguration und die gewählte Sprache.':
+        'RoyalBooks ist startklar. Für Suchergebnisse fehlt noch eine konfigurierte Indexer-Verbindung.','muted'));
+    }else $('books').replaceChildren(...items.map(releaseCard));
     const notices=[];
-    if(found.length&&!epub)notices.push('Zu dieser Suche wurden nur Buchdaten gefunden – keine Quelle bietet bislang eine EPUB-Datei an.');
-    if(errors.length)notices.push('Nicht erreichbar: '+errors.map(x=>sourceName(x.provider)).join(', ')+'. Andere Quellen wurden trotzdem durchsucht.');
-    if((result.sources||[]).some(x=>x.provider==='gutenberg_catalog'&&x.status==='empty'))
-      notices.push('Der lokale Gutenberg-Buchkatalog ist eventuell noch nicht geladen (unter „Quellen“ einrichten).');
+    if((result.sources||[]).some(x=>x.status!=='ok'))notices.push('Mindestens ein Indexer ist zurzeit nicht erreichbar.');
+    if(items.length)notices.push('Sprach- und Formatangaben stammen aus Angebotsnamen und sind noch nicht verifiziert.');
     $('search-notice').textContent=notices.join(' ');
     $('search-notice').hidden=!notices.length;
-    $('search-filters').hidden=!found.length;
-    renderResults();
-  }catch(err){$('message').textContent='Suche fehlgeschlagen: '+err.message}
-  finally{$('go').disabled=false;loadStats()}
+  }catch(err){$('message').textContent='Indexer-Suche fehlgeschlagen: '+err.message}
+  finally{$('go').disabled=false}
 });
 loadStats();
 </script></body></html>

@@ -1,6 +1,6 @@
 # RoyalBooks – Book Discovery & Automation
 
-A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Docker hosts. **v0.9 development preview**, not a replacement for Calibre-Web Automated.
+A self-hosted, provider-first ebook discovery tool for Ugreen NAS and other Docker hosts. **v1.0 indexer-first alpha**, not a replacement for Calibre-Web Automated.
 
 ## Features
 - **Two additional direct-EPUB connectors:** public Wikisource WSIndex finished-book catalog + Wikimedia WS Export (German/English), and Standard Ebooks **public recent-release Atom feed only** (English). Each entry must contain an explicit provider-listed EPUB link; no guessed filenames, no user-controlled URLs, no authentication bypass.
@@ -227,3 +227,57 @@ The search API keeps every source-specific record in `items`. `display_groups` i
 The GET /api/providers response now contains source_profiles classifying **bibliography**, **EPUB catalogs** and **publisher-listed EPUB sources**. GET /api/search additionally includes search_evidence with an explicit split between metadata-only results and listed-but-unverified EPUB URLs. No bibliographic result is represented as an acquired file. Open Library work-level language is treated as ambiguous where several editions exist. The changes are backward compatible: existing items, display_groups, acquisition queue, CWA mounts and credentials remain unchanged.
 
 The source research shows that DNB is a strong catalog for identifying German editions and ISBNs, while modern projects such as Bindery, Shelfarr and Librarr use indexers or external services separately from metadata. Actual German file coverage must be measured for each configured source. Upstream comparisons: https://github.com/vavallee/bindery ; https://github.com/Pedro-Revez-Silva/shelfarr ; https://github.com/JeremiahM37/librarr ; https://github.com/selmant/shelfbridge . No external archive or indexer credentials are required or collected by this patch.
+
+## Indexer-first RoyalBooks (v1.0 alpha)
+
+The default search uses ONLY operator-configured Prowlarr, Torznab or Newznab connections.
+Old Open Library, DNB, Google Books, Gutenberg, Wikisource and Standard Ebooks adapters remain in the repository for historic compatibility but are no longer active search providers.
+
+### Configure Prowlarr on your NAS
+
+Set the following variables in your existing .env file:
+
+    ROYALBOOKS_PROWLARR_URL=http://prowlarr:9696
+    ROYALBOOKS_PROWLARR_API_KEY=REPLACE_WITH_YOUR_API_KEY
+
+The hostname prowlarr resolves only if your Docker network connects both containers.
+Otherwise use a reachable NAS LAN IP or an HTTPS address. Nothing is installed automatically.
+RoyalBooks keeps the credentials on the server; the browser authenticates to RoyalBooks
+with ROYALBOOKS_API_TOKEN, entered in the top search form.
+
+### Add Torznab or Newznab endpoints
+
+Copy docs/indexers.example.json to the persistent data/indexers.json and edit only
+the values for your own indexers. Configure URLs through the JSON file, not in browser
+parameters. The running container must be able to read /data/indexers.json.
+Both protocols request category 7020 (Books/EBook). Up to eight entries are supported.
+HTTP is accepted only for private/loopback addresses and simple Docker hostnames;
+use HTTPS for remote indexer services.
+
+### Search quality and safety
+
+RoyalBooks queries configured indexers in parallel and scores result names by
+title-word overlap, advertised EPUB/AZW3/PDF markers, and German/English labels.
+Language and format are *unverified filename hints*. Unmarked language stays unknown.
+Only sanitized title, indexer, protocol, filesize and score are sent to the browser.
+No NZB, magnet or download URLs are returned or automatically imported.
+
+### Migration without data loss
+
+The old SQLite database, watchlist and job history are preserved. Legacy Gutenberg
+background downloads and new public catalog imports are disabled by default.
+Explicit ROYALBOOKS_ENABLE_LEGACY_WORKER=1 restores old processing if necessary
+for independently authorized legacy material. Without it, legacy write endpoints
+return HTTP 410. The existing Calibre-Web Automated bind mounts are unchanged.
+The indexer feature currently provides read-only search, not automatic downloads.
+
+### Relevant upstream implementations
+
+- Bindery: https://github.com/vavallee/bindery
+- Shelfarr: https://github.com/Pedro-Revez-Silva/shelfarr
+- Librarr: https://github.com/JeremiahM37/librarr
+- ShelfBridge: https://github.com/selmant/shelfbridge
+
+These projects separate metadata/catalog search from externally configured indexers.
+Their support for German files depends on live provider availability and is not guaranteed.
+Third-party archives with fluctuating mirrors are not installed as fixed source adapters.

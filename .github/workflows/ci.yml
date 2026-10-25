@@ -39,6 +39,8 @@ jobs:
         run: pytest -q tests/test_direct_sources.py
       - name: Provider evidence contract (offline)
         run: pytest -q tests/test_source_profiles.py
+      - name: Indexer-first API checks
+        run: pytest -q tests/test_indexer_search.py
       - name: Build image
         run: docker build -t royalbooks:test .
       - name: Verify runtime non-root user can import source from image

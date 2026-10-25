@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Mein EBook Indexer",
+    "kind": "torznab",
+    "url": "https://indexer.example.org/api",
+    "api_key": "CHANGE_ME"
+  },
+  {
+    "name": "Zweiter Indexer",
+    "kind": "newznab",
+    "url": "https://other.example.net/api",
+    "api_key": "CHANGE_ME"
+  }
+]

@@ -184,6 +184,7 @@ async def test_blocked_gutendex_does_not_block_first_party_job(indexed, monkeypa
 @pytest.mark.asyncio
 async def test_api_rejects_catalog_job_before_formats_import(tmp_path, monkeypatch):
     monkeypatch.setenv("ROYALBOOKS_API_TOKEN", "testing-token")
+    monkeypatch.setenv("ROYALBOOKS_ENABLE_LEGACY_WORKER", "1")
     app.state.jobs = JobStore(str(tmp_path/"db.sqlite3"))
     payload={"provider":"gutenberg_catalog","source_id":42,"rights_confirmed":True}
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
@@ -197,6 +198,7 @@ async def test_api_accepts_rights_confirmed_first_party_metadata(indexed,monkeyp
     rdf, db = indexed
     import_rdf_archive(rdf, db)
     monkeypatch.setenv("ROYALBOOKS_API_TOKEN", "testing-token")
+    monkeypatch.setenv("ROYALBOOKS_ENABLE_LEGACY_WORKER", "1")
     app.state.jobs = JobStore(str(db))
     payload={"provider":"gutenberg_catalog","source_id":42,"rights_confirmed":True}
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url="http://test") as client:
