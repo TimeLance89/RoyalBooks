@@ -11,6 +11,7 @@ from royalbooks.database import connect as db_connect
 import uuid
 import zipfile
 from time import monotonic
+import time
 from pathlib import Path, PurePosixPath
 from urllib.parse import urljoin, urlsplit, parse_qs
 from defusedxml import ElementTree
@@ -19,16 +20,18 @@ import httpx
 
 from royalbooks.providers import Gutendex, ProviderError
 from royalbooks.direct_sources import SOURCES, lookup_epub as lookup_direct_epub, safe_epub_url
-from royalbooks.libgen_links import resolve_epub, safe_file_url
+from royalbooks.libgen_links import resolve_epub, safe_file_url, catalog_mirrors
 
 MAX_BYTES = 32 * 1024 * 1024
 MAX_UNCOMPRESSED = 160 * 1024 * 1024
 TRUSTED_HOSTS = {"gutenberg.org", "www.gutenberg.org", "gutenberg.pglaf.org"}
 MAX_ATTEMPTS = 3
+RETRY_DELAYS = (60, 300)
 RETRYABLE_ERRORS = {
     "ReadTimeout", "ConnectTimeout", "ConnectError", "ReadError",
     "RemoteProtocolError", "PoolTimeout", "WriteTimeout", "WriteError",
     "http_429", "http_500", "http_502", "http_503", "http_504",
+    "libgen_catalog_unavailable",
 }
 
 
@@ -111,6 +114,8 @@ class JobStore:
             if "v2_authorized" not in columns:
                 # Existing queued jobs remain preserved but paused on upgrade.
                 db.execute("ALTER TABLE jobs ADD COLUMN v2_authorized INTEGER NOT NULL DEFAULT 0")
+            if "retry_at" not in columns:
+                db.execute("ALTER TABLE jobs ADD COLUMN retry_at INTEGER")
             # Download attempts are counted on claim, including interrupted attempts.
             db.execute("""UPDATE jobs SET status='failed', error='interrupted_attempt_limit',
                         updated_at=CURRENT_TIMESTAMP
@@ -154,6 +159,9 @@ class JobStore:
                                 WHERE status='queued' AND attempts >= ?""", (MAX_ATTEMPTS,))
                 sql = 'SELECT * FROM jobs WHERE status=?'
                 args = [status]
+                if status == 'queued':
+                    sql += ' AND (retry_at IS NULL OR retry_at<=?)'
+                    args.append(int(time.time()))
                 if source is not None:
                     sql += ' AND source=?'
                     args.append(source)
@@ -163,7 +171,7 @@ class JobStore:
                 if row:
                     next_status = 'downloading' if status == 'queued' else 'delivering'
                     db.execute("""UPDATE jobs
-                        SET status=?, attempts=attempts+CASE WHEN ?='queued' THEN 1 ELSE 0 END,
+                        SET status=?, retry_at=NULL, attempts=attempts+CASE WHEN ?='queued' THEN 1 ELSE 0 END,
                         updated_at=CURRENT_TIMESTAMP WHERE id=? AND status=?""",
                         (next_status, status, row['id'], status))
                     return dict(row)
@@ -172,7 +180,7 @@ class JobStore:
     def update(self, job_id: str, status: str, *, error: str | None = None,
                sha256: str | None = None, file_size: int | None = None) -> None:
         with self._db() as db:
-            db.execute("""UPDATE jobs SET status=?,error=?,sha256=COALESCE(?,sha256),
+            db.execute("""UPDATE jobs SET status=?,error=?,retry_at=NULL,sha256=COALESCE(?,sha256),
                        file_size=COALESCE(?,file_size),updated_at=CURRENT_TIMESTAMP WHERE id=?""",
                        (status, error, sha256, file_size, job_id))
 
@@ -200,11 +208,29 @@ class JobStore:
                 raise JobStateError("error_not_retryable")
             if row["attempts"] >= MAX_ATTEMPTS:
                 raise JobStateError("retry_limit_reached")
-            db.execute("""UPDATE jobs SET status='queued',error=NULL,sha256=NULL,
+            db.execute("""UPDATE jobs SET status='queued',error=NULL,retry_at=NULL,sha256=NULL,
                         v2_authorized=CASE WHEN ? THEN 1 ELSE v2_authorized END,
                         file_size=NULL,updated_at=CURRENT_TIMESTAMP
                         WHERE id=? AND status='failed'""", (int(v2_authorized), job_id))
             return dict(db.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone())
+
+    def schedule_retries(self, *, include_legacy: bool = False) -> int:
+        """Persist delayed retries without reviving historical or uncertain handoffs."""
+        now = int(time.time())
+        with self._db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            rows = db.execute("""SELECT id,error,attempts FROM jobs WHERE status='failed'
+                AND attempts>0 AND attempts<? AND (v2_authorized=1 OR ?=1)""",
+                (MAX_ATTEMPTS, int(include_legacy))).fetchall()
+            count = 0
+            for row in rows:
+                if row['error'] not in RETRYABLE_ERRORS:
+                    continue
+                db.execute("""UPDATE jobs SET status='queued',retry_at=?,sha256=NULL,file_size=NULL,
+                    updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='failed'""",
+                    (now + RETRY_DELAYS[row['attempts'] - 1], row['id']))
+                count += 1
+            return count
 
 
 async def download_epub(client: httpx.AsyncClient, url: str, destination: Path, source: str = "gutendex") -> int:
@@ -240,6 +266,32 @@ async def download_epub(client: httpx.AsyncClient, url: str, destination: Path, 
     raise AcquisitionError("too_many_redirects")
 
 
+async def download_libgen(client: httpx.AsyncClient, catalog_url: str, destination: Path) -> int:
+    """Try a fresh source-issued key per mirror, never switch the selected MD5."""
+    transient = None
+    for catalog in catalog_mirrors(catalog_url):
+        try:
+            url = await resolve_epub(client, catalog)
+            return await download_epub(client, url, destination, source='libgen')
+        except (httpx.HTTPError, ProviderError) as exc:
+            if isinstance(exc, httpx.HTTPStatusError):
+                code = f'http_{exc.response.status_code}'
+            elif isinstance(exc, ProviderError):
+                code = str(exc)
+            else:
+                code = type(exc).__name__
+            # Refusals, throttling, login redirects and unsafe redirects are final here.
+            if code not in (RETRYABLE_ERRORS - {'http_429'}) | {
+                'http_404', 'http_410', 'libgen_download_link_missing',
+            }:
+                raise
+            if code in RETRYABLE_ERRORS:
+                transient = exc
+            destination.unlink(missing_ok=True)
+            last = exc
+    raise transient or last
+
+
 async def process_queued(job: dict, store: JobStore, staging: Path, client: httpx.AsyncClient,
                          provider: Gutendex | None = None, *, availability=None) -> None:
     temporary = staging / (job['id'] + '.part')
@@ -258,7 +310,6 @@ async def process_queued(job: dict, store: JobStore, staging: Path, client: http
                 raise AcquisitionError("publisher_epub_metadata_missing_or_expired")
             if job['source'] == 'libgen':
                 expected_md5 = parse_qs(urlsplit(url).query)['md5'][0].lower()
-                url = await resolve_epub(client, url)
         elif job["source"] == "gutendex":
             catalog = provider if provider is not None else Gutendex()
             item = await catalog.get_json(client, f"https://gutendex.com/books/{job['source_id']}/", {})
@@ -270,7 +321,10 @@ async def process_queued(job: dict, store: JobStore, staging: Path, client: http
                 raise AcquisitionError('no_trusted_epub')
         else:
             raise AcquisitionError("unsupported_source")
-        size = await download_epub(client, url, temporary, source=job["source"])
+        if job['source'] == 'libgen':
+            size = await download_libgen(client, url, temporary)
+        else:
+            size = await download_epub(client, url, temporary, source=job["source"])
         digest = validate_epub(temporary)
         if job['source'] == 'libgen':
             with temporary.open('rb') as downloaded:
@@ -340,6 +394,7 @@ async def worker(store: JobStore, data_dir: Path, ingest: Path | None,
     async with httpx.AsyncClient(timeout=httpx.Timeout(20.0), follow_redirects=False, trust_env=False,
                                  headers={'User-Agent': 'RoyalBooks/2.0 (https://github.com/TimeLance89/RoyalBooks)'}) as client:
         while True:
+            await asyncio.to_thread(store.schedule_retries, include_legacy=include_legacy)
             if ingest is not None:
                 job = await asyncio.to_thread(store.claim, ('staged',), v2_only=not include_legacy)
                 if job:

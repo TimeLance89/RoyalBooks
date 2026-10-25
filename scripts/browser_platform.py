@@ -110,6 +110,18 @@ def main():
                         page.wait_for_function("!document.querySelector('#author-go').disabled")
                         page.locator('#author-available-only').check()
                         page.wait_for_function("document.querySelectorAll('#author-books .book').length===101",timeout=15000)
+                    page.route('**/api/jobs',lambda route:route.fulfill(json={
+                        'downloads_enabled':True,'legacy_worker_enabled':False,
+                        'jobs':[{'id':'a'*32,'source':'libgen','source_id':1,
+                            'status':'queued','v2_authorized':1,'attempts':1,
+                            'error':'http_503','retry_at':int(time.time())+60,
+                            'book':{'title':'Automatischer Download','authors':['Testautor']}}]}))
+                    page.goto(base+'/downloads')
+                    page.wait_for_selector('#job-rows tr')
+                    assert 'Wiederholung geplant' in page.locator('#job-rows').inner_text()
+                    assert 'Automatischer nächster Versuch um' in page.locator('#job-rows').inner_text()
+                    assert page.get_by_role('button',name='Erneut versuchen',exact=True).count()==0
+                    assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
                     assert not errors,errors
                     page.close();print(name+': author pages/paging, file-only offers, unavailable-download gating, settings persistence, separate routes, ISBN validation and browser history OK')
                 browser.close()

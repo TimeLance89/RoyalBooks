@@ -49,6 +49,16 @@ def safe_file_url(url: str) -> bool:
             and bool(re.fullmatch(r'[A-Za-z0-9_-]{8,128}', args['key'][0])))
 
 
+def catalog_mirrors(catalog_url: str) -> list[str]:
+    """Known catalog mirrors for exactly the selected file, original origin first."""
+    if not safe_catalog_url(catalog_url):
+        raise ProviderError('untrusted_libgen_catalog')
+    parts = urlsplit(catalog_url)
+    md5 = parse_qs(parts.query)['md5'][0].lower()
+    hosts = [parts.hostname, *(host for host in CATALOG_HOSTS if host != parts.hostname)]
+    return [f'https://{host}/ads.php?md5={md5}' for host in hosts]
+
+
 class _Links(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -87,4 +97,7 @@ async def resolve_epub(client: httpx.AsyncClient, catalog_url: str) -> str:
             data.extend(chunk)
             if len(data) > MAX_PAGE:
                 raise ProviderError('libgen_page_too_large')
-    return parse_get_link(data.decode('utf-8', errors='replace'), catalog_url)
+    page = data.decode('utf-8', errors='replace')
+    if re.search(r'<title>\s*Welcome to nginx!\s*</title>', page, re.IGNORECASE):
+        raise ProviderError('libgen_catalog_unavailable')
+    return parse_get_link(page, catalog_url)

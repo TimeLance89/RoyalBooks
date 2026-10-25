@@ -171,3 +171,59 @@ async def test_libgen_api_requires_consent_and_server_indexed_identifier(tmp_pat
 def test_database_overload_is_not_misclassified_as_access_challenge():
     with pytest.raises(ValueError, match='catalogue_overloaded'):
         parse_html('<div class="alert-danger">max_user_connections exceeded</div>')
+
+
+@pytest.mark.asyncio
+async def test_mirror_fallback_fetches_new_key_for_same_file_and_replaces_partial(tmp_path):
+    from royalbooks.jobs import download_libgen
+    seen=[]
+    def handler(request):
+        seen.append((request.url.host,request.url.path))
+        assert request.url.params['md5'] == HASH
+        if request.url.path == '/ads.php':
+            return httpx.Response(200,text=f'<a href="/get.php?md5={HASH}&amp;key=FRESHKEY1234">GET</a>')
+        if request.url.host == 'libgen.li':return httpx.Response(500)
+        assert request.url.host == 'libgen.gl'
+        assert request.url.params['key'] == 'FRESHKEY1234'
+        return httpx.Response(200,content=epub())
+    destination=tmp_path/'download.part';destination.write_bytes(b'old partial bytes')
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        assert await download_libgen(client,CATALOG,destination) == len(epub())
+    assert destination.read_bytes() == epub()
+    assert seen == [('libgen.li','/ads.php'),('libgen.li','/get.php'),
+                    ('libgen.gl','/ads.php'),('libgen.gl','/get.php')]
+
+
+@pytest.mark.parametrize('code',[403,451,429,302])
+@pytest.mark.asyncio
+async def test_mirror_fallback_stops_on_refusal_throttle_or_login(tmp_path,code):
+    from royalbooks.jobs import download_libgen
+    seen=[]
+    def handler(request):
+        seen.append(request.url.host)
+        return httpx.Response(code,headers={'location':'https://example.org/login'})
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(ProviderError,match=f'http_{code}'):
+            await download_libgen(client,CATALOG,tmp_path/'file.part')
+    assert seen == ['libgen.li']
+
+
+@pytest.mark.asyncio
+async def test_all_mirror_failures_preserve_transient_error(tmp_path):
+    from royalbooks.jobs import download_libgen
+    seen=[]
+    def handler(request):
+        seen.append(request.url.host)
+        return httpx.Response(503 if request.url.host == 'libgen.li' else 404)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(ProviderError,match='http_503'):
+            await download_libgen(client,CATALOG,tmp_path/'file.part')
+    assert len(seen) == 4
+
+
+@pytest.mark.asyncio
+async def test_nginx_placeholder_is_transient_not_a_missing_book():
+    async with httpx.AsyncClient(transport=httpx.MockTransport(lambda _:httpx.Response(
+        200,text='<html><title>Welcome to nginx!</title></html>'))) as client:
+        with pytest.raises(ProviderError,match='libgen_catalog_unavailable'):
+            await resolve_epub(client,CATALOG)

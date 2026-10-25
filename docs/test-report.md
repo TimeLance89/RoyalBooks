@@ -302,3 +302,34 @@ horizontal overflow. Both catalogue sources were reachable in that later live
 check; eleven entries were EPUB candidates, not asserted completed downloads.
 Slow cover images retain their title placeholder until a usable image loads;
 the platform browser test delays an image response to verify that behavior.
+
+
+## Persistent acquisition retries and same-file mirror fallback (2026-10-25)
+
+Transient transport/HTTP failures now automatically move authorized jobs into a
+persisted, delayed queue: 60 seconds after attempt one, 300 after attempt two,
+three total attempts. SQLite `retry_at` survives restart. Ready jobs bypass delayed
+jobs. Historical consent, permanent failures and ambiguous Calibre handoffs remain
+protected. Downloads displays the scheduled local time and keeps polling.
+
+Each LibGen attempt tries the four existing pinned catalog mirrors for the exact
+selected MD5, obtaining a new source-issued GET key for each. Transient errors,
+missing links and missing-file responses permit fallback. HTTP 403/451/429,
+login redirects and unsafe destinations stop that mirror sequence. Full EPUB,
+CRC, MD5 and duplicate checks still precede handoff. A nginx default page is
+classified as a temporary catalog outage, not a successful EPUB or a missing book.
+
+Validation: Windows 270 passed and two existing symlink permission skips; Linux
+candidate container 272 passed. New tests verify retry timing/persistence,
+non-blocking scheduling, attempt caps, consent, protected handoff states, a real
+worker HTTP-503 -> automatic retry -> validated EPUB -> single ingest handoff,
+fresh mirror keys, same-MD5 pinning and stop conditions. Platform Chromium checks
+verify scheduled retry status at 1440/390/320 pixels. Live NAS checks at those
+widths show one authorized delayed retry with no JavaScript errors or horizontal
+overflow. The exhausted three-attempt job remains failed.
+
+Read-only NAS audit of both previously failed LibGen files: all four catalog
+origins returned no GET link; an inspected HTTP-200 response was the nginx welcome
+page. This is an upstream outage, not evidence of a working file. The deployment
+does not claim these two books were recovered. Prior image and SQLite backup were
+retained before recreating only RoyalBooks, after confirming no active transfer.

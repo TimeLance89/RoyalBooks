@@ -95,11 +95,21 @@ history and management remain token-protected.
 ## Safe upgrade
 
 Back up the SQLite database and current Compose/.env files before upgrading.
-Migrations only add the `jobs.v2_authorized` column when absent. Existing books,
+Job migrations add `v2_authorized` and `retry_at` when absent. Existing books,
 watchlist and job history are preserved. Historic queued/staged jobs are paused
 unless the legacy flag is explicitly enabled. A newly confirmed request can
 release the corresponding old queued job; retry remains limited to classified
 transient errors and three total attempts. Ambiguous handoffs require review.
+
+Authorized downloads automatically retry transient network/server failures after
+60 and 300 seconds, with at most three total job attempts. The next retry time is
+stored in SQLite and shown in Downloads; waiting retries do not block other books.
+LibGen transfers try the four pinned catalog mirrors for the same MD5, obtaining
+a fresh source-issued key from each. Refusals, throttling, login redirects and
+untrusted destinations stop that mirror sequence. Missing files and invalid EPUBs
+are not reported as successes; every successful transfer still passes the full
+EPUB/CRC and source MD5 checks. Mirrors may share the same upstream outage, so this
+does not guarantee availability for every listed book.
 
 No automatic bulk Gutenberg import runs on startup. The optional catalog
 controls download official CSV/RDF feeds only after an administrator requests

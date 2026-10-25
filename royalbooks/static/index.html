@@ -321,6 +321,11 @@ $('job-message').textContent=result.downloads_enabled?'Downloads aktiv. Historis
 $('job-rows').replaceChildren(...result.jobs.filter(job=>jobFilter==='all'||(jobFilter==='active'?['queued','downloading','staged','delivering'].includes(job.status):job.status===jobFilter)).map(job=>{const row=document.createElement('tr');
 const jobErrors={http_500:'Der Dateiserver meldet einen Fehler. Eine andere Ausgabe kann funktionieren.',http_502:'Der Dateiserver ist vorübergehend nicht erreichbar.',http_503:'Der Dateiserver ist gerade überlastet.',http_504:'Der Dateiserver antwortet zu langsam.',http_404:'Diese Datei ist auf dem Server nicht mehr vorhanden.',ReadTimeout:'Die Übertragung wurde wegen einer zu langsamen Serverantwort beendet.',ConnectTimeout:'Die Verbindung zum Dateiserver dauert zu lange.',duplicate_epub:'Diese Datei wurde bereits von RoyalBooks übernommen.',untrusted_redirect:'Die Quelle verweist auf einen noch nicht freigegebenen Downloadserver.',catalog_md5_mismatch:'Die Datei stimmt nicht mit der ausgewählten Ausgabe überein.',publisher_epub_metadata_missing_or_expired:'Der Dateieintrag ist abgelaufen. Bitte die Suche erneut öffnen.'};
 const info=text('td',(jobErrors[job.error]||job.error)||((job.file_size||0)?job.file_size+' Bytes':'–'));
+if(job.error==='libgen_catalog_unavailable')info.textContent='Die Quelle liefert derzeit nur eine Server-Standardseite statt des Buchkatalogs.';
+if(job.error==='libgen_download_link_missing')info.textContent='Für diese Datei liefert aktuell keiner der geprüften Spiegel einen Downloadlink.';
+if(job.status==='queued'&&job.retry_at){
+ info.append(text('p','Automatischer nächster Versuch um '+new Date(job.retry_at*1000).toLocaleTimeString('de-DE')+'.','muted'));
+}
 const observations={
  awaiting_ingest:'EPUB liegt noch im Importordner',
  file_absent_unverified:'EPUB nicht mehr im Importordner – Import unbestätigt',
@@ -335,7 +340,7 @@ const observations={
 if(job.handoff_observation){
   info.append(text('p', observations[job.handoff_observation]||job.handoff_observation,'muted'));
 }
-if(result.downloads_enabled&&job.status==='failed'&&['ReadTimeout','ConnectTimeout','ConnectError','ReadError','RemoteProtocolError','PoolTimeout','WriteTimeout','WriteError','http_429','http_500','http_502','http_503','http_504'].includes(job.error)&&job.attempts<3){
+if(result.downloads_enabled&&job.status==='failed'&&['ReadTimeout','ConnectTimeout','ConnectError','ReadError','RemoteProtocolError','PoolTimeout','WriteTimeout','WriteError','http_429','http_500','http_502','http_503','http_504','libgen_catalog_unavailable'].includes(job.error)&&job.attempts<3){
 const btn=text('button','Erneut versuchen','action');btn.type='button';btn.addEventListener('click',()=>retryJob(job));info.append(btn);
 }
 if(job.status==='delivered'&&result.library_configured){
@@ -343,7 +348,7 @@ if(job.status==='delivered'&&result.library_configured){
  b.addEventListener('click',()=>checkLibrary(job));info.append(b);
 }
 const identity=text('td','');const label=text('div','','job-book');if(job.book?.cover_url&&coverUrl(job.book.cover_url)){const image=document.createElement('img');image.src=coverUrl(job.book.cover_url);image.alt='';image.loading='lazy';label.append(image)}const words=text('div','');words.append(text('strong',job.book?.title||sourceName(job.source)+' · EPUB'),text('small',job.book?.authors?.join(', ')||'Auftrag '+job.source_id));label.append(words);identity.append(label);
-row.append(identity,text('td',((job.status==='queued'&&!job.v2_authorized&&!result.legacy_worker_enabled)?'Historisch · pausiert':(jobStatusLabels[job.status]||job.status))+' · Versuch '+job.attempts+'/3'),info);['Buch / Quelle','Status','Details'].forEach((label,i)=>row.children[i].dataset.label=label);return row}))}catch(err){$('job-message').textContent='Aufträge nicht abrufbar: '+err.message}}
+row.append(identity,text('td',((job.status==='queued'&&!job.v2_authorized&&!result.legacy_worker_enabled)?'Historisch · pausiert':job.status==='queued'&&job.retry_at?'Wiederholung geplant':(jobStatusLabels[job.status]||job.status))+' · Versuch '+job.attempts+'/3'),info);['Buch / Quelle','Status','Details'].forEach((label,i)=>row.children[i].dataset.label=label);return row}))}catch(err){$('job-message').textContent='Aufträge nicht abrufbar: '+err.message}}
 async function retryJob(job){
 if(!confirm('Darf dieses Buch weiterhin rechtmäßig heruntergeladen werden, und möchtest du den Auftrag erneut starten?'))return;
 const token=$('token').value;if(!token&&!adminAuthenticated){$('job-message').textContent='API-Token fehlt.';return}

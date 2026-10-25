@@ -164,3 +164,81 @@ def test_duplicate_sha_respects_manual_review(tmp_path):
     second = store.add(102)
     store.update(first["id"], "needs_review", sha256="x"*64)
     assert store.sha_exists("x"*64, second["id"])
+
+
+def test_automatic_retry_survives_restart_and_does_not_block_ready_jobs(tmp_path, monkeypatch):
+    monkeypatch.setattr('royalbooks.jobs.time.time', lambda: 1000)
+    path = str(tmp_path/'jobs.db')
+    store = JobStore(path)
+    job = store.add(1, v2_authorized=True)
+    store.claim(('queued',))
+    store.update(job['id'], 'failed', error='http_503')
+    assert store.schedule_retries() == 1
+    assert store.get(job['id'])['retry_at'] == 1060
+    assert store.schedule_retries() == 0
+    store = JobStore(path)
+    assert store.get(job['id'])['retry_at'] == 1060
+    assert store.claim(('queued',)) is None
+    ready = store.add(2, v2_authorized=True)
+    assert store.claim(('queued',))['id'] == ready['id']
+    monkeypatch.setattr('royalbooks.jobs.time.time', lambda: 1060)
+    assert store.claim(('queued',))['id'] == job['id']
+    assert store.get(job['id'])['retry_at'] is None
+    store.update(job['id'], 'failed', error='ReadTimeout')
+    assert store.schedule_retries() == 1
+    assert store.get(job['id'])['retry_at'] == 1360
+    monkeypatch.setattr('royalbooks.jobs.time.time', lambda: 1360)
+    assert store.claim(('queued',))['id'] == job['id']
+    store.update(job['id'], 'failed', error='http_500')
+    assert store.schedule_retries() == 0
+    assert store.get(job['id'])['attempts'] == 3
+
+
+@pytest.mark.parametrize('status,error,authorized,attempts', [
+    ('failed','http_500',False,1), ('failed','http_403',True,1),
+    ('failed','invalid_epub_archive',True,1), ('failed','http_500',True,3),
+    ('failed','http_500',True,0), ('needs_review','ReadTimeout',True,1),
+    ('delivered','ReadTimeout',True,1),
+])
+def test_automatic_retry_preserves_consent_limits_and_handoffs(tmp_path,status,error,authorized,attempts):
+    store = JobStore(str(tmp_path/'jobs.db'))
+    job = store.add(1, v2_authorized=authorized)
+    with store._db() as db:
+        db.execute('UPDATE jobs SET status=?,error=?,attempts=? WHERE id=?',
+                   (status,error,attempts,job['id']))
+    assert store.schedule_retries() == 0
+    assert store.get(job['id'])['status'] == status
+
+
+@pytest.mark.asyncio
+async def test_worker_schedules_retry_then_completes_handoff(tmp_path, monkeypatch):
+    from royalbooks.jobs import worker
+    monkeypatch.setattr('royalbooks.jobs.RETRY_DELAYS', (0,0))
+    store = JobStore(str(tmp_path/'jobs.db'))
+    job = store.add(7, v2_authorized=True)
+    ingest = tmp_path/'ingest';ingest.mkdir()
+    completed = asyncio.Event()
+    def handler(req):
+        if req.url.host == 'gutendex.com':
+            return httpx.Response(200,json={'id':7,'copyright':False,
+                'formats':{'application/epub+zip':'https://www.gutenberg.org/ebooks/7.epub'}})
+        if store.get(job['id'])['attempts'] == 1:
+            return httpx.Response(503)
+        return httpx.Response(200, content=epub_bytes())
+    original_client = httpx.AsyncClient
+    monkeypatch.setattr('royalbooks.jobs.httpx.AsyncClient',
+        lambda **kwargs: original_client(transport=httpx.MockTransport(handler),**kwargs))
+    real_deliver = deliver_staged
+    def observed_deliver(*args):
+        real_deliver(*args)
+        completed.set()
+    monkeypatch.setattr('royalbooks.jobs.deliver_staged', observed_deliver)
+    task = asyncio.create_task(worker(store,tmp_path,ingest,include_legacy=False))
+    try:
+        await asyncio.wait_for(completed.wait(),timeout=5)
+    finally:
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):await task
+    assert store.get(job['id'])['status'] == 'delivered'
+    assert store.get(job['id'])['attempts'] == 2
+    assert len(list(ingest.glob('*.epub'))) == 1
