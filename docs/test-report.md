@@ -237,3 +237,17 @@ cache when catalog results register the thumbnail URL again. A versioned browser
 URL bypasses the previous one-day thumbnail cache. Open Library covers use its
 large variant. Existing origin, redirect, JPEG and 512-KiB limits remain intact.
 Twelve artwork checks and the three-width storefront browser suite passed.
+
+## Book-first interface revision (2026-10-25)
+
+Reworked search cards and the shared catalogue/library book dialog around cover,
+title and primary actions. Desktop details use a 1080-pixel two-column layout;
+mobile uses a compact cover/title header with full-width controls below it.
+A single edition selector replaces repeated action blocks. All source records,
+ISBNs and technical evidence remain available in a closed disclosure. The
+selected edition retains its exact acquisition ID and reachability gating.
+Search cards now use larger, uncropped covers and readable type, with an explicit
+route from the cover to details. Duplicate technical metadata is removed from
+the cards. Artwork remains original-resolution and no description is invented.
+Chromium checks cover edition switching, disabled/non-file options, collapsed
+ISBN disclosure, dialog width/overflow, keyboard dismissal and existing flows.

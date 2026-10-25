@@ -26,6 +26,103 @@
 .result-actions{display:grid;grid-template-columns:minmax(0,1fr) 42px;gap:7px;margin-top:12px}.book .result-actions>.action{margin:0;min-height:42px;width:100%;padding:9px 6px;display:flex;font-size:11px}.book .result-actions>.save-action{font-size:0}.result-actions>.save-action:before{content:none;font-size:22px;font-weight:400}.result-actions>.download-action{grid-column:1/-1}.book .file-info{margin-top:10px;padding-top:10px}.book .author-link{display:block!important;line-height:1.5;min-height:25px}
 
 .save-action svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6}
+/* Book-first layout: readable catalogue, spacious book details, quiet metadata. */
+.app-main{max-width:1760px}
+.nav-link{font-size:14px}.topbar-title{font-size:14px}
+.search-area{padding:30px 32px;background:var(--surface);border-radius:14px}
+.search-area .hero h1{font-family:Georgia,'Times New Roman',serif;font-size:42px;font-weight:400;letter-spacing:-.035em}
+.search-area .hero p{font-size:15px}.search-mode-bar button{font-size:14px;min-height:42px}
+#search{gap:12px;margin-top:18px}#search input,#search select,#search button{font-size:15px;min-height:50px}
+.search-controls{padding-top:12px}.availability-toggle,.search-result-note{font-size:13px}
+.result-toolbar{margin:32px 0 24px}.result-toolbar h2{font-size:24px}.result-toolbar select{font-size:14px}
+.cards{grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:34px 28px}
+.book{padding:0;border:0;border-radius:0;background:transparent;display:flex;flex-direction:column;align-self:stretch}
+.book .cover-slot{display:block;flex:none;width:100%;height:300px;max-width:none;min-height:0;margin:0 0 18px;padding:24px;border:1px solid var(--line)!important;border-radius:10px;background:var(--surface)!important;box-shadow:none;overflow:hidden}
+.book .cover{inset:24px;width:calc(100% - 48px);height:calc(100% - 48px);object-fit:contain;filter:drop-shadow(3px 6px 6px #0003)}
+.book .cover-fallback{inset:24px 38px;background:var(--jacket);border:0;box-shadow:3px 6px 10px #0002;border-radius:2px 5px 5px 2px;padding:18px;font-size:24px}
+.book:has(.cover) .cover-fallback{display:none}
+.book .book-detail{display:flex;flex-direction:column;flex:1;min-width:0}
+.book h3{font:400 22px/1.3 Georgia,'Times New Roman',serif;letter-spacing:-.025em;margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.book .author-link{font-size:14px!important;line-height:1.5;min-height:30px;margin-bottom:5px}
+.book .availability-badge{align-self:flex-start;font-size:11px!important;padding:5px 8px}
+:root[data-theme=dark] .availability-badge[data-state=available]{color:#8ed2ab;background:#17352a}
+.book .result-badges{margin:5px 0 0;gap:9px}.book .result-badges .book-source{width:100%;font-size:11px}.book .result-badges span{font-size:12px;padding:0;border:0;background:transparent;color:var(--muted)}
+.book .result-excerpt{display:none}
+.book .result-actions{margin-top:auto;padding-top:16px;gap:8px}
+.book .result-actions>.action{font-size:13px;min-height:44px;border-radius:7px}
+.book .result-actions>.save-action{font-size:0}
+.book .result-actions>.subtle{background:transparent;border-color:var(--line)}
+.book .editions-link{align-self:flex-start;background:transparent!important;color:var(--muted)!important;border:0!important;padding:9px 0 0;min-height:32px;font-size:12px;font-weight:400}
+.book .editions-link:hover{text-decoration:underline}
+#book-dialog{box-sizing:border-box;width:min(1080px,calc(100% - 64px));max-width:none;max-height:calc(100dvh - 64px);padding:0;overflow:auto;border-radius:18px;box-shadow:0 30px 100px #0007;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+#book-dialog::backdrop{background:#040609ba;backdrop-filter:blur(5px)}
+#close-detail{position:sticky;top:18px;float:right;z-index:2;margin:18px 22px 0 0;min-height:40px;padding:9px 13px;font-size:13px;background:var(--surface);border-color:var(--line)}
+#detail-content{clear:both;padding:24px 48px 40px}
+.book-hero{display:grid;grid-template-columns:240px minmax(0,1fr);gap:44px;align-items:start}
+.book-art{position:sticky;top:72px}.book-art .jacket{aspect-ratio:2/3;border-radius:3px 7px 7px 3px;box-shadow:8px 14px 28px #0003}
+.book-art .jacket img{object-fit:contain;background:var(--surface)}
+.book-overview{min-width:0}.detail-author{font-size:15px;color:var(--muted)!important;background:transparent!important;border:0!important;padding:0;min-height:28px;text-align:left;font-weight:400}
+#detail-title{font:400 clamp(30px,3vw,43px)/1.13 Georgia,'Times New Roman',serif;letter-spacing:-.035em;margin:10px 0 18px;max-width:22ch}
+.book-facts{display:flex;gap:14px;flex-wrap:wrap;font-size:14px;color:var(--muted);margin:0 0 26px}
+.book-facts span+span{border-left:1px solid var(--line);padding-left:14px}
+.edition-selection{border-top:1px solid var(--line);padding-top:22px}.edition-selection label{display:block;font-size:13px;color:var(--muted);margin-bottom:9px}
+.edition-selection select{display:block;width:100%;max-width:100%;font-size:14px;min-height:46px;text-overflow:ellipsis;margin-bottom:12px}
+.selected-edition>.availability-badge{font-size:12px!important;margin:0 0 12px}
+.detail-actions{display:flex;gap:10px;flex-wrap:wrap;margin:0}
+.detail-actions .action{margin:0;min-height:48px;padding:12px 18px;font-size:14px;flex:1;white-space:normal}
+.detail-actions .download-action{order:-1;flex:2}.detail-actions .save-action{background:transparent!important;color:var(--ink)!important;border:1px solid var(--line)!important}
+.detail-hint{font-size:12px;color:var(--muted);margin:12px 0 0;line-height:1.6}
+#detail-content .detail-description{margin-top:28px;border-top:1px solid var(--line);padding-top:24px}
+#detail-content h3{font-size:17px;margin:0 0 12px;letter-spacing:-.015em;clear:none}
+.detail-description p,.description{font-size:15px;line-height:1.8;color:var(--muted);max-width:65ch;white-space:pre-line;margin:0}
+.detail-description .preview-note{font-size:11px;margin-top:10px}
+.book-specs{margin:34px 0 0;border-top:1px solid var(--line);padding-top:22px}
+.book-specs>summary{font-size:14px;color:var(--muted);font-weight:500}
+.edition-spec-list{display:grid;grid-template-columns:1fr 1fr;gap:0 30px;margin-top:12px}
+.edition-spec{padding:22px 0;border-bottom:1px solid var(--line);min-width:0}.edition-spec p,.edition-spec a{font-size:13px;margin:6px 0}
+.library-owned{color:var(--gold);font-size:14px;margin:12px 0}.book-overview>.description{margin-top:24px}
+@media(min-width:1800px){.app-main{padding-inline:64px}.cards{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}.book .cover-slot{height:340px}.nav-link{padding-inline:16px}}
+@media(max-width:1100px) and (min-width:701px){.nav-link{font-size:12px}.book-hero{grid-template-columns:200px minmax(0,1fr);gap:28px}#detail-content{padding-inline:32px}.cards{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:28px 22px}}
+@media(max-width:700px){
+ .app-main{padding-inline:18px}.nav-link{font-size:10px}.topbar-title{font-size:12px}
+ .search-area{padding:22px 17px}.search-area .hero h1{font-size:33px}.search-area .hero p{font-size:14px}
+ .search-mode-bar{gap:6px}.search-mode-bar button{font-size:12px;padding:9px 12px;min-height:40px}
+ #search{gap:9px}#search input,#search select,#search button{font-size:14px;min-height:46px}
+ .search-controls .availability-toggle{font-size:12px}.search-result-note{font-size:12px;line-height:1.6}
+ .result-toolbar{margin-top:25px}.result-toolbar h2{font-size:21px}.result-toolbar select{font-size:12px;max-width:140px}
+ .cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:26px 16px}
+ .book .cover-slot{height:220px;padding:13px;margin-bottom:14px;border-radius:7px}
+ .book .cover{inset:13px;width:calc(100% - 26px);height:calc(100% - 26px)}
+ .book .cover-fallback{inset:13px 18px;padding:10px;font-size:19px}
+ .book h3{font-size:19px;-webkit-line-clamp:3}.book .author-link{font-size:12px!important;min-height:26px}
+ .book .result-badges{gap:6px}.book .result-badges span{font-size:11px}
+ .book .availability-badge{font-size:10px!important}.book .result-actions{grid-template-columns:minmax(0,1fr) 36px;gap:6px;padding-top:12px}
+ .book .result-actions>.action{font-size:11px;min-height:40px;padding:8px 4px}.book .result-actions>.save-action{font-size:0}
+ .book .editions-link{font-size:11px}
+ #book-dialog{width:calc(100% - 20px);max-height:calc(100dvh - 24px);border-radius:14px}
+ #close-detail{top:12px;margin:12px 14px 0 0;font-size:12px;min-height:36px;padding:8px 11px}
+ #detail-content{padding:22px 22px 30px}
+ .book-hero{display:block}.book-art{position:static;width:150px;margin:0 auto 26px}.book-art .jacket{box-shadow:6px 12px 20px #0003}
+ .detail-author{font-size:13px}#detail-title{font-size:31px;max-width:none;line-height:1.15;margin:9px 0 16px}
+ .book-facts{font-size:13px;margin-bottom:22px}.edition-selection{padding-top:20px}.edition-selection select{font-size:13px}
+ .detail-actions{gap:8px}.detail-actions .action{font-size:13px;min-height:48px;padding:11px 12px}
+ .detail-description p,.description{font-size:14px;line-height:1.8}.book-specs{margin-top:26px}.edition-spec-list{grid-template-columns:1fr}
+}
+@media(max-width:360px){.cards{gap:24px 12px}.book .cover-slot{height:185px}.book h3{font-size:17px}.book .result-actions{grid-template-columns:1fr}.book .result-actions>.save-action{display:none}.book-art{width:130px}#detail-content{padding-inline:18px}#detail-title{font-size:28px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+
+
+@media(max-width:700px){
+ #book-dialog .book-hero{display:grid;grid-template-columns:96px minmax(0,1fr);gap:0 18px}
+ #book-dialog .book-art{grid-column:1;grid-row:1/4;width:96px;margin:0;align-self:start}
+ #book-dialog .book-overview{display:contents}
+ #book-dialog .detail-author{grid-column:2;align-self:end;min-height:0;line-height:1.5}
+ #book-dialog #detail-title{grid-column:2;font-size:27px;line-height:1.17;margin:9px 0 14px}
+ #book-dialog .book-facts{grid-column:2;font-size:12px;margin-bottom:0;gap:10px}
+ #book-dialog .edition-selection,#book-dialog .detail-description{grid-column:1/-1;margin-top:26px}
+ #book-dialog .library-owned{grid-column:2}
+ #book-dialog .book-overview>.detail-actions,#book-dialog .book-overview>.detail-hint,#book-dialog .book-overview>.description,#book-dialog .book-overview>h3{grid-column:1/-1;margin-top:22px}
+}
 </style></head>
 <body><aside class="app-sidebar"><a class="brand" href="/discover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5c4-2 6-1 9 1 3-2 5-3 9-1v15c-4-2-6-1-9 1-3-2-5-3-9-1zM12 6v15"/></svg>RoyalBooks</a><p class="brand-caption">Deine Bücher. Dein Regal.</p><nav class="app-nav" aria-label="Navigation"><a class="nav-link" href="/discover" data-view-target="store"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v11h-6v-7H9v7H3z"/></svg><span>Entdecken</span></a><a class="nav-link" href="/authors" data-view-target="authors"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg><span>Autoren</span></a><a class="nav-link" href="/library" data-view-target="library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h4v16H4zM10 4h4v16h-4zM17 4l4 15-3 1-4-15z"/></svg><span>Bibliothek</span></a><a class="nav-link" href="/search" data-view-target="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><span>Suche</span></a><a class="nav-link" href="/watchlist" data-view-target="watchlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg><span>Merkliste</span></a><a class="nav-link" href="/downloads" data-view-target="download-center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg><span>Downloads</span></a></nav><a class="shell-watchlist" href="/watchlist" data-view-target="watchlist" aria-label="Merkliste"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg></a><a class="shell-settings" href="/settings/general" data-view-target="settings" aria-label="Einstellungen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 3-.5 3-2 1-3-.5-1 3 2.5 2v2L2.5 15l1 3 3-.5 2 1L9 22h5l.5-3.5 2-1 3 .5 1-3-2.5-1.5v-2l2.5-2-1-3-3 .5-2-1L14 3z"/><circle cx="11.5" cy="12.5" r="3"/></svg></a><div class="sidebar-bottom"><span class="connection-dot"></span>Mit deiner Bibliothek verbunden</div></aside><main class="app-main"><header class="topbar"><span class="topbar-title" id="topbar-title">RoyalBooks</span><div class="topbar-tools"><button class="icon-button" id="theme-toggle" type="button" aria-label="Darstellung wechseln" title="Hell / Dunkel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13a8 8 0 0 1-9-9 8 8 0 1 0 9 9z"/></svg></button><span class="profile" aria-label="Persönliche Bibliothek">RB</span></div></header><section id="store" data-view="store"><div class="store-hero"><div><h1>Was liest du als Nächstes?</h1><p>Neue Entdeckungen, große Geschichten und Bücher zum Weiterdenken. Finde deine nächste Lektüre.</p><button id="store-find" type="button">Bücher entdecken</button></div><div id="store-featured" class="store-featured" aria-label="Bücher im Fokus"></div></div><div class="store-tabs" aria-label="Entdecken filtern"><button type="button" class="subtle" data-shelf-filter="all" aria-pressed="true">Alle entdecken</button><button type="button" class="subtle" data-shelf-filter="releases" aria-pressed="false">Aktuelle Ausgaben</button><button type="button" class="subtle" data-shelf-filter="fiction" aria-pressed="false">Romane</button><button type="button" class="subtle" data-shelf-filter="nonfiction" aria-pressed="false">Sachbücher</button><button type="button" class="subtle" data-shelf-filter="trending" aria-pressed="false">Angesagt</button></div><label class="availability-toggle"><input id="store-available-only" type="checkbox" checked>Nur erreichbare EPUBs anbieten</label><p id="store-message" class="store-note" role="status">Deine Buchauswahl wird vorbereitet …</p><div id="store-shelves" aria-live="polite"></div></section><section id="authors" data-view="authors" hidden><div class="author-panel"><h1>Die Welt deiner Autoren.</h1><p>Gib einen Namen ein und entdecke die Werke aus deinen ausgewählten Buchquellen.</p><form id="author-search" class="author-search"><input id="author-q" type="search" placeholder="Zum Beispiel Stephen King" aria-label="Autor suchen" minlength="2" maxlength="120" required><button id="author-go">Werke entdecken</button></form><label class="availability-toggle"><input id="author-available-only" type="checkbox" checked>Nur erreichbare EPUBs</label></div><div class="author-profile" id="author-profile" hidden><span class="author-avatar" id="author-initials"></span><div><h2 id="author-name"></h2><p id="author-count"></p></div></div><p id="author-message" class="muted" role="status">Suche nach einem Autor, um seine Werke zu sehen.</p><div id="author-books" class="cards" aria-live="polite"></div><div class="pagination-row"><button id="author-more" type="button" class="subtle" hidden>Weitere Werke laden</button></div></section><section id="library" data-view="library" hidden><div class="page-heading"><div><h1>Deine Bibliothek</h1><p>Alle deine Bücher. Bereit für das nächste Kapitel.</p></div><button type="button" class="icon-button" id="library-refresh" aria-label="Bibliothek aktualisieren" title="Aktualisieren"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 7a7 7 0 0 1 12-2l2 7M4 12l2 7a7 7 0 0 0 12-2"/></svg></button></div><div class="toolbar"><input type="search" id="library-query" placeholder="In deiner Bibliothek suchen" aria-label="Bibliothek durchsuchen" maxlength="120"><select id="library-sort" aria-label="Bibliothek sortieren"><option value="recent">Zuletzt hinzugefügt</option><option value="title">Nach Titel</option><option value="author">Nach Autor</option></select><div class="layout-toggle"><button class="icon-button" id="view-grid" type="button" aria-label="Regalansicht" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></button><button class="icon-button" id="view-list" type="button" aria-label="Listenansicht" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5h13M8 12h13M8 19h13M3 5h1M3 12h1M3 19h1"/></svg></button></div></div><div class="section-heading"><h2 id="shelf-heading">Dein Bücherregal</h2><span class="count-badge" id="library-count">Wird geladen …</span></div><p id="library-message" class="muted" role="status"></p><div id="library-books" class="shelf" aria-live="polite"></div><div class="library-actions"><button id="library-more" type="button" class="subtle" hidden>Weitere Bücher laden</button></div></section><section data-view="search" hidden><div class="search-area"><section class="hero">
 <h1>Finde dein nächstes Buch.</h1>
@@ -384,7 +481,7 @@ function resultCard(group,items){
   if(!members.length)return null;
   const main=members.find(reachable)||items[group.primary_index]||members[0];
   const article=text('article','','book');
-  const wrap=text('div','','cover-slot');
+  const wrap=text('button','','subtle cover-slot');wrap.type='button';wrap.setAttribute('aria-label',main.title+' ansehen');wrap.addEventListener('click',()=>showDetails(main,members));
   wrap.style.setProperty('--jacket',jacketColor(main.title));
   wrap.append(text('span',main.title,'cover-fallback'));
   const cover=main.cover_url||members.find(item=>item.cover_url)?.cover_url||(main.source==='dnb'&&main.isbn13?
@@ -399,28 +496,12 @@ function resultCard(group,items){
   const info=text('div','','book-detail');
   info.append(text('h3',main.title));
   const author=text('button',main.authors.join(', ')||'Autor unbekannt','author-link');author.type='button';author.addEventListener('click',()=>viewAuthor(main.authors[0]||''));info.append(author);info.append(availabilityBadge(main));
-  const badges=text('div','','result-badges');badges.append(text('span',main.download_supported?'EPUB-Angebot':main.formats?.length?main.formats.join(' / '):'Buchdaten'));if(main.year)badges.append(text('span',String(main.year)));if(main.language)badges.append(text('span',main.language==='de'?'Deutsch':main.language==='en'?'Englisch':main.language));info.append(badges);
+  const badges=text('div','','result-badges');badges.append(text('span',main.download_supported?'EPUB-Angebot':main.formats?.length?main.formats.join(' / '):'Buchdaten'));if(main.year)badges.append(text('span',String(main.year)));if(main.language)badges.append(text('span',main.language==='de'?'Deutsch':main.language==='en'?'Englisch':main.language));badges.append(text('span',sourceName(main.source),'book-source'));info.append(badges);
   const excerpt=main.description||members.find(item=>item.description)?.description;
   if(excerpt)info.append(text('p',excerpt,'result-excerpt'));
-  const fileInfo=document.createElement('details');fileInfo.className='file-info';fileInfo.append(text('summary',sourceName(main.source)+' · Dateidetails'));renderEditionInfo(fileInfo,main);info.append(fileInfo);
   const actions=text('div','','result-actions');const open=text('button','Buchdetails','subtle action');open.type='button';open.addEventListener('click',()=>showDetails(main,members));actions.append(open);
   renderEditionActions(actions,main,false,true);info.append(actions);
-  if(members.length>1){
-    const details=document.createElement('details');
-    const summary=document.createElement('summary');
-    summary.textContent=members.length+' Katalogeinträge / Ausgaben ansehen';
-    details.append(summary);
-    details.append(text('p','Einträge sind nur zur Übersicht gruppiert. ISBNs können unterschiedliche Ausgaben bezeichnen.','muted'));
-    for(const item of members){
-      const edition=text('div','','edition-row');
-      edition.append(text('p',item.title,'source-label'));
-      edition.append(text('p',item.authors.join(', ')||'Autor unbekannt','muted'));
-      renderEditionInfo(edition,item);
-      renderEditionActions(edition,item,true);
-      details.append(edition);
-    }
-    info.append(details);
-  }
+  if(members.length>1){const editions=text('button',members.length+' Ausgaben ansehen','subtle editions-link');editions.type='button';editions.addEventListener('click',()=>showDetails(main,members));info.append(editions)}
   article.append(wrap,info);
   return article;
 }
@@ -456,16 +537,44 @@ document.querySelectorAll('#search-filters button').forEach(button=>button.addEv
 }));
 
 
-function showDetails(main,members){
+function detailHero(book){
  const content=$('detail-content');content.replaceChildren();
- content.append(text('h2',main.title));content.firstChild.id='detail-title';
- content.append(text('p',(main.authors||[]).join(', ')||'Autor unbekannt','muted'));
- if(coverUrl(main.cover_url)){const image=document.createElement('img');image.className='detail-cover';image.src=coverUrl(main.cover_url);image.alt='Cover von '+main.title;content.append(image)}
- appendDescription(main,content);
- const search=text('button','EPUB-Ausgaben suchen','action');search.type='button';search.addEventListener('click',()=>searchForBook(main));content.append(search);
- content.append(text('h3','Ausgaben und Dateien'));
- for(const item of members){const edition=text('section','','edition-row');edition.append(text('h3',item.title));renderEditionInfo(edition,item);renderEditionActions(edition,item,true);content.append(edition)}
- $('book-dialog').showModal();
+ const hero=text('div','','book-hero'),art=text('div','','book-art');
+ art.append(makeJacket({...book,authors:Array.isArray(book.authors)?book.authors.join(', '):book.authors}));
+ const info=text('div','','book-overview');
+ const author=text('button',(Array.isArray(book.authors)?book.authors.join(', '):book.authors)||'Autor unbekannt','subtle detail-author');author.type='button';author.addEventListener('click',()=>viewAuthor(Array.isArray(book.authors)?book.authors[0]:book.authors));
+ const title=text('h2',book.title);title.id='detail-title';info.append(author,title);hero.append(art,info);content.append(hero);
+ return {content,info};
+}
+function showDetails(main,members){
+ const editions=[...members].sort((a,b)=>Number(reachable(b))-Number(reachable(a))||Number(b.download_supported)-Number(a.download_supported));
+ const {content,info}=detailHero(main);
+ const metadata=text('div','','book-facts');
+ for(const value of [main.language==='de'?'Deutsch':main.language==='en'?'Englisch':main.language,main.year?String(main.year):null])if(value)metadata.append(text('span',value));
+ info.append(metadata);
+ const selection=text('div','','edition-selection');
+ const selected=text('div','','selected-edition');
+ if(editions.length>1){
+  const label=text('label','Ausgabe wählen');label.htmlFor='detail-edition-select';
+  const select=document.createElement('select');select.id='detail-edition-select';
+  editions.forEach((book,index)=>{const option=text('option',sourceName(book.source)+(book.year?' · '+book.year:'')+' · '+(book.formats?.join('/')||'Buchdaten')+(reachable(book)?' · erreichbar':'')+' ('+(index+1)+')');option.value=String(index);select.append(option)});
+  select.addEventListener('change',()=>choose(Number(select.value)));selection.append(label,select);
+ }
+ function choose(index){
+  const book=editions[index];selected.replaceChildren();
+  selected.append(availabilityBadge(book));
+  const actions=text('div','','detail-actions');renderEditionActions(actions,book,false,true);const save=actions.querySelector('.save-action');save.textContent='Auf Merkliste';
+  if(!book.download_supported){const search=text('button','EPUB-Ausgaben suchen','action');search.type='button';search.addEventListener('click',()=>searchForBook(book));actions.append(search)}
+  selected.append(actions);
+  const hint=text('p',book.download_supported?'Die vollständige EPUB-Prüfung erfolgt beim Download.':'Für diesen Katalogeintrag ist keine EPUB hinterlegt.','detail-hint');selected.append(hint);
+ }
+ selection.append(selected);info.append(selection);choose(0);
+ appendDescription(main,info);
+ const technical=document.createElement('details');technical.className='book-specs';technical.append(text('summary','Ausgaben & Dateidetails ('+members.length+')'));
+ const list=text('div','','edition-spec-list');
+ for(const item of editions){const row=text('section','','edition-spec');row.append(text('h3',sourceName(item.source)+(item.year?' · '+item.year:'')));renderEditionInfo(row,item);const url=safeUrl(item.info_url);if(url){const link=text('a','Beim Anbieter ansehen');link.href=url;link.target='_blank';link.rel='noopener noreferrer';row.append(link)}list.append(row)}
+ technical.append(list);content.append(technical);
+ $('book-dialog').showModal();$('book-dialog').scrollTop=0;
 }
 $('result-sort').addEventListener('change',renderResults);
 $('close-detail').addEventListener('click',()=>$('book-dialog').close());
@@ -529,13 +638,13 @@ function libraryMessage(message,buttonLabel,action){
  $('library-books').replaceChildren(empty);
 }
 function openLibraryBook(book){
- const content=$('detail-content');content.replaceChildren();
- const title=text('h2',book.title);title.id='detail-title';content.append(title,text('p',book.authors,'muted'));
- if(book.cover_url){const image=document.createElement('img');image.className='detail-cover';image.src=book.cover_url;image.alt='Cover von '+book.title;image.onerror=()=>image.remove();content.append(image)}
- content.append(text('p','In deiner Calibre-Bibliothek gespeichert.','description'),text('p','Verfügbare Formate: '+(book.formats.join(', ')||'Keine Datei hinterlegt'),'muted'));
- if(book.epub_url){const download=text('a','EPUB auf dieses Gerät laden','action primary-link');download.href=book.epub_url;download.download='';content.append(download)}
- const note=text('p','Öffne die EPUB nach dem Laden in deiner Lese-App.','muted');content.append(note);if(book.description)content.append(text('p',book.description,'description'));
- $('book-dialog').showModal();
+ const {info}=detailHero(book);
+ info.append(text('p','In deiner Bibliothek','library-owned'),text('p',book.formats.join(' / ')||'Keine Datei hinterlegt','book-facts'));
+ const actions=text('div','','detail-actions');
+ if(book.epub_url){const download=text('a','EPUB auf dieses Gerät laden','action primary-link');download.href=book.epub_url;download.download='';actions.append(download)}
+ info.append(actions,text('p','Öffne die EPUB nach dem Laden in deiner Lese-App.','detail-hint'));
+ if(book.description)info.append(text('h3','Über dieses Buch'),text('p',book.description,'description'));
+ $('book-dialog').showModal();$('book-dialog').scrollTop=0;
 }
 function renderLibrary(){
  $('library-books').replaceChildren(...libraryItems.map(book=>{
@@ -727,8 +836,8 @@ function fileReference(book){
 }
 function fileState(book){if(preferencesLoaded&&!platformPreferences.sources.includes(book.source))return {status:'disabled'};const ref=fileReference(book);if(!ref)return {status:'metadata'};const value=availabilityMap.get(ref.source+':'+ref.record_id);return value&&Date.now()/1000-value.checked_at<900?value:{status:'pending'}}
 function reachable(book){return fileState(book).status==='available'}
-function availabilityBadge(book){const status=fileState(book).status;const label={available:'Datei erreichbar',pending:'Datei wird geprüft',busy:'Prüfung wartet',unavailable:'Datei nicht erreichbar',metadata:'Katalogeintrag'}[status]||'Datei wird geprüft';const el=text('span',label,'availability-badge');el.dataset.state=status;return el}
-function redrawAvailability(){if(lastSearchResult)renderResults();if(authorResult)renderAuthorResults();if(storeSnapshot)renderStore(storeSnapshot);for(const button of document.querySelectorAll('[data-availability-key]'))button.disabled=availabilityMap.get(button.dataset.availabilityKey)?.status!=='available'}
+function availabilityBadge(book){const status=fileState(book).status;const label={available:'Datei erreichbar',pending:'Datei wird geprüft',busy:'Prüfung wartet',unavailable:'Datei nicht erreichbar',metadata:'Katalogeintrag'}[status]||'Datei wird geprüft';const el=text('span',label,'availability-badge');el.dataset.state=status;const ref=fileReference(book);if(ref)el.dataset.fileBadge=ref.source+':'+ref.record_id;return el}
+function redrawAvailability(){for(const badge of document.querySelectorAll('#book-dialog [data-file-badge]')){const state=availabilityMap.get(badge.dataset.fileBadge)?.status||'pending';badge.dataset.state=state;badge.textContent={available:'Datei erreichbar',pending:'Datei wird geprüft',busy:'Prüfung wartet',unavailable:'Datei nicht erreichbar'}[state]||'Datei wird geprüft'}if(lastSearchResult)renderResults();if(authorResult)renderAuthorResults();if(storeSnapshot)renderStore(storeSnapshot);for(const button of document.querySelectorAll('[data-availability-key]'))button.disabled=availabilityMap.get(button.dataset.availabilityKey)?.status!=='available'}
 async function checkFiles(items,context){
  const refs=[...new Map((items||[]).filter(book=>!preferencesLoaded||platformPreferences.sources.includes(book.source)).map(fileReference).filter(Boolean).map(ref=>[ref.source+':'+ref.record_id,ref])).values()];let cursor=0;
  if(!refs.length){redrawAvailability();return}

@@ -74,6 +74,17 @@ def main():
                     page.screenshot(path=str(args.screenshots/(name+'.png')), full_page=True)
                     page.get_by_role('button', name='Buchdetails', exact=True).click()
                     assert page.locator('#book-dialog').is_visible()
+                    assert not page.locator('.book-specs').evaluate('element=>element.open')
+                    assert page.locator('#detail-edition-select option').count()==3
+                    assert page.locator('#book-dialog .download-action').is_enabled()
+                    assert page.locator('#book-dialog').evaluate('element=>element.scrollWidth<=element.clientWidth')
+                    if width>700:assert page.locator('#book-dialog').bounding_box()['width']>=1000
+                    page.screenshot(path=str(args.screenshots/('book-detail-'+name+'.png')))
+                    page.locator('#detail-edition-select').select_option('1')
+                    assert page.locator('#book-dialog .download-action').count()==0
+                    page.locator('#detail-edition-select').select_option('0')
+                    assert page.locator('#book-dialog .download-action').is_enabled()
+                    page.locator('.book-specs>summary').click()
                     assert '9783551551672' in page.locator('#detail-content').inner_text()
                     assert '9783531157887' in page.locator('#detail-content').inner_text()
                     page.keyboard.press('Escape')
