@@ -143,6 +143,12 @@ const $=id=>document.getElementById(id);
 const text=(tag,value,cls)=>{const el=document.createElement(tag);el.textContent=value;if(cls)el.className=cls;return el};
 function safeUrl(raw){try{const u=new URL(raw);return u.protocol==='https:'?u.href:null}catch{return null}}
 async function loadStats(){try{const r=await fetch('/api/providers');if(!r.ok)return;const v=await r.json();$('stats').replaceChildren(...v.providers.map(p=>{const s=v.recent_metrics.find(x=>x.provider===p.name);return text('span',p.name+': '+(s ? s.found+' Treffer-Suchen / '+s.errors+' Fehler (letzte '+s.attempts+')' : 'noch ungetestet'),'stat')}));
+if(Array.isArray(v.source_profiles)){
+  for(const p of v.source_profiles.filter(x=>x.enabled)){
+    const label=p.role==='bibliography'?'Buchdaten':p.role==='epub_catalog'?'EPUB-Katalog':'EPUB-Quelle';
+    $('stats').append(text('span',p.display_name+' · '+label,'stat'));
+  }
+}
 if(v.catalog&&v.catalog.indexed) $('stats').append(text('span','Buchkatalog: '+v.catalog.records+' Titel','stat'));
 else $('stats').append(text('span','Buchkatalog noch nicht geladen','stat'));
 if(v.format_catalog&&v.format_catalog.indexed) $('stats').append(text('span','EPUB-Formatkatalog: '+v.format_catalog.records+' Links · unbestätigt','stat'));
@@ -453,7 +459,7 @@ $('search').addEventListener('submit',async e=>{
       other.setAttribute('aria-pressed',String(other.dataset.filter==='all'));
     const found=result.items||[];
     const groups=result.display_groups||found.map((_,i)=>({item_indexes:[i]}));
-    const epub=found.filter(item=>item.epub_url).length;
+    const epub=result.search_evidence?.epub_links_listed_unverified??found.filter(item=>item.epub_url).length;
     const errors=(result.sources||[]).filter(x=>x.status==='error');
     $('message').textContent=groups.length+' Titelübersichten aus '+found.length+' Katalogeinträgen · '+
         epub+' EPUB-Link'+(epub===1?'':'s')+' gelistet';
