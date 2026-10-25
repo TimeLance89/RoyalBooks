@@ -200,3 +200,20 @@ The DNB and Google Books adapters are metadata-only: a preview or search result 
 
 ## Next milestone
 Validate real first-party EPUB transfer reliability and NAS/CWA import completion without bypassing provider restrictions; improve source matching and confirm live benchmark results, improve edition-level mappings using authoritative edition records, add explicit safe recovery for ambiguous handoffs and independently verify Calibre import status. Authenticate the whole UI before any public exposure.
+
+## NAS startup troubleshooting (non-root permissions)
+
+RoyalBooks deliberately runs as Linux UID 10001 rather than root. Some NAS-based repository checkouts preserve `0600` Python files or non-traversable directories in the Docker build context. Older images could then restart repeatedly with `PermissionError: [Errno 13] Permission denied: '/app/royalbooks/__init__.py'` even though Python and Docker builds passed in CI.
+
+The Dockerfile now explicitly normalizes **only packaged source-code permissions** inside the image (directories `0755`, files `0644`, owned by root). CI additionally runs the actual built image as UID 10001 and imports the FastAPI application. No changes are made to NAS host file permissions, Calibre data, or the `/data` bind mount.
+
+After updating the checkout, **rebuild** the image; restarting the old container without rebuilding will not fix it:
+
+```bash
+git pull --ff-only
+docker compose build --no-cache royalbooks
+docker compose up -d --force-recreate royalbooks
+docker compose logs --tail=80 royalbooks
+```
+
+If the next error concerns `/data/royalbooks.sqlite3`, that is a **different host volume ownership/mount permissions issue**. Check it without broad recursive chmod/chown commands against your NAS or Calibre library. If your NAS Compose stack overrides `/app` or `/app/royalbooks` with a bind mount, fix that external mount configuration; the Dockerfile cannot change its runtime permissions.
