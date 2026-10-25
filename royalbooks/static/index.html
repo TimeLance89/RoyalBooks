@@ -729,7 +729,7 @@ function reachable(book){return fileState(book).status==='available'}
 function availabilityBadge(book){const status=fileState(book).status;const label={available:'Datei erreichbar',pending:'Datei wird geprüft',busy:'Prüfung wartet',unavailable:'Datei nicht erreichbar',metadata:'Katalogeintrag'}[status]||'Datei wird geprüft';const el=text('span',label,'availability-badge');el.dataset.state=status;return el}
 function redrawAvailability(){if(lastSearchResult)renderResults();if(authorResult)renderAuthorResults();if(storeSnapshot)renderStore(storeSnapshot);for(const button of document.querySelectorAll('[data-availability-key]'))button.disabled=availabilityMap.get(button.dataset.availabilityKey)?.status!=='available'}
 async function checkFiles(items,context){
- const refs=[...new Map((items||[]).filter(book=>platformPreferences.sources.includes(book.source)).map(fileReference).filter(Boolean).map(ref=>[ref.source+':'+ref.record_id,ref])).values()];let cursor=0;
+ const refs=[...new Map((items||[]).filter(book=>!preferencesLoaded||platformPreferences.sources.includes(book.source)).map(fileReference).filter(Boolean).map(ref=>[ref.source+':'+ref.record_id,ref])).values()];let cursor=0;
  if(!refs.length){redrawAvailability();return}
  const generation=++availabilityGeneration;if(availabilityTimer)clearTimeout(availabilityTimer);
  async function poll(){
