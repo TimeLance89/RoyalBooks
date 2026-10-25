@@ -58,8 +58,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title='RoyalBooks', version='1.0.1', lifespan=lifespan)
 
-# The ordinary search is token-free, but each LAN client has a small budget.
-# Upstream keys remain server-side; writes still require the admin token.
+# Normal book searches need no administrator token, but traffic is rate limited.
 _search_windows: dict[str, list[float]] = {}
 _search_rate_lock = asyncio.Lock()
 
@@ -67,9 +66,8 @@ _search_rate_lock = asyncio.Lock()
 async def _limit_public_search(client_ip: str) -> None:
     now = perf_counter()
     async with _search_rate_lock:
-        # Expire old clients, bounding memory when exposed through a proxy.
         for address in list(_search_windows):
-            _search_windows[address] = [t for t in _search_windows[address] if now - t < 60]
+            _search_windows[address] = [when for when in _search_windows[address] if now - when < 60]
             if not _search_windows[address]:
                 del _search_windows[address]
         if len(_search_windows) > 1024 and client_ip not in _search_windows:
@@ -147,7 +145,10 @@ async def search(q: str = Query(min_length=2, max_length=120),
 async def indexer_search(
     request: Request,
     q: str = Query(min_length=2, max_length=120),
-    language: str = Query(default='de', pattern='^(de|en|all)
+    language: str = Query(default='de', pattern='^(de|en|all)$'),
+    limit: int = Query(default=30, ge=1, le=40),
+):
+    await _limit_public_search(request.client.host if request.client else 'unknown')
     try:
         result = await search_indexers(q, None if language == 'all' else language, limit)
     except (OSError, ValueError):
