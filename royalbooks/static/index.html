@@ -158,11 +158,7 @@ async function loadStats(){try{const r=await fetch('/api/providers');if(!r.ok)re
  $('stats').replaceChildren(text('span','Library Genesis · eingebaute Buchsuche','stat'));
  return;
 }
-if(v.search_mode==='indexers'){
- const labels=(v.active_indexers||[]).map(name=>text('span',name+' · konfiguriert','stat'));
- if(!labels.length)labels.push(text('span',v.indexer_configuration_error||'Kein Indexer konfiguriert','stat'));
- $('stats').replaceChildren(...labels);return;
-}$('stats').replaceChildren(...v.providers.map(p=>{const s=v.recent_metrics.find(x=>x.provider===p.name);return text('span',p.name+': '+(s ? s.found+' Treffer-Suchen / '+s.errors+' Fehler (letzte '+s.attempts+')' : 'noch ungetestet'),'stat')}));
+$('stats').replaceChildren(...v.providers.map(p=>{const s=v.recent_metrics.find(x=>x.provider===p.name);return text('span',p.name+': '+(s ? s.found+' Treffer-Suchen / '+s.errors+' Fehler (letzte '+s.attempts+')' : 'noch ungetestet'),'stat')}));
 if(Array.isArray(v.source_profiles)){
   for(const p of v.source_profiles.filter(x=>x.enabled)){
     const label=p.role==='bibliography'?'Buchdaten':p.role==='epub_catalog'?'EPUB-Katalog':'EPUB-Quelle';

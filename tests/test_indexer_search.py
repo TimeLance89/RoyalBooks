@@ -146,7 +146,7 @@ def test_indexer_first_browser_controls():
     from pathlib import Path
     page = (Path(__file__).parents[1] / "royalbooks" / "static" / "index.html").read_text()
     assert "Bücher suchen" in page
-    assert "/api/indexers/search?" in page
+    assert "/api/books/search?" in page
     assert "releaseCard(item)" in page
     assert 'id="catalog-controls" hidden' in page
 
