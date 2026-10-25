@@ -285,3 +285,24 @@ Third-party archives with fluctuating mirrors are not installed as fixed source 
 ## Token-free discovery (v1.0.1)
 
 Normal GET /api/indexers/search requests no longer require entering the RoyalBooks API token. The server retains private Prowlarr/Torznab/Newznab credentials and only exposes sanitized read-only indexer listing data. A basic per-client quota limits search traffic to 30 queries per minute, suitable for a LAN installation. Do not publish the service to the open Internet without an authenticating reverse proxy. Personal watchlist, queue history, NAS diagnostics and all management/write endpoints still require the existing RoyalBooks API token, now located in an optional collapsed admin panel rather than the main search form.
+
+## RoyalBooks v1.1 — built-in ebook catalogue discovery (no extra setup)
+
+RoyalBooks searches a built-in book source with no Prowlarr, Torznab/Newznab,
+separate Docker services, provider registration or additional API credentials.
+Built-in Library Genesis catalogue search uses four hardcoded HTTPS origins with
+fallback on network failures, a bounded result parser and catalog-supplied
+German language + EPUB format hints. No public domain-only book lists are used
+as the default search. Previous indexer APIs remain available for backwards
+compatibility but are NOT used by the primary browser search.
+
+The HTML parser is vendored from MIT-licensed libgenapp/libgen-app, copyright
+2026 Shmuel Gilbaum; see royalbooks/vendor/LICENSE.libgenapp and
+https://github.com/libgenapp/libgen-app/blob/main/lgsearch.py.
+
+These are search results from external catalogues, NOT confirmed download files.
+Provider reachability cannot be guaranteed and neither file authenticity nor
+authorization to download follows from a catalogue listing. No CAPTCHA bypasses,
+credential scraping or automatic third-party downloads are added in v1.1.
+Any previous README instruction implying a mandatory Prowlarr setup is obsolete
+for the default search workflow. Existing .env/Compose/Calibre data is preserved.

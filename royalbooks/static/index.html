@@ -108,20 +108,20 @@ form select,form button{flex:1}
 #catalog-controls button{flex:1}
 }</style></head>
 <body><header><span class="accent">✦ ROYALBOOKS</span>
-<nav aria-label="Navigation"><a href="#search">Entdecken</a><a href="#watchlist">Merkliste</a><a href="#source-details">Indexer</a><a href="#download-center">Downloads</a></nav>
-<span class="chip">INDEXER · v1.0.1</span></header>
+<nav aria-label="Navigation"><a href="#search">Entdecken</a><a href="#watchlist">Merkliste</a><a href="#source-details">Quellen</a><a href="#download-center">Downloads</a></nav>
+<span class="chip">DIREKTSUCHE · v1.1</span></header>
 <section class="hero"><p class="eyebrow">DEINE DIGITALE BIBLIOTHEK</p>
 <h1>Finde die richtige Buchausgabe.</h1>
-<p class="muted">Indexer-basierte E-Book-Suche mit Deutsch-Priorität, Format- und Quellenhinweisen. Treffer sind vor der Dateiprüfung noch unbestätigt.</p></section>
-<form id="search"><input type="search" id="q" placeholder="Titel oder Autor, z. B. Kafka" required minlength="2" maxlength="120" aria-label="Suche"><select id="language" aria-label="Sprache"><option value="de">Deutsch</option><option value="en">Englisch</option><option value="all">Alle</option></select><button id="go">Indexer durchsuchen</button></form>
-<div id="message" role="status" class="muted">Bereit für die Buchsuche. Kein API-Token erforderlich.</div>
+<p class="muted">RoyalBooks durchsucht eingebaute Buchquellen direkt. Keine zusätzlichen Programme, Indexer oder API-Schlüssel nötig. Deutsche Ausgaben werden bevorzugt.</p></section>
+<form id="search"><input type="search" id="q" placeholder="Titel oder Autor, z. B. Kafka" required minlength="2" maxlength="120" aria-label="Suche"><select id="language" aria-label="Sprache"><option value="de">Deutsch</option><option value="en">Englisch</option><option value="all">Alle</option></select><button id="go">Bücher suchen</button></form>
+<div id="message" role="status" class="muted">Suche nach einem Buch. RoyalBooks nutzt automatisch eingebaute Quellen.</div>
 <p id="search-notice" class="search-notice" hidden></p>
 <div id="search-filters" class="search-filters" hidden aria-label="Suchergebnisse filtern">
 <button type="button" data-filter="all" aria-pressed="true">Alle Titel</button>
 <button type="button" data-filter="epub" aria-pressed="false">Mit EPUB-Link</button>
 <button type="button" data-filter="metadata" aria-pressed="false">Nur Buchdaten</button>
 </div>
-<details id="source-details"><summary class="muted">Quellenstatus und Diagnose anzeigen</summary>
+<details id="source-details"><summary class="muted">Integrierte Quellen und Diagnose</summary>
 <section id="stats" class="stats" aria-label="Providerstatus"></section></details>
 <section id="books" class="cards" aria-live="polite"></section>
 <details class="controls" id="admin-access">
@@ -154,11 +154,11 @@ form select,form button{flex:1}
 const $=id=>document.getElementById(id);
 const text=(tag,value,cls)=>{const el=document.createElement(tag);el.textContent=value;if(cls)el.className=cls;return el};
 function safeUrl(raw){try{const u=new URL(raw);return u.protocol==='https:'?u.href:null}catch{return null}}
-async function loadStats(){try{const r=await fetch('/api/providers');if(!r.ok)return;const v=await r.json();if(v.search_mode==='indexers'){
- const labels=(v.active_indexers||[]).map(name=>text('span',name+' · konfiguriert','stat'));
- if(!labels.length)labels.push(text('span',v.indexer_configuration_error||'Kein Indexer konfiguriert','stat'));
- $('stats').replaceChildren(...labels);return;
-}$('stats').replaceChildren(...v.providers.map(p=>{const s=v.recent_metrics.find(x=>x.provider===p.name);return text('span',p.name+': '+(s ? s.found+' Treffer-Suchen / '+s.errors+' Fehler (letzte '+s.attempts+')' : 'noch ungetestet'),'stat')}));
+async function loadStats(){try{const r=await fetch('/api/providers');if(!r.ok)return;const v=await r.json();if(v.search_mode==='built_in_direct'){
+ $('stats').replaceChildren(text('span','Library Genesis · eingebaute Buchsuche','stat'));
+ return;
+}
+$('stats').replaceChildren(...v.providers.map(p=>{const s=v.recent_metrics.find(x=>x.provider===p.name);return text('span',p.name+': '+(s ? s.found+' Treffer-Suchen / '+s.errors+' Fehler (letzte '+s.attempts+')' : 'noch ungetestet'),'stat')}));
 if(Array.isArray(v.source_profiles)){
   for(const p of v.source_profiles.filter(x=>x.enabled)){
     const label=p.role==='bibliography'?'Buchdaten':p.role==='epub_catalog'?'EPUB-Katalog':'EPUB-Quelle';
@@ -461,47 +461,53 @@ function releaseCard(item){
   const card=text('article','','book release-card');
   card.append(text('div','▤','release-symbol'));
   const info=text('div','','book-detail');
-  info.append(text('h3',item.title||'Titel nicht angegeben'));
-  info.append(text('p',(item.indexer||'Indexer')+' · '+(item.protocol||'Unbekannt'),'muted'));
+  info.append(text('h3',item.title||'Titel unbekannt'));
+  info.append(text('p',(item.author||'Autor unbekannt')+
+    (item.year?' · '+item.year:'')+(item.publisher?' · '+item.publisher:''),'muted'));
   const labels=text('div','','release-meta');
-  labels.append(text('span',item.language_hint==='de'?'Deutsch (unbestätigt)':item.language_hint==='en'?'Englisch (unbestätigt)':'Sprache unbekannt'));
+  labels.append(text('span',item.language_hint==='de'?'Deutsch laut Katalog':
+    item.language_hint==='en'?'Englisch laut Katalog':'Sprache unbekannt'));
   labels.append(text('span',item.format_hint||'Format unbekannt'));
-  if(Number.isInteger(item.size_bytes)&&item.size_bytes>0){
+  if(Number.isInteger(item.size_bytes)&&item.size_bytes>0)
     labels.append(text('span',(item.size_bytes/1048576).toFixed(1)+' MiB'));
-  }
   labels.append(text('span','Trefferwert '+item.score+'/100'));
   info.append(labels);
-  info.append(text('p','Indexer-Eintrag · Datei und Berechtigung nicht verifiziert','muted'));
+  info.append(text('p',(item.indexer||'Buchquelle')+
+    ' · Katalogeintrag, noch kein geprüfter Download','muted'));
+  const url=safeUrl(item.source_url);
+  if(url){
+    const anchor=text('a','Buchausgabe beim Anbieter ansehen ↗');
+    anchor.href=url;anchor.target='_blank';anchor.rel='noopener noreferrer';
+    info.append(anchor);
+  }
   card.append(info);return card;
 }
+
 $('search').addEventListener('submit',async e=>{
   e.preventDefault();
   $('go').disabled=true;
-  $('message').textContent='Buchindexer werden durchsucht …';
+  $('message').textContent='RoyalBooks durchsucht eingebaute Buchquellen …';
   $('books').replaceChildren();
   $('search-filters').hidden=true;
   $('search-notice').hidden=true;
   try{
     const params=new URLSearchParams({q:$('q').value.trim(),language:$('language').value});
-    const response=await fetch('/api/indexers/search?'+params);
+    const response=await fetch('/api/books/search?'+params);
     const result=await response.json();
     if(!response.ok)throw Error(typeof result.detail==='string'?result.detail:'HTTP '+response.status);
     const items=Array.isArray(result.items)?result.items:[];
-    if(!result.configured){
-      $('message').textContent='Noch kein Buchindexer eingerichtet. Prowlarr oder einen Torznab/Newznab-Indexer auf dem NAS konfigurieren.';
-    }else{
-      const errors=(result.sources||[]).filter(x=>x.status!=='ok');
-      $('message').textContent=items.length+' Suchtreffer · '+(result.sources||[]).length+' Indexer'+
-        (errors.length?' · '+errors.length+' nicht erreichbar':'');
-    }
+    const sources=Array.isArray(result.sources)?result.sources:[];
+    const available=sources.some(x=>x.status!=='unavailable');
+    $('message').textContent=items.length+' Buchtreffer · '+
+      (available?'Direktquelle abgefragt':'Direktquellen derzeit nicht erreichbar');
     if(!items.length){
-      $('books').append(text('p',result.configured?
-        'Keine passenden Angebote gemeldet. Prüfe deine Indexer-Konfiguration und die gewählte Sprache.':
-        'RoyalBooks ist startklar. Für Suchergebnisse fehlt noch eine konfigurierte Indexer-Verbindung.','muted'));
+      $('books').append(text('p',available?
+        'Keine passende Ausgabe gefunden. Versuche Titel, Autor oder die Einstellung „Alle Sprachen“.':
+        'RoyalBooks kann die eingebauten Buchquellen momentan nicht erreichen. Versuche es später erneut.','muted'));
     }else $('books').replaceChildren(...items.map(releaseCard));
     const notices=[];
-    if((result.sources||[]).some(x=>x.status!=='ok'))notices.push('Mindestens ein Indexer ist zurzeit nicht erreichbar.');
-    if(items.length)notices.push('Sprach- und Formatangaben stammen aus Angebotsnamen und sind noch nicht verifiziert.');
+    if(!available)notices.push('Alle eingebauten Direktadressen waren nicht erreichbar oder haben keine lesbare Suchseite geliefert.');
+    if(items.length)notices.push('Die Katalogangaben sind unbestätigt. Ein EPUB-Eintrag bedeutet noch keinen geprüften Download.');
     $('search-notice').textContent=notices.join(' ');
     $('search-notice').hidden=!notices.length;
   }catch(err){$('message').textContent='Indexer-Suche fehlgeschlagen: '+err.message}

@@ -145,8 +145,8 @@ async def test_legacy_download_api_is_paused_by_default(monkeypatch, tmp_path):
 def test_indexer_first_browser_controls():
     from pathlib import Path
     page = (Path(__file__).parents[1] / "royalbooks" / "static" / "index.html").read_text()
-    assert "Indexer durchsuchen" in page
-    assert "/api/indexers/search?" in page
+    assert "Bücher suchen" in page
+    assert "/api/books/search?" in page
     assert "releaseCard(item)" in page
     assert 'id="catalog-controls" hidden' in page
 
@@ -170,7 +170,7 @@ def test_search_form_has_no_token_and_admin_access_is_separate():
     admin = markup.split('<details class="controls" id="admin-access">', 1)[1].split('</details>', 1)[0]
     assert 'id="token"' not in search
     assert 'id="token"' in admin
-    assert "fetch('/api/indexers/search?'+params);" in markup
+    assert "fetch('/api/books/search?'+params);" in markup
     assert "headers:{'X-API-Key':token}" not in markup.split("function releaseCard", 1)[1]
 
 

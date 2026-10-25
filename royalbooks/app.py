@@ -24,7 +24,8 @@ from royalbooks.watchlist import WatchlistStore, WatchlistFull
 from typing import Literal
 from royalbooks.providers import Book, GoogleBooks, Gutendex, OpenLibrary, Provider
 from royalbooks.source_registry import configured_providers
-from royalbooks.indexer_search import configured_indexers, search_indexers
+from royalbooks.indexer_search import search_indexers
+from royalbooks.builtin_search import search_builtin, MIRRORS as BUILT_IN_MIRRORS
 from royalbooks.source_profiles import profiles_for, search_evidence
 from royalbooks.matching import match_groups
 from royalbooks.presentation import display_groups
@@ -56,7 +57,7 @@ async def lifespan(app: FastAPI):
                 await task
 
 
-app = FastAPI(title='RoyalBooks', version='1.0.1', lifespan=lifespan)
+app = FastAPI(title='RoyalBooks', version='1.1.0', lifespan=lifespan)
 
 # Normal book searches need no administrator token, but traffic is rate limited.
 _search_windows: dict[str, list[float]] = {}
@@ -86,18 +87,15 @@ async def homepage():
 
 @app.get('/api/health')
 async def health():
-    return {'status': 'ok', 'version': '1.0.1'}
+    return {'status': 'ok', 'version': '1.1.0'}
 
 
 @app.get('/api/providers')
 async def providers():
-    try:
-        names = [source.name for source in configured_indexers()]
-        config_error = None
-    except (ValueError, OSError):
-        names, config_error = [], 'invalid_indexer_configuration'
-    return {'active_indexers': names, 'indexer_configuration_error': config_error,
-            'search_mode': 'indexers', 'catalog': catalog_status(os.getenv("ROYALBOOKS_DB_PATH", "/data/royalbooks.sqlite3")),
+    return {'active_indexers': [], 'indexer_configuration_error': None,
+            'built_in_sources': [{'name': 'Library Genesis', 'enabled': True,
+                                   'mirrors': len(BUILT_IN_MIRRORS), 'access': 'no_configuration'}],
+            'search_mode': 'built_in_direct', 'catalog': catalog_status(os.getenv("ROYALBOOKS_DB_PATH", "/data/royalbooks.sqlite3")),
             'format_catalog': format_status(os.getenv("ROYALBOOKS_DB_PATH", "/data/royalbooks.sqlite3")),
             'providers': [{'name': p.name, 'purpose': p.purpose} for p in app.state.providers.values()],
             'source_profiles': profiles_for(app.state.providers.keys()),
@@ -140,6 +138,18 @@ async def search(q: str = Query(min_length=2, max_length=120),
             'sources': [status for _, status in results], 'rights_notice':
             'Public-domain classification may be US-only; check German law before requesting a download.'}
 
+
+@app.get('/api/books/search')
+async def books_search(
+    request: Request,
+    q: str = Query(min_length=2, max_length=120),
+    language: str = Query(default='de', pattern='^(de|en|all)$'),
+    limit: int = Query(default=30, ge=1, le=40),
+):
+    """Built-in, tokenless and rate-limited book catalog discovery."""
+    await _limit_public_search(request.client.host if request.client else 'unknown')
+    result = await search_builtin(q, None if language == 'all' else language, limit)
+    return {'query': q, 'language': language, **result}
 
 @app.get('/api/indexers/search')
 async def indexer_search(
