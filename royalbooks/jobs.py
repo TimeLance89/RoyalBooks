@@ -241,7 +241,7 @@ async def download_epub(client: httpx.AsyncClient, url: str, destination: Path, 
 
 
 async def process_queued(job: dict, store: JobStore, staging: Path, client: httpx.AsyncClient,
-                         provider: Gutendex | None = None) -> None:
+                         provider: Gutendex | None = None, *, availability=None) -> None:
     temporary = staging / (job['id'] + '.part')
     target = staging / (job['id'] + '.epub')
     try:
@@ -289,6 +289,9 @@ async def process_queued(job: dict, store: JobStore, staging: Path, client: http
         else:
             code = type(exc).__name__
         store.update(job['id'], 'failed', error=code[:120])
+        if availability and code!='duplicate_epub':
+            try:await asyncio.to_thread(availability.save,job['source'],job['source_id'],'unavailable',error=code[:80])
+            except Exception:pass
     finally:
         temporary.unlink(missing_ok=True)
 
@@ -329,7 +332,7 @@ def deliver_staged(job: dict, store: JobStore, staging: Path, ingest: Path) -> N
 
 
 async def worker(store: JobStore, data_dir: Path, ingest: Path | None,
-                 gutendex: Gutendex | None = None, *, include_legacy: bool = True) -> None:
+                 gutendex: Gutendex | None = None, *, include_legacy: bool = True, availability=None) -> None:
     staging = data_dir / 'staging'
     staging.mkdir(parents=True, exist_ok=True)
     catalog = gutendex if gutendex is not None else Gutendex()
@@ -359,7 +362,7 @@ async def worker(store: JobStore, data_dir: Path, ingest: Path | None,
                 job = await asyncio.to_thread(store.claim, ('queued',), v2_only=not include_legacy)
             if job:
                 try:
-                    await asyncio.wait_for(process_queued(job, store, staging, client, catalog), timeout=180)
+                    await asyncio.wait_for(process_queued(job, store, staging, client, catalog, availability=availability), timeout=180)
                 except TimeoutError:
                     await asyncio.to_thread(store.update, job['id'], 'failed', error='ReadTimeout')
                 if job['source'] == 'libgen':

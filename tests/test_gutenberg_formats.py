@@ -189,7 +189,7 @@ async def test_blocked_gutendex_does_not_block_first_party_job(indexed, monkeypa
     gutendex = Gutendex()
     gutendex._blocked_until = monotonic() + 300
     processed = asyncio.Event()
-    async def fake_process(job, store, staging, client, provider):
+    async def fake_process(job, store, staging, client, provider, *, availability=None):
         store.update(job["id"], "staged")
         processed.set()
     monkeypatch.setattr("royalbooks.jobs.process_queued", fake_process)

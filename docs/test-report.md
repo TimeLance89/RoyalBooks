@@ -270,3 +270,28 @@ Leaving browser fullscreen restores the normal layout. Rail positions and focus
 survive availability refreshes. The default catalogue stays browsable while file
 availability is checked. Browser checks verify cached offline display, pending
 file buttons, fullscreen toggling and expanded shelves at 1440/390/320 pixels.
+
+## Genre browser and acquisition feedback (2026-10-25)
+
+Added `/genres`, reachable from the kiosk, with nine actual subject categories,
+language selection, pagination, reload/back navigation and an optional reachable
+file filter. Open Library queries use subject fields plus an explicit language
+constraint; matching edition titles are requested for the chosen language without
+converting a multilingual work record into a verified file. Gutendex uses topic,
+language, EPUB MIME and copyright-status filters. Cached catalogue records survive
+source outages. Source preferences are part of cache keys. Existing stored EPUB
+editions are attached only on matching title, author and selected language.
+
+Four backend tests cover subject queries, pagination, cache persistence, arbitrary
+remote pagination URLs not being followed, disabled sources, exact edition
+attachment and API validation. The platform Chromium suite now covers genre
+selection, reachability gating, next page and direct reload at three widths.
+Actual failed acquisitions invalidate the file's reachability record; a dedicated
+HTTP-500 regression test verifies that an earlier positive probe is overwritten.
+
+Candidate NAS audit: 25 indexed works for Fantasy/de, Crime/de and Science-Fiction/en,
+with further pages. Open Library succeeded; Gutendex was unavailable in that audit.
+These work listings are not claimed as downloadable EPUBs. Additional-provider
+audit: all three tested Anna's Archive mirrors (`.gl`, `.pk`, `.gd`) returned HTTP
+403 after their normal redirects. No challenge was bypassed and no nonfunctional
+provider was enabled. No book download or import was created by these audits.

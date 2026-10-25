@@ -164,3 +164,20 @@ async def test_missing_token_disables_writes(monkeypatch, tmp_path):
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://test') as client:
         result = await client.post('/api/jobs',json={'source_id':1, 'rights_confirmed':True})
     assert result.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_actual_download_failure_invalidates_reachability_cache(tmp_path):
+    from royalbooks.availability import Availability
+    store=JobStore(str(tmp_path/'db.sqlite3'));availability=Availability(store.path)
+    availability.save('gutendex',42,'available',size=123)
+    staging=tmp_path/'staging';staging.mkdir()
+    def handler(req):
+        if req.url.host=='gutendex.com':return httpx.Response(200,json={'id':42,'copyright':False,'formats':{'application/epub+zip':'https://www.gutenberg.org/ebooks/42.epub'}})
+        return httpx.Response(500)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        job=store.add(42)
+        await process_queued(job,store,staging,client,availability=availability)
+    assert store.get(job['id'])['error']=='http_500'
+    assert availability.read('gutendex',42)['status']=='unavailable'
+    assert availability.read('gutendex',42)['error']=='http_500'

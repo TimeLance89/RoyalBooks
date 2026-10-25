@@ -38,6 +38,7 @@ from royalbooks.storage import MetricsStore
 from royalbooks.auth import SessionStore, COOKIE, SESSION_SECONDS
 from royalbooks.library import bookshelf, library_file, LibraryUnavailable
 from royalbooks.storefront import Storefront
+from royalbooks.genres import Genres,GENRES,manifest as genre_manifest
 from royalbooks.artwork import fetch_artwork
 from royalbooks.settings import PlatformSettings
 from royalbooks.availability import Availability
@@ -72,6 +73,7 @@ async def lifespan(app: FastAPI):
     app.state.discovery = SearchCoordinator(sources, app.state.search_client, app.state.store)
     app.state.storefront = Storefront(path, app.state.search_client)
     app.state.storefront.availability = app.state.availability
+    app.state.genres = Genres(app.state.storefront)
     app.state.artwork_slots = asyncio.Semaphore(3)
     storefront_task = (asyncio.create_task(app.state.storefront.run())
                        if os.getenv('ROYALBOOKS_STORE_REFRESH_ENABLED', '1') != '0' else None)
@@ -79,7 +81,7 @@ async def lifespan(app: FastAPI):
     if downloads_enabled() and os.getenv('ROYALBOOKS_API_TOKEN'):
         task = asyncio.create_task(worker(app.state.jobs, data,
             Path(ingest_path) if ingest_path else None, app.state.providers.get('gutendex'),
-            include_legacy=os.getenv('ROYALBOOKS_ENABLE_LEGACY_WORKER') == '1'))
+            include_legacy=os.getenv('ROYALBOOKS_ENABLE_LEGACY_WORKER') == '1',availability=app.state.availability))
     try:
         yield
     finally:
@@ -87,6 +89,7 @@ async def lifespan(app: FastAPI):
             storefront_task.cancel()
             with suppress(asyncio.CancelledError):
                 await storefront_task
+        await app.state.genres.close()
         await app.state.discovery.close()
         await app.state.availability.close()
         await app.state.search_client.aclose()
@@ -126,6 +129,7 @@ async def _limit_public_search(client_ip: str) -> None:
 @app.get('/library')
 @app.get('/search')
 @app.get('/authors')
+@app.get('/genres')
 @app.get('/downloads')
 @app.get('/watchlist')
 @app.get('/settings')
@@ -151,6 +155,18 @@ async def store_home():
             shelf['items']=[item for item in shelf['items'] if item['source'] in selected]
     return JSONResponse(snapshot,
                         headers={'Cache-Control':'no-store'})
+
+
+@app.get('/api/genres')
+async def genre_list():
+    return {'genres':genre_manifest()}
+
+
+@app.get('/api/genres/{slug}')
+async def genre_books(slug: str,request: Request,language: str = Query(default='de',pattern='^(de|en|all)$'),page: int = Query(default=1,ge=1,le=40)):
+    if slug not in GENRES:raise HTTPException(status_code=404,detail='unknown_genre')
+    await _limit_public_search('genre:'+(request.client.host if request.client else 'unknown'))
+    return await app.state.genres.browse(slug,language,page)
 
 
 @app.get('/api/catalog-cover/{md5}')

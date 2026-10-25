@@ -71,6 +71,24 @@ def main():
                     assert queries[-1]['mode']==['isbn']
                     page.locator('.shell-settings').click();page.go_back();assert page.locator('#q').is_visible()
                     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+                    page.route('**/api/genres',lambda route:route.fulfill(json={'genres':[{'id':'fantasy','title':'Fantasy','color':'#8778af'},{'id':'crime','title':'Krimi','color':'#a36e7a'}]}))
+                    genre_items=[make_book('Nebelwald',101),make_book('Nebeltal',102),make_book('Katalogwerk',201,'openlibrary')]
+                    def genre_route(route):
+                        params=parse_qs(urlsplit(route.request.url).query)
+                        rows=[make_book('Weitere Geschichte',103)] if params.get('page')==['2'] else genre_items
+                        route.fulfill(json={'genre':'fantasy','title':'Fantasy','items':rows,'has_more':params.get('page')!=['2'],'sources':[]})
+                    page.route('**/api/genres/fantasy?*',genre_route)
+                    page.goto(base+'/genres');page.locator('[data-genre=fantasy]').click()
+                    page.wait_for_function("document.querySelectorAll('#genre-books .book').length===3")
+                    assert page.url.endswith('/genres?genre=fantasy&language=de')
+                    page.locator('#genre-available-only').check()
+                    page.wait_for_function("document.querySelectorAll('#genre-books .book').length===1")
+                    page.locator('#genre-more').click()
+                    page.wait_for_function("document.querySelectorAll('#genre-books .book').length===2")
+                    page.reload();page.wait_for_function("document.querySelectorAll('#genre-books .book').length===3")
+                    assert page.locator('#genre-title').inner_text()=='Fantasy'
+                    assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+                    page.screenshot(path=str(ROOT/'data/screenshots'/('genres-'+name+'.png')))
                     if name=='desktop':
                         many=[make_book('Werk '+str(i),1000+i) for i in range(101)]
                         page.route('**/api/books/search?*',lambda route:route.fulfill(json={'query':'Stephen King','items':many,'sources':[],'has_more':False}))

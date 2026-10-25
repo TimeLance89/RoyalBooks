@@ -242,3 +242,27 @@ identifiers and visibly labels it as another edition; it never assigns a paper
 ISBN to an unrelated download. Store refreshes also schedule bounded background
 reachability checks, so frequently visited shelves are ready without a fresh
 file check on every click.
+
+
+## Genre browsing
+
+Open **Genres** in the book kiosk to browse nine categories. `/genres` offers
+language selection, subsequent pages, reloadable category URLs and an optional
+reachable-EPUB filter. Open Library subject queries and Gutendex topic filters
+supply actual catalogue classifications. A work with a German edition is not
+relabeled as a verified German EPUB. Existing source-listed file editions are
+attached only when normalized title and author match, and their own identifiers
+and language are retained. Downloads still require a successful reachability
+check and the existing complete-file validation.
+
+Results are cached for six hours in SQLite and survive source outages. Disabled
+sources are excluded, including from cache keys. Genre metadata APIs cannot
+supply arbitrary origins or file URLs to the acquisition queue. References:
+[Open Library Search API](https://openlibrary.org/dev/docs/api/search) and
+[Gutendex topic filters](https://github.com/garethbjohnson/gutendex).
+
+Actual failed downloads now invalidate the corresponding reachability record;
+a previous successful range probe must not keep a failed file advertised.
+Additional acquisition providers are enabled only after successful source/file
+tests. An NAS audit of Anna's Archive `.gl`, `.pk` and `.gd` returned HTTP 403 on
+all three searches after their normal redirects; no automatic provider was added.
