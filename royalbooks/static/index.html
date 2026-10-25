@@ -150,12 +150,13 @@ async function loadJobs(){const token=$('token').value;if(!token&&!adminAuthenti
 try{const r=await adminFetch('/api/jobs',{headers:authHeaders()});if(!r.ok)throw Error('HTTP '+r.status);const result=await r.json();
 if(jobTimer){clearTimeout(jobTimer);jobTimer=null}
 const active=result.jobs.some(job=>['queued','downloading','staged','delivering'].includes(job.status));
-if(active)jobTimer=setTimeout(()=>{
+if(active||!$('download-center').hidden)jobTimer=setTimeout(()=>{
  if(document.visibilityState==='visible')loadJobs();
-},5000);
+},active?5000:8000);
 $('job-message').textContent=result.downloads_enabled?'Downloads aktiv. Historische Aufträge ohne erneute Freigabe bleiben pausiert.':'Downloads pausiert.';
 $('job-rows').replaceChildren(...result.jobs.map(job=>{const row=document.createElement('tr');
-const info=text('td',job.error||((job.file_size||0)?job.file_size+' Bytes':'–'));
+const jobErrors={untrusted_redirect:'Die Quelle verweist auf einen noch nicht freigegebenen Downloadserver.',catalog_md5_mismatch:'Die Datei stimmt nicht mit der ausgewählten Ausgabe überein.',publisher_epub_metadata_missing_or_expired:'Der Dateieintrag ist abgelaufen. Bitte die Suche erneut öffnen.'};
+const info=text('td',(jobErrors[job.error]||job.error)||((job.file_size||0)?job.file_size+' Bytes':'–'));
 const observations={
  awaiting_ingest:'EPUB liegt noch im Importordner',
  file_absent_unverified:'EPUB nicht mehr im Importordner – Import unbestätigt',

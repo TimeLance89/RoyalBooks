@@ -10,7 +10,7 @@ import httpx
 from royalbooks.providers import ProviderError
 
 CATALOG_HOSTS = ('libgen.li', 'libgen.gl', 'libgen.bz', 'libgen.la')
-FILE_HOSTS = frozenset({'cdn1.booksdl.lc', 'cdn2.booksdl.lc', 'cdn5.booksdl.lc'})
+FILE_HOSTS = frozenset({'cdn1.booksdl.lc', 'cdn2.booksdl.lc', 'cdn4.booksdl.lc', 'cdn5.booksdl.lc'})
 MD5 = re.compile(r'[0-9a-fA-F]{32}')
 MAX_PAGE = 2 * 1024 * 1024
 

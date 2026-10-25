@@ -177,3 +177,13 @@ above describes the initial acceptance, not this subsequent change.
 - Previous production image retained as `royalbooks:before-store-20261025`; a
   fresh SQLite backup was taken before deployment. Calibre library files and
   metadata are never directly modified by RoyalBooks.
+
+The subsequent user screenshot exposed another catalog-issued HTTPS redirect,
+this time `cdn4.booksdl.lc/get.php`, again with the same selected MD5 and expected
+key parameters. This exact host is now supported as well. Both original failed
+jobs retain their original IDs, recorded user consent and three-attempt cap.
+Only each specifically verified failed request was administratively requeued;
+unknown redirects remain blocked. The downloads screen now refreshes itself
+while visible and presents a readable message for unsupported redirects.
+Final local suite: 233 passed, two Windows symlink skips. Final NAS suite:
+235 passed. Search browser regressions remain passing after the status update.
