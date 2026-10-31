@@ -321,7 +321,14 @@ async def process_queued(job: dict, store: JobStore, staging: Path, client: http
                 raise AcquisitionError('no_trusted_epub')
         else:
             raise AcquisitionError("unsupported_source")
-        if job['source'] == 'libgen':
+        if job['source'] == 'webshare':
+            from royalbooks.webshare_source import cached
+            hit = await asyncio.to_thread(cached, store.path, job['source_id'])
+            if not hit:
+                raise AcquisitionError('verified_epub_cache_expired_search_again')
+            await asyncio.to_thread(temporary.write_bytes, hit[0])
+            size = len(hit[0])
+        elif job['source'] == 'libgen':
             size = await download_libgen(client, url, temporary)
         else:
             size = await download_epub(client, url, temporary, source=job["source"])

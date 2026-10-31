@@ -43,8 +43,10 @@ class Book:
         data['language_evidence'] = self.language_evidence if self.language else 'ambiguous_or_unknown'
         data['download_supported'] = bool(self.epub_url) and self.source in {
             'gutendex', 'gutenberg_catalog', 'wikisource', 'standardebooks', 'memoryoftheworld'}
-        if self.source == 'libgen' and self.acquisition_id and self.formats == ('EPUB',):
+        if self.source in {'libgen', 'webshare'} and self.acquisition_id and self.formats == ('EPUB',):
             data['download_supported'] = True
+        if self.source == 'webshare' and self.language_evidence == 'epub_metadata_verified':
+            data['file_evidence'] = 'verified_epub_cached'
         return data
 
 

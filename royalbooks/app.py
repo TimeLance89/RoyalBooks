@@ -383,7 +383,7 @@ class PreferenceUpdate(BaseModel):
     language: Literal['de','en','all'] | None = None
     available_only: bool | None = None
     result_limit: Literal[25,30,60] | None = None
-    sources: list[str] | None = Field(default=None,min_length=1,max_length=10)
+    sources: list[str] | None = Field(default=None,min_length=1,max_length=11)
 
     @field_validator('sources')
     @classmethod
@@ -407,7 +407,7 @@ async def update_preferences(body: PreferenceUpdate,_admin: None = Depends(admin
 
 
 class AvailabilityItem(BaseModel):
-    source: Literal['libgen','memoryoftheworld','gutendex','gutenberg_catalog','wikisource','standardebooks']
+    source: Literal['webshare','libgen','memoryoftheworld','gutendex','gutenberg_catalog','wikisource','standardebooks']
     record_id: int = Field(gt=0,le=9007199254740991)
 
 
@@ -531,6 +531,10 @@ async def enqueue(request: QueueRequest, _admin: None = Depends(admin_access)):
         lookup_direct_epub, app.state.jobs.path, request.provider, request.source_id
     ):
         raise HTTPException(status_code=409, detail='publisher_epub_metadata_missing_or_expired')
+    if request.provider == 'webshare':
+        from royalbooks.webshare_source import cached
+        if not await asyncio.to_thread(cached, app.state.jobs.path, request.source_id):
+            raise HTTPException(status_code=409, detail='verified_epub_cache_expired_search_again')
     return {'job': await asyncio.to_thread(app.state.jobs.add, request.source_id, request.provider, v2_authorized=True)}
 
 
@@ -557,7 +561,7 @@ async def request_catalog_import(
 
 
 class WatchlistRequest(BaseModel):
-    source: Literal["byte", "gutendex", "gutenberg_catalog", "openlibrary", "dnb", "google_books", "libgen", "wikisource", "standardebooks", "memoryoftheworld"]
+    source: Literal["webshare", "byte", "gutendex", "gutenberg_catalog", "openlibrary", "dnb", "google_books", "libgen", "wikisource", "standardebooks", "memoryoftheworld"]
     source_id: str = Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_-]+$")
     title: str = Field(min_length=2, max_length=250)
     authors: list[str] = Field(default_factory=list, max_length=8)

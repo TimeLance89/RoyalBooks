@@ -66,6 +66,11 @@ class Availability:
                 self.pending.discard(key);self.queue.task_done()
 
     async def probe(self,source,record_id):
+        if source=='webshare':
+            from royalbooks.webshare_source import cached
+            hit=await asyncio.to_thread(cached,self.path,record_id)
+            if not hit:raise ValueError('verified_epub_cache_expired_search_again')
+            return len(hit[0])
         headers={'Range':'bytes=0-1023'};wanted=None
         if source in SOURCES:
             url=await asyncio.to_thread(lookup_epub,self.path,source,record_id)

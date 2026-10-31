@@ -134,7 +134,9 @@ def main() -> None:
     parser.add_argument("--providers", nargs="*", default=None, help="Provider names to probe")
     args = parser.parse_args()
     cases = load_cases(args.cases)
-    registered = configured_providers()
+    # This command promises metadata-only access. Verified providers download
+    # complete files as part of search and therefore require a separate audit.
+    registered = [p for p in configured_providers() if p.purpose != 'verified_epub']
     if args.providers:
         registered = [provider for provider in registered if provider.name in args.providers]
         unknown = set(args.providers) - {provider.name for provider in registered}

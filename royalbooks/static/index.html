@@ -515,7 +515,7 @@ try{const r=await adminFetch('/api/jobs',{method:'POST',headers:authHeaders({'Co
 const data=await r.json();if(!r.ok)throw Error(data.detail||'HTTP '+r.status);$('job-message').textContent='Auftrag für '+book.title+' vorgemerkt.';loadJobs()}catch(err){$('job-message').textContent='Übernahme fehlgeschlagen: '+err.message}
 showView('download-center');$('job-message').scrollIntoView({block:'nearest'})}
 
-const sourceNames={byte:'Byte.to',gutendex:'Gutendex',openlibrary:'Open Library',gutenberg_catalog:'Gutenberg',
+const sourceNames={webshare:'Webshare',byte:'Byte.to',gutendex:'Gutendex',openlibrary:'Open Library',gutenberg_catalog:'Gutenberg',
 libgen:'Library Genesis',wikisource:'Wikisource',standardebooks:'Standard Ebooks',dnb:'Deutsche Nationalbibliothek',google_books:'Google Books',memoryoftheworld:'Memory of the World'};
 const sourceName=key=>sourceNames[key]||key;
 let lastSearchResult=null;
@@ -524,9 +524,11 @@ let searchFilter='all';
 function renderEditionInfo(container,item){
   container.append(text('p',sourceName(item.source)+' · '+(item.language||(item.source==='openlibrary'?'Sprache je nach Ausgabe':'Sprache unbekannt'))+(item.year?' · '+item.year:''),'pill'));
   for(const isbn of item.isbns||[item.isbn13].filter(Boolean))container.append(text('p','ISBN: '+isbn,'muted'));
-  if(item.formats&&item.formats.length)container.append(text('p',item.formats.join(' / ')+' · laut Katalog','pill'));
+  if(item.file_evidence==='verified_epub_cached')container.append(text('p','EPUB vollständig geprüft · Sprache aus Buchdatei bestätigt','pill'));
+  else if(item.formats&&item.formats.length)container.append(text('p',item.formats.join(' / ')+' · laut Katalog','pill'));
   if(item.language_evidence==='catalog_claim_unverified')container.append(text('p','Sprache vom Anbieter angegeben · Datei nicht geprüft','muted'));
   if(item.epub_url)container.append(text('p','EPUB-Link gelistet · Verfügbarkeit und Rechte noch prüfen','pill'));
+  else if(item.file_evidence==='verified_epub_cached')container.append(text('p','Geprüfte Datei zwischengespeichert · direkt zur Bibliothek hinzufügen','muted'));
   else if(item.source==='byte')container.append(text('p','Hoster-Veröffentlichung · Format und Sprache noch ungeprüft','muted'));
   else container.append(text('p',item.file_evidence==='listed_unverified'?'Dateieintrag gelistet · kein geprüfter Download':'Buchdaten · kein Downloadangebot dieser Quelle','muted'));
 }
@@ -583,7 +585,7 @@ function renderResults(){
     primary_index:index,item_indexes:[index],epub_count:items[index].epub_url?1:0
   }));
   const visible=groups.filter(group=>(!$('search-available-only').checked||group.item_indexes.some(index=>reachable(items[index])))).filter(group=>searchFilter==='all'||
-      (searchFilter==='epub'?group.epub_count>0:searchFilter==='files'?group.item_indexes.some(index=>items[index].file_evidence==='listed_unverified'):group.item_indexes.every(index=>items[index].file_evidence==='metadata_only')));
+      (searchFilter==='epub'?group.epub_count>0:searchFilter==='files'?group.item_indexes.some(index=>['listed_unverified','verified_epub_cached'].includes(items[index].file_evidence)):group.item_indexes.every(index=>items[index].file_evidence==='metadata_only')));
   const sort=$('result-sort').value;
   if(sort==='title')visible.sort((a,b)=>items[a.primary_index].title.localeCompare(items[b.primary_index].title,'de'));
   if(sort==='year')visible.sort((a,b)=>(items[b.primary_index].year||0)-(items[a.primary_index].year||0));
@@ -636,7 +638,7 @@ function showDetails(main,members){
   const actions=text('div','','detail-actions');renderEditionActions(actions,book,false,true);const save=actions.querySelector('.save-action');save.textContent='Auf Merkliste';
   if(!book.download_supported&&book.source!=='byte'){const search=text('button','EPUB-Ausgaben suchen','action');search.type='button';search.addEventListener('click',()=>searchForBook(book));actions.append(search)}
   selected.append(actions);
-  const hint=text('p',book.source==='byte'?'Hoster-Veröffentlichung. Dateiformat, Sprache und Verfügbarkeit werden erst im Downloadablauf geprüft.':book.download_supported?'Die vollständige EPUB-Prüfung erfolgt beim Download.':'Für diesen Katalogeintrag ist keine EPUB hinterlegt.','detail-hint');selected.append(hint);
+  const hint=text('p',book.source==='byte'?'Hoster-Veröffentlichung. Dateiformat, Sprache und Verfügbarkeit werden erst im Downloadablauf geprüft.':book.file_evidence==='verified_epub_cached'?'EPUB vollständig geprüft; Titel und Sprache aus der Buchdatei bestätigt.':book.download_supported?'Die vollständige EPUB-Prüfung erfolgt beim Download.':'Für diesen Katalogeintrag ist keine EPUB hinterlegt.','detail-hint');selected.append(hint);
  }
  selection.append(selected);info.append(selection);choose(0);
  appendDescription(main,info);
@@ -992,7 +994,7 @@ function fileReference(book){
 }
 function fileState(book){if(preferencesLoaded&&!platformPreferences.sources.includes(book.source))return {status:'disabled'};const ref=fileReference(book);if(!ref)return {status:'metadata'};const value=availabilityMap.get(ref.source+':'+ref.record_id);return value&&Date.now()/1000-value.checked_at<900?value:{status:'pending'}}
 function reachable(book){return fileState(book).status==='available'}
-function availabilityBadge(book){if(book.source==='byte')return text('span','Hoster · Datei ungeprüft','availability-badge');const status=fileState(book).status;const label={available:'Datei erreichbar',pending:'Datei wird geprüft',busy:'Prüfung wartet',unavailable:'Datei nicht erreichbar',metadata:'Katalogeintrag'}[status]||'Datei wird geprüft';const el=text('span',label,'availability-badge');el.dataset.state=status;const ref=fileReference(book);if(ref)el.dataset.fileBadge=ref.source+':'+ref.record_id;return el}
+function availabilityBadge(book){if(book.source==='byte')return text('span','Hoster · Datei ungeprüft','availability-badge');const status=fileState(book).status;if(book.file_evidence==='verified_epub_cached'&&status==='available'){const el=text('span','EPUB geprüft','availability-badge');el.dataset.state=status;const ref=fileReference(book);if(ref)el.dataset.fileBadge=ref.source+':'+ref.record_id;return el}const label={available:'Datei erreichbar',pending:'Datei wird geprüft',busy:'Prüfung wartet',unavailable:'Datei nicht erreichbar',metadata:'Katalogeintrag'}[status]||'Datei wird geprüft';const el=text('span',label,'availability-badge');el.dataset.state=status;const ref=fileReference(book);if(ref)el.dataset.fileBadge=ref.source+':'+ref.record_id;return el}
 function redrawAvailability(){for(const badge of document.querySelectorAll('#book-dialog [data-file-badge]')){const state=availabilityMap.get(badge.dataset.fileBadge)?.status||'pending';badge.dataset.state=state;badge.textContent={available:'Datei erreichbar',pending:'Datei wird geprüft',busy:'Prüfung wartet',unavailable:'Datei nicht erreichbar'}[state]||'Datei wird geprüft'}if(lastSearchResult)renderResults();if(authorResult)renderAuthorResults();if(genreResult)renderGenreResults();if(storeSnapshot)renderStore(storeSnapshot);for(const button of document.querySelectorAll('[data-availability-key]'))button.disabled=availabilityMap.get(button.dataset.availabilityKey)?.status!=='available'}
 async function checkFiles(items,context){
  const refs=[...new Map((items||[]).filter(book=>!preferencesLoaded||platformPreferences.sources.includes(book.source)).map(fileReference).filter(Boolean).map(ref=>[ref.source+':'+ref.record_id,ref])).values()];let cursor=0;
