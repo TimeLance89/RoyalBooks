@@ -134,7 +134,9 @@ class ResultTableParser(HTMLParser):
         if tag == "tr" and self._depth == 0:
             self._cells = []
         elif tag == "td" and self._cells is not None:
-            self._cell = {"text": [], "links": []}
+            self._cell = {"text": [], "links": [], "images": []}
+        elif tag == "img" and self._cell is not None:
+            self._cell["images"].append(a.get("src", ""))
         elif tag == "b":
             self._bold += 1
         elif tag == "a" and self._cell is not None:

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import sqlite3
+from royalbooks.database import connect as db_connect
 from pathlib import Path, PurePosixPath
 
 MAX_CANDIDATES = 100
@@ -62,7 +63,7 @@ def verify_library_presence(job: dict, library_path: str | None) -> dict:
         return result
     try:
         # Read-only SQLite URI. Do not open the live Calibre database for writes.
-        with sqlite3.connect(metadata.as_uri() + "?mode=ro", uri=True, timeout=3) as db:
+        with db_connect(metadata.as_uri() + "?mode=ro", uri=True, timeout=3) as db:
             rows = db.execute("""
                 SELECT b.id,b.title,b.path,d.name FROM books b
                 JOIN data d ON b.id=d.book

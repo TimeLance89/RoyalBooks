@@ -20,8 +20,8 @@ async def test_preflight_api_protected_and_read_only(monkeypatch, tmp_path):
     token = "super-secret-test-token-with-sufficient-length"
     monkeypatch.setenv("ROYALBOOKS_API_TOKEN", token)
     monkeypatch.setenv("ROYALBOOKS_DB_PATH", str(data / "royalbooks.sqlite3"))
-    monkeypatch.setenv("ROYALBOOKS_CWA_INGEST_PATH", str(ingest))
-    monkeypatch.setenv("ROYALBOOKS_CWA_LIBRARY_PATH", str(library))
+    monkeypatch.setenv("ROYALBOOKS_BOOKORBIT_INGEST_PATH", str(ingest))
+    monkeypatch.setenv("ROYALBOOKS_BOOKORBIT_LIBRARY_PATH", str(library))
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
         assert (await client.get("/api/preflight")).status_code == 401
         assert (await client.get("/api/preflight", headers={"X-API-Key":"invalid"})).status_code == 401
@@ -30,7 +30,7 @@ async def test_preflight_api_protected_and_read_only(monkeypatch, tmp_path):
     report = response.json()
     assert report["status"] == "review_required"
     assert report["changes_made"] is False
-    assert {c["name"] for c in report["checks"]} >= {"data_mount","cwa_ingest_mount","calibre_metadata"}
+    assert {c["name"] for c in report["checks"]} >= {"data_mount","bookorbit_ingest_mount","bookorbit_library_mount"}
     assert (library / "metadata.db").read_bytes() == before
     assert not (data / "royalbooks.sqlite3").exists()
     assert token not in str(report)
@@ -43,8 +43,8 @@ async def test_preflight_missing_mount_reports_error_without_creating_it(monkeyp
     data.mkdir()
     missing = tmp_path / "not-an-ingest-directory"
     monkeypatch.setenv("ROYALBOOKS_DB_PATH",str(data / "royalbooks.sqlite3"))
-    monkeypatch.setenv("ROYALBOOKS_CWA_INGEST_PATH",str(missing))
-    monkeypatch.delenv("ROYALBOOKS_CWA_LIBRARY_PATH",raising=False)
+    monkeypatch.setenv("ROYALBOOKS_BOOKORBIT_INGEST_PATH",str(missing))
+    monkeypatch.delenv("ROYALBOOKS_BOOKORBIT_LIBRARY_PATH",raising=False)
     monkeypatch.setenv("ROYALBOOKS_API_TOKEN","test-token-longer-than-24-chars")
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url="http://test") as client:
         response=await client.get("/api/preflight",headers={"X-API-Key":"test-token-longer-than-24-chars"})

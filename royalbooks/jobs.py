@@ -1,4 +1,4 @@
-"""Restart-safe, opt-in Gutenberg EPUB ingest; never modifies Calibre metadata.db."""
+"""Restart-safe, authorized EPUB acquisition and BookOrbit Book Dock handoff."""
 from __future__ import annotations
 
 import asyncio
@@ -7,25 +7,31 @@ import os
 import secrets
 import shutil
 import sqlite3
+from royalbooks.database import connect as db_connect
 import uuid
 import zipfile
+from time import monotonic
+import time
 from pathlib import Path, PurePosixPath
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import urljoin, urlsplit, parse_qs
 from defusedxml import ElementTree
 
 import httpx
 
 from royalbooks.providers import Gutendex, ProviderError
 from royalbooks.direct_sources import SOURCES, lookup_epub as lookup_direct_epub, safe_epub_url
+from royalbooks.libgen_links import resolve_epub, safe_file_url, catalog_mirrors
 
 MAX_BYTES = 32 * 1024 * 1024
 MAX_UNCOMPRESSED = 160 * 1024 * 1024
 TRUSTED_HOSTS = {"gutenberg.org", "www.gutenberg.org", "gutenberg.pglaf.org"}
 MAX_ATTEMPTS = 3
+RETRY_DELAYS = (60, 300)
 RETRYABLE_ERRORS = {
     "ReadTimeout", "ConnectTimeout", "ConnectError", "ReadError",
     "RemoteProtocolError", "PoolTimeout", "WriteTimeout", "WriteError",
     "http_429", "http_500", "http_502", "http_503", "http_504",
+    "libgen_catalog_unavailable",
 }
 
 
@@ -83,6 +89,8 @@ def validate_epub(path: Path) -> str:
             if not any(ref.attrib.get("full-path") in filenames and ref.attrib.get("media-type") == "application/oebps-package+xml"
                        for ref in refs):
                 raise AcquisitionError("invalid_epub_manifest")
+            if len(filenames) != len(entries) or archive.testzip() is not None:
+                raise AcquisitionError('invalid_epub_crc')
     except (OSError, zipfile.BadZipFile, ElementTree.ParseError, RuntimeError, KeyError) as exc:
         raise AcquisitionError("invalid_epub_archive") from exc
     return digest.hexdigest()
@@ -103,6 +111,17 @@ class JobStore:
             columns = {row[1] for row in db.execute("PRAGMA table_info(jobs)")}
             if "attempts" not in columns:
                 db.execute("ALTER TABLE jobs ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0")
+            if "v2_authorized" not in columns:
+                # Existing queued jobs remain preserved but paused on upgrade.
+                db.execute("ALTER TABLE jobs ADD COLUMN v2_authorized INTEGER NOT NULL DEFAULT 0")
+            if "retry_at" not in columns:
+                db.execute("ALTER TABLE jobs ADD COLUMN retry_at INTEGER")
+            if "library_backend" not in columns:
+                db.execute("ALTER TABLE jobs ADD COLUMN library_backend TEXT NOT NULL DEFAULT 'legacy'")
+                # A validated file prepared for another backend needs review.
+                # Delivered history must never be replayed into BookOrbit.
+                db.execute("UPDATE jobs SET status='needs_review',error='backend_migration_review' WHERE status='staged'")
+                db.execute("UPDATE jobs SET library_backend='bookorbit' WHERE status='queued'")
             # Download attempts are counted on claim, including interrupted attempts.
             db.execute("""UPDATE jobs SET status='failed', error='interrupted_attempt_limit',
                         updated_at=CURRENT_TIMESTAMP
@@ -115,16 +134,19 @@ class JobStore:
                         updated_at=CURRENT_TIMESTAMP WHERE status='delivering'""")
 
     def _db(self):
-        db = sqlite3.connect(self.path, timeout=10)
+        db = db_connect(self.path, timeout=10)
         db.row_factory = sqlite3.Row
         return db
 
-    def add(self, source_id: int, source: str = "gutendex") -> dict:
+    def add(self, source_id: int, source: str = "gutendex", *, v2_authorized: bool = False) -> dict:
         if source not in {"gutendex", "gutenberg_catalog", *SOURCES}:
             raise JobStateError("unsupported_source")
         with self._db() as db:
-            db.execute("INSERT OR IGNORE INTO jobs(id,source,source_id,status) VALUES (?,?,?,'queued')",
-                       (uuid.uuid4().hex, source, source_id))
+            db.execute("INSERT OR IGNORE INTO jobs(id,source,source_id,status,v2_authorized,library_backend) VALUES (?,?,?,'queued',?,'bookorbit')",
+                       (uuid.uuid4().hex, source, source_id, int(v2_authorized)))
+            if v2_authorized:
+                db.execute("UPDATE jobs SET v2_authorized=1 WHERE source=? AND source_id=? AND status='queued'",
+                           (source, source_id))
             row = db.execute("SELECT * FROM jobs WHERE source=? AND source_id=?", (source, source_id)).fetchone()
             return dict(row)
 
@@ -132,7 +154,7 @@ class JobStore:
         with self._db() as db:
             return [dict(x) for x in db.execute("SELECT * FROM jobs ORDER BY created_at DESC LIMIT 100")]
 
-    def claim(self, statuses: tuple[str, ...], source: str | None = None) -> dict | None:
+    def claim(self, statuses: tuple[str, ...], source: str | None = None, *, v2_only: bool = False) -> dict | None:
         with self._db() as db:
             db.execute("BEGIN IMMEDIATE")
             for status in statuses:
@@ -141,15 +163,21 @@ class JobStore:
                     db.execute("""UPDATE jobs SET status='failed', error='interrupted_attempt_limit',
                                 updated_at=CURRENT_TIMESTAMP
                                 WHERE status='queued' AND attempts >= ?""", (MAX_ATTEMPTS,))
-                if source is None:
-                    row = db.execute("SELECT * FROM jobs WHERE status=? ORDER BY created_at LIMIT 1", (status,)).fetchone()
-                else:
-                    row = db.execute("SELECT * FROM jobs WHERE status=? AND source=? ORDER BY created_at LIMIT 1",
-                                     (status, source)).fetchone()
+                sql = 'SELECT * FROM jobs WHERE status=?'
+                args = [status]
+                if status == 'queued':
+                    sql += ' AND (retry_at IS NULL OR retry_at<=?)'
+                    args.append(int(time.time()))
+                if source is not None:
+                    sql += ' AND source=?'
+                    args.append(source)
+                if v2_only:
+                    sql += ' AND v2_authorized=1'
+                row = db.execute(sql + ' ORDER BY created_at LIMIT 1', args).fetchone()
                 if row:
                     next_status = 'downloading' if status == 'queued' else 'delivering'
                     db.execute("""UPDATE jobs
-                        SET status=?, attempts=attempts+CASE WHEN ?='queued' THEN 1 ELSE 0 END,
+                        SET status=?, retry_at=NULL, attempts=attempts+CASE WHEN ?='queued' THEN 1 ELSE 0 END,
                         updated_at=CURRENT_TIMESTAMP WHERE id=? AND status=?""",
                         (next_status, status, row['id'], status))
                     return dict(row)
@@ -158,7 +186,7 @@ class JobStore:
     def update(self, job_id: str, status: str, *, error: str | None = None,
                sha256: str | None = None, file_size: int | None = None) -> None:
         with self._db() as db:
-            db.execute("""UPDATE jobs SET status=?,error=?,sha256=COALESCE(?,sha256),
+            db.execute("""UPDATE jobs SET status=?,error=?,retry_at=NULL,sha256=COALESCE(?,sha256),
                        file_size=COALESCE(?,file_size),updated_at=CURRENT_TIMESTAMP WHERE id=?""",
                        (status, error, sha256, file_size, job_id))
 
@@ -173,7 +201,7 @@ class JobStore:
             row = db.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
             return dict(row) if row else None
 
-    def retry_failed(self, job_id: str) -> dict:
+    def retry_failed(self, job_id: str, *, v2_authorized: bool = False) -> dict:
         """Limited, atomic retry for transient failures; no ambiguous handoff repeats."""
         with self._db() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -186,18 +214,43 @@ class JobStore:
                 raise JobStateError("error_not_retryable")
             if row["attempts"] >= MAX_ATTEMPTS:
                 raise JobStateError("retry_limit_reached")
-            db.execute("""UPDATE jobs SET status='queued',error=NULL,sha256=NULL,
+            db.execute("""UPDATE jobs SET status='queued',error=NULL,retry_at=NULL,sha256=NULL,
+                        v2_authorized=CASE WHEN ? THEN 1 ELSE v2_authorized END,
                         file_size=NULL,updated_at=CURRENT_TIMESTAMP
-                        WHERE id=? AND status='failed'""", (job_id,))
+                        WHERE id=? AND status='failed'""", (int(v2_authorized), job_id))
             return dict(db.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone())
+
+    def schedule_retries(self, *, include_legacy: bool = False) -> int:
+        """Persist delayed retries without reviving historical or uncertain handoffs."""
+        now = int(time.time())
+        with self._db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            rows = db.execute("""SELECT id,error,attempts FROM jobs WHERE status='failed'
+                AND attempts>0 AND attempts<? AND (v2_authorized=1 OR ?=1)""",
+                (MAX_ATTEMPTS, int(include_legacy))).fetchall()
+            count = 0
+            for row in rows:
+                if row['error'] not in RETRYABLE_ERRORS:
+                    continue
+                db.execute("""UPDATE jobs SET status='queued',retry_at=?,sha256=NULL,file_size=NULL,
+                    updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='failed'""",
+                    (now + RETRY_DELAYS[row['attempts'] - 1], row['id']))
+                count += 1
+            return count
 
 
 async def download_epub(client: httpx.AsyncClient, url: str, destination: Path, source: str = "gutendex") -> int:
+    headers = {}
     checker = valid_url if source not in SOURCES else lambda u: safe_epub_url(source, u)
+    if source == 'libgen':
+        wanted_md5 = [value.lower() for value in parse_qs(urlsplit(url).query).get('md5', [])]
+        headers['Referer'] = f'https://{urlsplit(url).hostname}/ads.php?md5={wanted_md5[0]}' if wanted_md5 else ''
+        checker = lambda candidate: (safe_file_url(candidate) and
+            [value.lower() for value in parse_qs(urlsplit(candidate).query).get('md5', [])] == wanted_md5)
     if not checker(url):
         raise AcquisitionError("untrusted_download_host")
     for _ in range(4):
-        async with client.stream("GET", url, follow_redirects=False) as response:
+        async with client.stream("GET", url, follow_redirects=False, headers=headers) as response:
             if response.status_code in (301, 302, 303, 307, 308):
                 target = urljoin(url, response.headers.get("location", ""))
                 if not checker(target):
@@ -219,8 +272,34 @@ async def download_epub(client: httpx.AsyncClient, url: str, destination: Path, 
     raise AcquisitionError("too_many_redirects")
 
 
+async def download_libgen(client: httpx.AsyncClient, catalog_url: str, destination: Path) -> int:
+    """Try a fresh source-issued key per mirror, never switch the selected MD5."""
+    transient = None
+    for catalog in catalog_mirrors(catalog_url):
+        try:
+            url = await resolve_epub(client, catalog)
+            return await download_epub(client, url, destination, source='libgen')
+        except (httpx.HTTPError, ProviderError) as exc:
+            if isinstance(exc, httpx.HTTPStatusError):
+                code = f'http_{exc.response.status_code}'
+            elif isinstance(exc, ProviderError):
+                code = str(exc)
+            else:
+                code = type(exc).__name__
+            # Refusals, throttling, login redirects and unsafe redirects are final here.
+            if code not in (RETRYABLE_ERRORS - {'http_429'}) | {
+                'http_404', 'http_410', 'libgen_download_link_missing',
+            }:
+                raise
+            if code in RETRYABLE_ERRORS:
+                transient = exc
+            destination.unlink(missing_ok=True)
+            last = exc
+    raise transient or last
+
+
 async def process_queued(job: dict, store: JobStore, staging: Path, client: httpx.AsyncClient,
-                         provider: Gutendex | None = None) -> None:
+                         provider: Gutendex | None = None, *, availability=None) -> None:
     temporary = staging / (job['id'] + '.part')
     target = staging / (job['id'] + '.epub')
     try:
@@ -235,9 +314,11 @@ async def process_queued(job: dict, store: JobStore, staging: Path, client: http
             url = await asyncio.to_thread(lookup_direct_epub, store.path, job["source"], job["source_id"])
             if not url:
                 raise AcquisitionError("publisher_epub_metadata_missing_or_expired")
+            if job['source'] == 'libgen':
+                expected_md5 = parse_qs(urlsplit(url).query)['md5'][0].lower()
         elif job["source"] == "gutendex":
             catalog = provider if provider is not None else Gutendex()
-            item = await catalog.get_json(client, f"https://gutendex.com/books/{job['source_id']}", {})
+            item = await catalog.get_json(client, f"https://gutendex.com/books/{job['source_id']}/", {})
             if item.get("id") != job['source_id'] or item.get('copyright') is not False:
                 raise AcquisitionError('source_not_eligible')
             formats = item.get('formats')
@@ -246,8 +327,26 @@ async def process_queued(job: dict, store: JobStore, staging: Path, client: http
                 raise AcquisitionError('no_trusted_epub')
         else:
             raise AcquisitionError("unsupported_source")
-        size = await download_epub(client, url, temporary, source=job["source"])
+        if job['source'] == 'webshare':
+            from royalbooks.webshare_source import cached
+            hit = await asyncio.to_thread(cached, store.path, job['source_id'])
+            if not hit:
+                raise AcquisitionError('verified_epub_cache_expired_search_again')
+            await asyncio.to_thread(temporary.write_bytes, hit[0])
+            size = len(hit[0])
+        elif job['source'] == 'libgen':
+            size = await download_libgen(client, url, temporary)
+        else:
+            size = await download_epub(client, url, temporary, source=job["source"])
+        from royalbooks.bookorbit import phase
+        await asyncio.to_thread(phase, store.path, job['id'], 'download_complete')
         digest = validate_epub(temporary)
+        await asyncio.to_thread(phase, store.path, job['id'], 'validated')
+        if job['source'] == 'libgen':
+            with temporary.open('rb') as downloaded:
+                actual_md5 = hashlib.file_digest(downloaded, 'md5').hexdigest()
+            if actual_md5 != expected_md5:
+                raise AcquisitionError('catalog_md5_mismatch')
         if store.sha_exists(digest, job['id']):
             raise AcquisitionError('duplicate_epub')
         os.replace(temporary, target)
@@ -260,70 +359,58 @@ async def process_queued(job: dict, store: JobStore, staging: Path, client: http
         else:
             code = type(exc).__name__
         store.update(job['id'], 'failed', error=code[:120])
+        if availability and code!='duplicate_epub':
+            try:await asyncio.to_thread(availability.save,job['source'],job['source_id'],'unavailable',error=code[:80])
+            except Exception:pass
     finally:
         temporary.unlink(missing_ok=True)
 
 
 def deliver_staged(job: dict, store: JobStore, staging: Path, ingest: Path) -> None:
-    """Atomic destination rename, then mark handed off. CWA confirms import separately."""
-    source = staging / (job['id'] + '.epub')
-    dest = ingest / (f"gutenberg-{job['source_id']}-{job['id']}.epub")
-    temporary = ingest / (f".{job['id']}.part")
-    try:
-        if not source.is_file():
-            raise AcquisitionError('staged_file_missing')
-        if not job.get("sha256") or validate_epub(source) != job["sha256"]:
-            raise AcquisitionError("staged_file_hash_mismatch")
-        if dest.exists():
-            raise AcquisitionError("ingest_filename_already_exists")
-        # Never invent an ingest folder: Docker/CWA may be watching a different mount.
-        # A missing directory means the handoff is uncertain and needs manual review.
-        if not ingest.is_dir():
-            raise AcquisitionError("ingest_directory_missing")
-        if ingest.is_symlink():
-            raise AcquisitionError("ingest_symlink_forbidden")
-        # If the directory was misconfigured to overlap our staging, refuse.
-        if ingest.resolve() == staging.resolve() or ingest.resolve().is_relative_to(staging.resolve()):
-            raise AcquisitionError("ingest_overlaps_staging")
-        with source.open('rb') as input_file, temporary.open('xb') as output_file:
-            shutil.copyfileobj(input_file, output_file)
-            output_file.flush()
-            os.fsync(output_file.fileno())
-        os.replace(temporary, dest)
-        store.update(job['id'], 'delivered')
-        source.unlink(missing_ok=True)
-    except Exception as exc:
-        # A crash during delivery goes to needs_review on restart; never auto-repeat blindly.
-        store.update(job['id'], 'needs_review', error=(str(exc) if isinstance(exc, AcquisitionError) else type(exc).__name__)[:120])
-    finally:
-        temporary.unlink(missing_ok=True)
+    """Publish only to BookOrbit Book Dock; never to the legacy CWA backend."""
+    from royalbooks.bookorbit import Handoffs
+    Handoffs(store.path, ingest).deliver(job, store, staging)
 
 
 async def worker(store: JobStore, data_dir: Path, ingest: Path | None,
-                 gutendex: Gutendex | None = None) -> None:
+                 gutendex: Gutendex | None = None, *, include_legacy: bool = True, availability=None) -> None:
     staging = data_dir / 'staging'
     staging.mkdir(parents=True, exist_ok=True)
     catalog = gutendex if gutendex is not None else Gutendex()
-    async with httpx.AsyncClient(timeout=httpx.Timeout(20.0), follow_redirects=False,
-                                 headers={'User-Agent': 'RoyalBooks/0.3 (https://github.com/TimeLance89/RoyalBooks)'}) as client:
+    libgen_blocked_until = 0.0
+    async with httpx.AsyncClient(timeout=httpx.Timeout(20.0), follow_redirects=False, trust_env=False,
+                                 headers={'User-Agent': 'RoyalBooks/2.0 (https://github.com/TimeLance89/RoyalBooks)'}) as client:
         while True:
+            await asyncio.to_thread(store.schedule_retries, include_legacy=include_legacy)
             if ingest is not None:
-                job = await asyncio.to_thread(store.claim, ('staged',))
+                job = await asyncio.to_thread(store.claim, ('staged',), v2_only=not include_legacy)
                 if job:
                     await asyncio.to_thread(deliver_staged, job, store, staging, ingest)
                     continue
             # A 403/451 cooldown must not consume another persisted job attempt.
-            if catalog.cooldown_remaining():
+            if catalog.cooldown_remaining() or libgen_blocked_until > monotonic():
                 # Gutendex refusal must not stop independent first-party RDF jobs.
                 job = None
-                for independent in ('gutenberg_catalog', 'wikisource', 'standardebooks'):
-                    job = await asyncio.to_thread(store.claim, ('queued',), independent)
+                candidates = ['gutenberg_catalog', *sorted(SOURCES)]
+                if not catalog.cooldown_remaining():
+                    candidates.append('gutendex')
+                for independent in candidates:
+                    if independent == 'libgen' and libgen_blocked_until > monotonic():
+                        continue
+                    job = await asyncio.to_thread(store.claim, ('queued',), independent, v2_only=not include_legacy)
                     if job:
                         break
             else:
-                job = await asyncio.to_thread(store.claim, ('queued',))
+                job = await asyncio.to_thread(store.claim, ('queued',), v2_only=not include_legacy)
             if job:
-                await process_queued(job, store, staging, client, catalog)
+                try:
+                    await asyncio.wait_for(process_queued(job, store, staging, client, catalog, availability=availability), timeout=180)
+                except TimeoutError:
+                    await asyncio.to_thread(store.update, job['id'], 'failed', error='ReadTimeout')
+                if job['source'] == 'libgen':
+                    actual = await asyncio.to_thread(store.get, job['id'])
+                    if actual and actual['error'] in {'http_403', 'http_451'}:
+                        libgen_blocked_until = monotonic() + 1800
                 continue
             await asyncio.sleep(1.0)
 

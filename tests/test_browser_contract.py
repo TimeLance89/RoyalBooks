@@ -34,11 +34,13 @@ def test_every_js_dom_identifier_exists_exactly_once():
 def test_mobile_and_accessible_core_controls():
     source = PAGE.read_text(encoding="utf-8")
     assert 'name="viewport"' in source
-    assert "@media(max-width:680px)" in source
+    assert "@media(max-width:700px)" in source
     for expected in ("search","watchlist","catalog-controls","download-center",
                      "sync-csv","sync-rdf","import-status","job-rows","preflight-results"):
         assert f'id="{expected}"' in source
     assert "aria-live" in source
     assert "textContent=" in source
     # Never make the API token persistent in browser storage by default.
-    assert "localStorage" not in source and "sessionStorage" not in source
+    assert "sessionStorage" not in source
+    stored_keys = re.findall(r"localStorage\.setItem\('([^']+)'", source)
+    assert set(stored_keys) == {'royalbooks-layout', 'royalbooks-theme', 'royalbooks-store-v2', 'royalbooks-kiosk'}

@@ -84,7 +84,7 @@ def test_manual_review_prefers_existing_destination(tmp_path):
 @pytest.mark.asyncio
 async def test_jobs_api_includes_readonly_observation(monkeypatch, tmp_path):
     monkeypatch.setenv("ROYALBOOKS_API_TOKEN", "a-test-only-token")
-    monkeypatch.setenv("ROYALBOOKS_CWA_INGEST_PATH", str(tmp_path / "ingest"))
+    monkeypatch.setenv("ROYALBOOKS_BOOKORBIT_INGEST_PATH", str(tmp_path / "ingest"))
     (tmp_path / "ingest").mkdir()
     app.state.jobs = JobStore(str(tmp_path / "jobs.sqlite3"))
     item = app.state.jobs.add(72)

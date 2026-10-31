@@ -29,6 +29,17 @@ class SourceProfile:
 
 
 PROFILES = {
+    'webshare': SourceProfile('webshare', 'Webshare', 'verified_epub', 'edition',
+                             'epub_metadata_verified', ('EPUB',), True,
+                             'Kostenlos ohne Konto; vollständige EPUB- und Sprachprüfung vor der Anzeige. Bis zu zwei neue Dateien je Suche, 24 Stunden zwischengespeichert.'),
+    'byte': SourceProfile('byte','Byte.to','hoster_catalog','release','unknown_until_file_check',(),False,
+                          'Source-listed link containers; separate downloader, hoster waits and captchas may apply'),
+    'memoryoftheworld': SourceProfile('memoryoftheworld', 'Memory of the World',
+                           'file_listing', 'edition', 'multilingual', ('EPUB',), True,
+                           'Independent community library; source-listed EPUBs, no account required'),
+    'libgen': SourceProfile('libgen', 'Library Genesis', 'file_listing', 'edition',
+                           'multilingual', ('EPUB', 'PDF', 'AZW3', 'MOBI', 'FB2', 'DJVU', 'TXT'), True,
+                           'Source-bound EPUB acquisition; fresh GET link and integrity checks required'),
     "dnb": SourceProfile("dnb", "Deutsche Nationalbibliothek", "bibliography",
                          "edition", "de_priority", (), False,
                          "German editions and ISBNs; no downloadable files"),
@@ -63,14 +74,17 @@ def profiles_for(names) -> list[dict]:
 def search_evidence(items: list[Book]) -> dict:
     """Separate file listings from bibliographic records without HTTP assumptions."""
     listed = [item for item in items if bool(item.epub_url)]
-    metadata = [item for item in items if not item.epub_url]
+    metadata = [item for item in items if not item.epub_url and not item.formats]
     unknown = sum(not item.language for item in items)
     return {
         "catalog_records": len(items),
         "epub_links_listed_unverified": len(listed),
+        "epub_acquisition_candidates": sum(book.as_dict()['download_supported'] for book in items),
+        "file_listings_unverified": sum(bool(item.formats) and not item.epub_url and
+                                       item.as_dict()['file_evidence'] != 'verified_epub_cached' for item in items),
         "bibliographic_records_without_epub": len(metadata),
         "german_records_declared": sum(item.language == "de" for item in items),
         "unknown_language_records": unknown,
-        "verified_downloads": 0,
+        "verified_downloads": sum(book.as_dict()['file_evidence'] == 'verified_epub_cached' for book in items),
         "explanation": "Catalog claims do not establish a working file, file language or permission to download.",
     }

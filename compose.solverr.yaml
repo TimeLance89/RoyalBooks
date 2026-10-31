@@ -1,0 +1,29 @@
+# Optional browser resolver. Internal Docker access only; paid solvers disabled.
+services:
+  book-solverr:
+    image: ${ROYALBOOKS_SOLVERR_IMAGE:-ghcr.io/unseensnick/solverr@sha256:85a2ec861880f13c2e9276a48cf86d71e3060efc6147f15d99e204386af7f703}
+    restart: unless-stopped
+    shm_size: 512mb
+    mem_limit: 2g
+    cpus: 2
+    pids_limit: 512
+    environment:
+      LOG_LEVEL: info
+      LOG_HTML: "false"
+      TZ: Europe/Berlin
+      LANG: de_DE.UTF-8
+      BROWSER_TIMEZONE: Europe/Berlin
+      DEFAULT_ENGINE: chrome
+      STEALTH_ENGINE: "true"
+      ENGINE_FALLBACK: "true"
+      SESSION_MAX: "2"
+      SESSION_TTL_MINUTES: "5"
+      REAPER_INTERVAL_SECONDS: "30"
+      MAX_TIMEOUT_MS: "120000"
+      CAPTCHA_SOLVER: none
+      CAPTCHA_API_KEY: ""
+      PASSTHROUGH_ENABLED: "false"
+    tmpfs:
+      - /tmp:size=768m,mode=1777
+    security_opt:
+      - no-new-privileges:true

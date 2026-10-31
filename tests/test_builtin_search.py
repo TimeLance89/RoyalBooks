@@ -72,24 +72,25 @@ def test_challenge_pages_are_not_reported_as_real_empty_results():
 
 
 @pytest.mark.asyncio
-async def test_builtin_api_is_tokenless_and_reports_real_book_sources(monkeypatch):
+async def test_builtin_api_is_tokenless_and_reports_real_book_sources(monkeypatch, tmp_path):
     _search_windows.clear()
-    async def fake_search(q, language, limit):
-        assert q == "Der Steppenwolf"
-        assert language == "de"
-        return {
-            "configured": True, "mode": "built_in_direct",
-            "items": [{"title": "Der Steppenwolf", "author": "Testautor",
-                       "indexer": "Library Genesis", "format_hint": "EPUB",
-                       "language_hint": "de", "score": 99}],
-            "sources": [{"name": "Library Genesis", "status": "ok", "count": 1}],
-        }
-    monkeypatch.setattr("royalbooks.app.search_builtin", fake_search)
+    from royalbooks.providers import Book, Provider
+    from royalbooks.storage import MetricsStore
+    class FakeProvider(Provider):
+        name = 'fixture'
+        async def search(self, client, q, language, limit):
+            assert q == 'Der Steppenwolf' and language == 'de'
+            return [Book(source='fixture', source_id='1', title=q, authors=['Hesse'],
+                         language='de', year=1927, cover_url=None, info_url='https://example.org',
+                         formats=('EPUB',))]
+    monkeypatch.setattr(app.state, 'providers', {'fixture': FakeProvider()}, raising=False)
+    monkeypatch.setattr(app.state, 'discovery', None, raising=False)
+    app.state.store = MetricsStore(str(tmp_path/'db.sqlite3'))
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url="http://test") as client:
         result = await client.get("/api/books/search",params={"q":"Der Steppenwolf","language":"de"})
     assert result.status_code == 200
-    assert result.json()["mode"] == "built_in_direct"
-    assert result.json()["items"][0]["format_hint"] == "EPUB"
+    assert result.json()["mode"] == "integrated_providers"
+    assert result.json()["items"][0]["formats"] == ["EPUB"]
     _search_windows.clear()
 
 
@@ -117,7 +118,7 @@ def test_default_browser_is_no_setup_direct_search():
     from pathlib import Path
     page = (Path(__file__).parents[1] / "royalbooks" / "static" / "index.html").read_text()
     assert "Bücher suchen" in page
-    assert "DIREKTSUCHE" in page
+    assert 'data-view-target="search"' in page
     assert "fetch('/api/books/search?'+params)" in page
     assert "Ausgabe" in page
     assert "Kein Indexer konfiguriert" not in page.split("<body>", 1)[1]

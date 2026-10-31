@@ -9,6 +9,7 @@ import asyncio
 import os
 import re
 import sqlite3
+from royalbooks.database import connect as db_connect
 import tempfile
 import threading
 import uuid
@@ -50,7 +51,7 @@ class CatalogImportService:
                 WHERE status IN ('queued','downloading','indexing')""")
 
     def _connect(self):
-        db = sqlite3.connect(self.db_path, timeout=20)
+        db = db_connect(self.db_path, timeout=20)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA busy_timeout=20000")
         return db

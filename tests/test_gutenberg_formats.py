@@ -114,6 +114,26 @@ def test_rdf_import_enables_catalog_search_with_nonverified_link(indexed):
     assert books[0].availability == "official_rdf_epub_link_unverified"
 
 
+def test_real_sized_rdf_record_larger_than_one_megabyte_is_imported(tmp_path):
+    document = rdf_document().replace(b'</rdf:RDF>', b'<!--' + b'x' * 1224000 + b'--></rdf:RDF>')
+    archive = tmp_path/'official-sized.tar.bz2'
+    make_tar(archive, [('cache/epub/42/pg42.rdf', document)])
+    assert import_rdf_archive(archive, tmp_path/'db.sqlite3')['records'] == 1
+
+
+def test_rdf_parsing_does_not_lock_production_jobs_database(indexed, monkeypatch):
+    import royalbooks.gutenberg_formats as module
+    rdf, path = indexed
+    original = module.parse_rdf_entry
+    def check_unlocked(content, identifier):
+        with sqlite3.connect(path, timeout=.01) as live:
+            live.execute('CREATE TABLE IF NOT EXISTS write_probe (id INTEGER)')
+            live.execute('INSERT INTO write_probe VALUES (1)')
+        return original(content, identifier)
+    monkeypatch.setattr(module, 'parse_rdf_entry', check_unlocked)
+    assert import_rdf_archive(rdf, path)['records'] == 1
+
+
 def test_invalid_update_preserves_previous_rdf_metadata(indexed,tmp_path):
     rdf, db = indexed
     import_rdf_archive(rdf, db)
@@ -168,12 +188,14 @@ async def test_blocked_gutendex_does_not_block_first_party_job(indexed, monkeypa
     independent = store.add(42, "gutenberg_catalog")
     gutendex = Gutendex()
     gutendex._blocked_until = monotonic() + 300
-    async def fake_process(job, store, staging, client, provider):
+    processed = asyncio.Event()
+    async def fake_process(job, store, staging, client, provider, *, availability=None):
         store.update(job["id"], "staged")
+        processed.set()
     monkeypatch.setattr("royalbooks.jobs.process_queued", fake_process)
     task = asyncio.create_task(worker(store, db.parent, None, gutendex))
     try:
-        await asyncio.sleep(0.15)
+        await asyncio.wait_for(processed.wait(), timeout=5)
     finally:
         task.cancel()
         with pytest.raises(asyncio.CancelledError):

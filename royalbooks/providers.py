@@ -28,15 +28,33 @@ class Book:
     epub_url: str | None = None
     availability: str = "metadata_only"
     isbn13: str | None = None
+    isbns: tuple[str, ...] = ()
+    formats: tuple[str, ...] = ()
+    description: str | None = None
+    language_evidence: str = "catalog_declared"
+    record_kind: str = "edition"
+    acquisition_id: int | None = None
 
     def as_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        data = asdict(self)
+        data['isbns'] = list(dict.fromkeys((*self.isbns, *([self.isbn13] if self.isbn13 else []))))
+        data['formats'] = list(self.formats or (('EPUB',) if self.epub_url else ()))
+        data['file_evidence'] = ('listed_unverified' if self.epub_url or self.formats else 'metadata_only')
+        data['language_evidence'] = self.language_evidence if self.language else 'ambiguous_or_unknown'
+        data['download_supported'] = bool(self.epub_url) and self.source in {
+            'gutendex', 'gutenberg_catalog', 'wikisource', 'standardebooks', 'memoryoftheworld'}
+        if self.source in {'libgen', 'webshare'} and self.acquisition_id and self.formats == ('EPUB',):
+            data['download_supported'] = True
+        if self.source == 'webshare' and self.language_evidence == 'epub_metadata_verified':
+            data['file_evidence'] = 'verified_epub_cached'
+        return data
 
 
 class Provider:
     name = "unknown"
     purpose = "metadata"
     min_interval = 1.1
+    supported_languages = None
 
     def __init__(self) -> None:
         self._lock = asyncio.Lock()
@@ -85,8 +103,8 @@ def _language(values: object) -> str | None:
     mapping = {"ger": "de", "deu": "de", "de": "de", "eng": "en", "en": "en"}
     if not isinstance(values, list) or not values:
         return None
-    first = next((v for v in values if isinstance(v, str)), None)
-    return mapping.get(first, first) if first else None
+    languages = {mapping.get(v, v) for v in values if isinstance(v, str)}
+    return next(iter(languages)) if len(languages) == 1 else None
 
 
 def _str_list(values: object) -> list[str]:
@@ -103,6 +121,22 @@ def isbn13(identifiers: object) -> str | None:
         digits = [int(x) for x in number]
         if (sum(d * (1 if i % 2 == 0 else 3) for i, d in enumerate(digits[:-1])) + digits[-1]) % 10 == 0:
             return number
+    return None
+
+
+def valid_isbn10(value: str) -> bool:
+    if not re.fullmatch(r'\d{9}[\dX]', value):
+        return False
+    return sum((10-i) * (10 if digit == 'X' else int(digit)) for i, digit in enumerate(value)) % 11 == 0
+
+
+def canonical_isbn(value: str) -> str | None:
+    if number := isbn13([value]):
+        return number
+    if valid_isbn10(value):
+        prefix = '978' + value[:9]
+        check = (-sum(int(d) * (1 if i % 2 == 0 else 3) for i, d in enumerate(prefix))) % 10
+        return prefix + str(check)
     return None
 
 
@@ -143,7 +177,8 @@ class GoogleBooks(Provider):
             books.append(Book(source=self.name, source_id=source_id, title=title.strip(),
                 authors=_str_list(info.get('authors')), language=language_tag, year=year,
                 cover_url=cover, info_url='https://books.google.com/books?id=' + quote(source_id, safe=''),
-                isbn13=isbn13(info.get('industryIdentifiers'))))
+                isbn13=isbn13(info.get('industryIdentifiers')),
+                description=info.get('description', '')[:6000] if isinstance(info.get('description'), str) else None))
         return books
 
 
@@ -156,7 +191,11 @@ class Gutendex(Provider):
         params: dict[str, Any] = {"search": query}
         if language:
             params["languages"] = language
-        data = await self.get_json(client, "https://gutendex.com/books", params)
+        data = await self.get_json(client, "https://gutendex.com/books/", params)
+        return self.parse_books(data,limit)
+
+    @staticmethod
+    def parse_books(data,limit=32):
         books: list[Book] = []
         for item in data.get("results", [])[:limit]:
             if not isinstance(item, dict) or not isinstance(item.get("id"), int) or not isinstance(item.get("title"), str):
@@ -171,7 +210,7 @@ class Gutendex(Provider):
             authors = [a["name"] for a in item.get("authors", []) if isinstance(a, dict) and isinstance(a.get("name"), str)]
             cover = formats.get("image/jpeg")
             books.append(Book(
-                source=self.name, source_id=str(item["id"]), title=item["title"], authors=authors,
+                source="gutendex", source_id=str(item["id"]), title=item["title"], authors=authors,
                 language=_language(item.get("languages")), year=None,
                 cover_url=cover if isinstance(cover, str) and cover.startswith("https://") else None,
                 info_url=f"https://www.gutenberg.org/ebooks/{item['id']}",
@@ -185,8 +224,12 @@ class OpenLibrary(Provider):
     name = "openlibrary"
     purpose = "metadata"
 
-    async def search(self, client: httpx.AsyncClient, query: str, language: str | None, limit: int) -> list[Book]:
+    async def search(self, client: httpx.AsyncClient, query: str, language: str | None, limit: int, *, mode='all',page=1,edition_titles=False) -> list[Book]:
         params: dict[str, Any] = {"q": query, "limit": limit, "fields": "key,title,author_name,first_publish_year,language,cover_i,isbn"}
+        if edition_titles:params['fields']+=',editions,editions.title'
+        if mode in {'author','title','isbn'}:
+            params.pop('q');params[mode]=query
+        if page>1:params['offset']=(page-1)*25
         if language:
             params["lang"] = language  # Ranking preference, not a strict filter.
         data = await self.get_json(client, "https://openlibrary.org/search.json", params)
@@ -206,12 +249,20 @@ class OpenLibrary(Provider):
                 continue
             lang = next(iter(available)) if len(available) == 1 else None
             cover_id = item.get("cover_i")
+            title=item['title']
+            if edition_titles:
+                editions=item.get('editions',{}).get('docs',[]) if isinstance(item.get('editions'),dict) else []
+                if editions and isinstance(editions[0],dict) and isinstance(editions[0].get('title'),str):title=editions[0]['title']
             books.append(Book(
                 source=self.name, source_id=key.removeprefix("/works/"),
-                title=item["title"], authors=_str_list(item.get("author_name")), language=lang,
+                title=title, authors=_str_list(item.get("author_name")), language=lang,
                 year=item.get("first_publish_year") if isinstance(item.get("first_publish_year"), int) else None,
-                cover_url=f"https://covers.openlibrary.org/b/id/{cover_id}-M.jpg" if isinstance(cover_id, int) else None,
+                cover_url=f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg" if isinstance(cover_id, int) else None,
                 # Work-level ISBN lists mix different editions: never treat them as one exact edition.
                 info_url=f"https://openlibrary.org{key}", isbn13=None,
+                record_kind='work',
             ))
         return books
+
+    async def search_page(self,client,query,language,limit,page,mode):
+        return await self.search(client,query,language,min(limit,25),mode=mode,page=page)

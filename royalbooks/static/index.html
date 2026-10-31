@@ -1,143 +1,229 @@
 <!doctype html>
-<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RoyalBooks · Bibliotheksmanager</title>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f4f6f8"><title>RoyalBooks · Deine Bibliothek</title>
 <style>
-:root{color-scheme:dark;font-family:Inter,system-ui,"Segoe UI",sans-serif;background:#0d1017;color:#f7f1e9;
-  --gold:#f3c875;--gold-muted:#bfa16c;--line:#34313b;--red:#a73b51;--surface:#1b1d27;--muted:#b3adb3}
-*{box-sizing:border-box}
-[hidden]{display:none!important}
-html{scroll-behavior:smooth}
-body{max-width:1520px;margin:0 auto;padding:26px clamp(18px,3vw,48px) 50px;min-height:100vh;position:relative}
-body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;
-  background:radial-gradient(ellipse 760px 440px at 89% -12%,rgba(156,43,70,.25),transparent 72%),
-  radial-gradient(ellipse 650px 480px at -15% 27%,rgba(199,151,70,.10),transparent 72%)}
-header{display:flex;align-items:center;justify-content:space-between;gap:18px;border-bottom:1px solid rgba(255,255,255,.1);padding:5px 0 23px;flex-wrap:wrap}
-header .accent{font-size:19px;font-weight:800;letter-spacing:.11em;color:var(--gold)}
-header .chip{display:inline-block;border:1px solid rgba(243,200,117,.35);border-radius:100px;padding:7px 12px;font-weight:700;letter-spacing:.06em}
-header nav{display:flex;gap:17px;align-items:center;flex-wrap:wrap}
-header nav a{color:#d8d1d2;font-size:13px;text-decoration:none;font-weight:700}
-header nav a:hover,header nav a:focus-visible{color:var(--gold)}
-h1{font-size:clamp(2.25rem,4.2vw,4.15rem);line-height:1.08;font-weight:800;letter-spacing:-.055em;
-  margin:0 0 14px;max-width:850px}
-h2{font-size:20px;margin:0 0 10px;letter-spacing:-.02em}
-p{line-height:1.58}
-.muted{color:var(--muted)}
-.accent,.pill{color:var(--gold)}
-.chip{color:var(--gold);font-size:11px}
-.hero{margin:24px 0 19px;padding:clamp(24px,3.2vw,42px);border-radius:24px;
-  border:1px solid rgba(231,178,116,.19);
-  background:linear-gradient(110deg,rgba(29,30,40,.98) 10%,rgba(60,28,46,.92) 75%,rgba(95,35,54,.64));
-  box-shadow:0 18px 70px #0005}
-.hero .eyebrow{color:var(--gold);font-weight:800;letter-spacing:.18em;font-size:11px;margin:0 0 18px}
-.hero>p:not(.eyebrow){max-width:670px;margin:0;font-size:15px}
-form{display:flex;flex-wrap:wrap;gap:12px;margin:24px 0 20px;align-items:stretch}
-input,select,button{background:#252631;color:#faf7f2;border:1px solid #504754;border-radius:11px;padding:13px 15px;font:inherit;font-size:14px}
-input,select{min-height:45px}
-input[type=search]{flex:1;min-width:190px;background:#1d1c28}
-input[type=password]{width:min(100%,440px)}
-input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
-button{font-weight:700;background:var(--red);border-color:#c05669;cursor:pointer;transition:filter .15s,transform .15s}
-button:hover:not(:disabled){filter:brightness(1.14);transform:translateY(-1px)}
-button:disabled{opacity:.52;cursor:not-allowed}
-button.subtle,.subtle.action{background:#30313c;border:1px solid #5b505e}
-#message{margin-bottom:16px;min-height:20px;font-size:13px}
-.stats{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 24px}
-.stat{padding:10px 13px;border-radius:11px;background:#20212b;border:1px solid #343540;color:#dfd4cb;font-size:12px}
-.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(345px,1fr));gap:17px}
-.book{background:linear-gradient(150deg,#22242d,#1a1a23);border:1px solid #353441;
-  border-radius:17px;padding:19px;display:grid;grid-template-columns:90px minmax(0,1fr);gap:16px;min-height:192px;box-shadow:0 7px 20px #0002}
-.book:hover{border-color:#7f6064}
-.cover{width:90px;height:135px;object-fit:cover;flex:none;background:linear-gradient(140deg,#744c4b,#383043);
-  border-radius:7px;box-shadow:0 10px 20px #0006}
-.book h3{font-size:16px;line-height:1.35;margin:1px 0 7px;overflow-wrap:anywhere}
-.book-detail{min-width:0}
-.cover-slot{width:90px;height:135px;position:relative;border-radius:7px;overflow:hidden;background:linear-gradient(135deg,#745055,#322936)}
-.cover-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#f0cc8d;font-size:36px}
-.cover-slot img{position:relative;display:block;background:transparent}
-.book details{margin:10px 0 0;border-top:1px solid #403944;padding-top:9px}
-.book summary{color:var(--gold);font-size:12px;font-weight:700;cursor:pointer}
-.edition-row{border-top:1px solid #34343d;padding:9px 0}
-.edition-row p{margin:4px 0}
-.edition-row button{font-size:11px;padding:6px 9px}
-.search-filters{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:12px 0 20px}
-.search-filters button{background:#262631;border-color:#57505b;font-size:12px;padding:8px 12px}
-.search-filters button[aria-pressed="true"]{background:#785041;border-color:#c99d67}
-.search-notice{font-size:13px;color:#e5c58b;margin:6px 0 14px}
-.source-label{color:#e2cfb8}
-.book p{font-size:12px;margin:4px 0}
-.release-card{grid-template-columns:60px minmax(0,1fr);min-height:130px}
-.release-symbol{display:flex;align-items:center;justify-content:center;width:58px;height:72px;border-radius:10px;background:#513943;color:var(--gold);font-size:28px}
-.release-meta{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
-.release-meta span{font-size:11px;border:1px solid #4b4752;border-radius:100px;padding:4px 8px;color:#e5cfb0}
-#token{width:min(100%,420px)}
-@media(max-width:680px){.release-card{grid-template-columns:55px minmax(0,1fr)}#token{width:100%;flex-basis:100%}}
-.book a{display:inline-block;font-size:12px;font-weight:700;color:var(--gold);margin:6px 0}
-.action{margin:10px 7px 0 0;font-size:12px;padding:8px 11px;border-radius:9px}
-.controls{margin:23px 0;background:linear-gradient(130deg,#1b1d28,#1b1b23);
-  border:1px solid #373743;padding:clamp(18px,3vw,25px);border-radius:17px;box-shadow:0 8px 25px #0002}
-.controls>p{margin:8px 0 12px;font-size:13px}
-.controls label{font-size:13px;font-weight:700;display:block;margin:14px 0 7px}
-#preflight-results>p,#import-status>p{border-bottom:1px solid #36343f;padding:7px 0;font-size:12px}
-#preflight-results{margin:12px 0}
-#job-message,#watchlist-message{margin:13px 0;font-size:13px;min-height:18px}
-.jobs{width:100%;border-collapse:collapse;margin-top:15px;font-size:13px}
-.jobs td,.jobs th{border-bottom:1px solid #393943;padding:12px 8px;text-align:left;vertical-align:top}
-.jobs th{font-size:11px;color:var(--gold-muted);text-transform:uppercase;letter-spacing:.1em}
-.watch-row{display:flex;align-items:start;justify-content:space-between;gap:14px;border-bottom:1px solid #393743;padding:13px 0}
-.watch-row h3{font-size:15px;margin:0}
-.watch-row button{white-space:nowrap}
-.watch-row p{font-size:12px;margin:6px 0}
-.watch-row a{color:var(--gold);font-size:12px}
-footer{border-top:1px solid #353541;margin-top:32px;padding-top:20px;font-size:12px}
-@media(max-width:680px){
-body{padding:17px 15px 36px}
-header{padding-bottom:15px;gap:12px}
-header nav{gap:11px}
-header nav a{font-size:12px}
-.hero{padding:24px 20px;border-radius:17px;margin:19px 0}
-.hero>p:not(.eyebrow){font-size:13px}
-form{margin:18px 0;gap:8px}
-form input[type=search]{min-width:100%;flex-basis:100%}
-form select,form button{flex:1}
-.cards{grid-template-columns:minmax(0,1fr)}
-.book{padding:14px}
-.cover,.cover-slot{width:74px;height:111px}
-.book{grid-template-columns:74px minmax(0,1fr)}
-.search-filters{gap:6px}
-.controls{border-radius:13px;padding:17px 14px}
-#catalog-controls button{flex:1}
-}</style></head>
-<body><header><span class="accent">✦ ROYALBOOKS</span>
-<nav aria-label="Navigation"><a href="#search">Entdecken</a><a href="#watchlist">Merkliste</a><a href="#source-details">Quellen</a><a href="#download-center">Downloads</a></nav>
-<span class="chip">DIREKTSUCHE · v1.1</span></header>
-<section class="hero"><p class="eyebrow">DEINE DIGITALE BIBLIOTHEK</p>
-<h1>Finde die richtige Buchausgabe.</h1>
-<p class="muted">RoyalBooks durchsucht eingebaute Buchquellen direkt. Keine zusätzlichen Programme, Indexer oder API-Schlüssel nötig. Deutsche Ausgaben werden bevorzugt.</p></section>
-<form id="search"><input type="search" id="q" placeholder="Titel oder Autor, z. B. Kafka" required minlength="2" maxlength="120" aria-label="Suche"><select id="language" aria-label="Sprache"><option value="de">Deutsch</option><option value="en">Englisch</option><option value="all">Alle</option></select><button id="go">Bücher suchen</button></form>
-<div id="message" role="status" class="muted">Suche nach einem Buch. RoyalBooks nutzt automatisch eingebaute Quellen.</div>
+:root{color-scheme:light;--bg:#f4f6f8;--surface:#fff;--ink:#1c2c3e;--muted:#607084;--line:#dfe5ec;--gold:#17649b;--gold-muted:#607084;--red:#17649b;--accent-soft:#e8f1f8;font-family:"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:15px}
+:root[data-theme=dark]{color-scheme:dark;--bg:#14202d;--surface:#1d2c3d;--ink:#edf2f7;--muted:#adbbca;--line:#34465a;--gold:#82bde6;--gold-muted:#adbbca;--red:#327eaf;--accent-soft:#253e54}
+*{box-sizing:border-box} [hidden]{display:none!important} body{margin:0}button,input,select{font:inherit}button,a,input,select,summary{-webkit-tap-highlight-color:transparent}button,a{touch-action:manipulation}a{color:var(--gold)}button{cursor:pointer}button:disabled{opacity:.5;cursor:wait}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid var(--gold);outline-offset:4px}button,input,select{border:1px solid var(--line);border-radius:9px;min-height:44px;padding:11px 15px;background:var(--surface);color:var(--ink)}button{font-weight:600}button:hover:not(:disabled){border-color:var(--gold)}button:not(.subtle):not(.nav-link):not(.icon-button):not(.filter-button){background:var(--red);color:#fff;border-color:transparent}.subtle{background:var(--surface)}p{line-height:1.6}.muted{color:var(--muted)}h1,h2,h3,p{overflow-wrap:anywhere}h1{font-size:clamp(30px,3vw,44px);font-weight:650;letter-spacing:-.04em;line-height:1.15;margin:8px 0 14px}h2{font-size:23px;letter-spacing:-.03em;margin:0 0 12px}h3{font-size:16px;line-height:1.4}a{text-underline-offset:3px}
+.app-sidebar{position:fixed;inset:0 auto 0 0;width:224px;background:var(--surface);border-right:1px solid var(--line);padding:35px 20px;display:flex;flex-direction:column;z-index:20}.brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink);font-size:22px;font-weight:750;letter-spacing:-1px;padding:0 8px}.brand svg{width:30px;height:34px;color:var(--gold)}.brand-caption{margin:7px 0 35px 48px;font-size:11px;color:var(--muted)}.app-nav{display:flex;flex-direction:column;gap:6px}.nav-link{display:flex;align-items:center;gap:13px;padding:13px 15px;border:0;border-radius:8px;text-decoration:none;color:var(--muted);font-size:14px;font-weight:600;min-height:48px}.nav-link svg{width:21px;height:21px;flex:none}.nav-link[aria-current=page]{background:var(--accent-soft);color:var(--gold)}.sidebar-bottom{margin-top:auto;padding:20px 8px 0;font-size:12px;color:var(--muted);border-top:1px solid var(--line)}.connection-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#319579;margin-right:7px}.app-main{max-width:1550px;margin-left:224px;padding:0 clamp(22px,4vw,64px) 35px}.topbar{height:86px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);margin-bottom:34px}.topbar-title{font-size:14px;font-weight:600;color:var(--muted)}.topbar-tools{display:flex;gap:8px}.icon-button{background:transparent;min-width:44px;padding:9px;display:flex;align-items:center;justify-content:center;gap:6px}.icon-button svg{height:20px;width:20px}.profile{height:38px;width:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--gold);font-weight:700;font-size:13px}.hero{margin:0 0 26px;padding:0;max-width:740px}.hero p{color:var(--muted);font-size:15px;margin:0;max-width:58ch}.page-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin:0 0 28px}.page-heading p{margin:0;color:var(--muted)}.page-heading .icon-button{flex:none;margin-top:12px}.section-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:28px 0 16px}.section-heading h2{font-size:18px;margin:0}.count-badge{font-size:12px;padding:5px 10px;background:var(--accent-soft);color:var(--gold);border-radius:20px;white-space:nowrap}.toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:22px 0}.toolbar input{flex:1;min-width:180px}.toolbar select{min-width:160px}.layout-toggle{display:flex;gap:4px}.layout-toggle button[aria-pressed=true]{background:var(--accent-soft);color:var(--gold);border-color:var(--gold)}.shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:30px 25px;align-items:start}.shelf-book{min-width:0}.shelf-book>button{display:block;width:100%;padding:0;border:0;background:transparent!important;color:var(--ink)!important;text-align:left;font-weight:400}.jacket{position:relative;width:100%;aspect-ratio:2/3;border-radius:3px 8px 8px 3px;overflow:hidden;box-shadow:3px 6px 13px #14273d21;background:var(--jacket,#234d65);color:#fff;isolation:isolate}.jacket:after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 4px 0 4px #0002,inset 5px 0 0 #ffffff12}.jacket img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1}.jacket-type{position:absolute;inset:12%;border-top:1px solid #ffffff70;border-bottom:1px solid #ffffff70;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;text-align:center}.jacket-type strong{font-family:Georgia,serif;font-weight:400;font-size:clamp(18px,1.6vw,27px);line-height:1.2}.jacket-type small{font-size:10px;opacity:.8}.shelf-book h3{margin:13px 0 4px;font-size:14px;font-weight:650}.shelf-book p{margin:0;color:var(--muted);font-size:12px}.format-tag{display:inline-block;font-size:10px;font-weight:700;margin-top:8px;color:var(--gold);border:1px solid var(--line);border-radius:4px;padding:3px 6px}.empty-state{grid-column:1/-1;text-align:center;padding:55px 20px;border:1px dashed var(--line);border-radius:12px;max-width:100%;color:var(--muted)}.empty-state svg{width:48px;height:48px;color:var(--gold);margin-bottom:14px}.empty-state h2{color:var(--ink);font-size:22px}.empty-state p{max-width:440px;margin:10px auto 20px}.shelf.list-layout{grid-template-columns:1fr;gap:0}.shelf.list-layout .shelf-book{border-bottom:1px solid var(--line);padding:16px 0}.shelf.list-layout .shelf-book>button{display:grid;grid-template-columns:58px 1fr;column-gap:18px;align-items:start}.shelf.list-layout .jacket{grid-row:1/5}.shelf.list-layout .jacket-type{display:none}.shelf.list-layout h3{margin-top:3px}.shelf.list-layout .format-tag{justify-self:start}.shelf.list-layout .jacket-type strong{font-size:12px}
+#search{display:flex;gap:10px;margin:25px 0 15px}#q{flex:1;min-width:150px;background:var(--surface)}#message,#library-message{font-size:13px;min-height:20px;margin:16px 0}.search-filters{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0}.search-filters button{background:transparent!important;color:var(--muted)!important;border:1px solid var(--line)!important;border-radius:24px;padding:8px 14px;font-size:12px;min-height:38px}.search-filters button[aria-pressed=true]{background:var(--accent-soft)!important;color:var(--gold)!important;border-color:var(--gold)!important}.search-notice{font-size:12px;color:var(--muted);padding:10px 0}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:28px 22px}.book{min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;align-self:start}.cover-slot{position:relative;width:100%;height:230px;max-width:165px;margin:0 auto 17px;overflow:hidden;background:var(--jacket,#234d65);border-radius:3px 7px 7px 3px;box-shadow:3px 6px 12px #14273d21}.cover{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.cover-fallback{position:absolute;inset:16px 13px;border-top:1px solid #ffffff70;border-bottom:1px solid #ffffff70;display:flex;align-items:center;justify-content:center;text-align:center;color:#fff;font:22px/1.3 Georgia,serif;padding:10px}.book h3{margin:0 0 7px;font-size:16px}.book p{font-size:12px;margin:5px 0}.book .pill{color:var(--gold)}.book .action{font-size:12px;margin:8px 5px 0 0;padding:8px 10px;min-height:40px}.book a{display:block;font-size:12px;margin-top:12px}.book details{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}summary{cursor:pointer;line-height:1.5}.book summary{font-size:12px;color:var(--gold)}.edition-row{border-bottom:1px solid var(--line);padding:15px 0}.edition-row p{font-size:13px}.search-diagnostics{margin:15px 0;color:var(--muted);font-size:13px}.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:20px}.stat{padding:18px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:13px}.stat p{margin:7px 0}.controls{margin:20px 0;padding:22px;background:var(--surface);border:1px solid var(--line);border-radius:10px}.controls>p{font-size:13px;color:var(--muted);max-width:72ch}.controls label{display:block;margin:15px 0 6px}.controls>summary{font-weight:600}#token{width:min(100%,420px)}#job-message,#watchlist-message{font-size:13px;margin:16px 0}.watch-row{display:flex;align-items:start;justify-content:space-between;gap:20px;padding:20px 0;border-bottom:1px solid var(--line)}.watch-row h3{margin:0 0 8px}.watch-row p,.watch-row a{font-size:12px;margin:5px 0}.watch-row .action{font-size:12px;flex:none}.jobs{border-collapse:collapse;width:100%;font-size:13px;table-layout:fixed}.jobs th{text-align:left;color:var(--muted);font-size:12px;font-weight:500}.jobs td,.jobs th{padding:18px 12px;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere}.jobs td p{font-size:12px}.jobs .action{font-size:12px;margin-top:10px}.jobs th:first-child{width:30%}.jobs th:nth-child(2){width:30%}#preflight-results p{font-size:13px;border-bottom:1px solid var(--line);padding:10px 0}dialog{width:min(700px,calc(100% - 28px));max-height:86dvh;overflow:auto;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:28px;box-shadow:0 20px 80px #0004}dialog::backdrop{background:#0d1b2c90}#close-detail{float:right;margin:0 0 16px 16px}.detail-cover{width:140px;max-height:215px;object-fit:cover;float:left;margin:0 24px 20px 0;border-radius:4px}.description{white-space:pre-line;color:var(--muted);font-size:14px}#detail-content h3{clear:both}.action{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;min-height:44px;padding:10px 14px;border-radius:8px;margin:10px 8px 0 0}.primary-link{background:var(--red);color:#fff}.library-actions{display:flex;justify-content:center;margin:30px 0}.app-footer{border-top:1px solid var(--line);margin-top:45px;padding-top:20px;color:var(--muted);font-size:12px;display:flex;justify-content:space-between;gap:20px}#access-banner{display:none}.loading-shelf{opacity:.5;pointer-events:none}
+@media(min-width:1500px){.shelf{grid-template-columns:repeat(auto-fill,minmax(165px,1fr))}}
+@media(max-width:1050px){.app-sidebar{width:190px;padding:30px 12px}.app-main{margin-left:190px;padding-left:26px;padding-right:26px}.brand{font-size:20px}.brand-caption{margin-left:48px}.shelf{gap:26px 20px;grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}}
+@media(max-width:700px){.app-sidebar{inset:auto 0 0;width:100%;height:calc(70px + env(safe-area-inset-bottom));padding:5px 10px env(safe-area-inset-bottom);border-right:0;border-top:1px solid var(--line)}.app-sidebar>.brand,.brand-caption,.sidebar-bottom{display:none}.app-nav{flex-direction:row;justify-content:space-around;gap:2px}.nav-link{flex:1;min-height:60px;justify-content:center;flex-direction:column;gap:5px;padding:7px 4px;font-size:10px;border-radius:7px}.nav-link svg{width:22px;height:22px}.app-main{margin-left:0;padding:0 20px calc(95px + env(safe-area-inset-bottom))}.topbar{height:72px;margin-bottom:26px}.topbar-title{font-size:18px;font-weight:750;color:var(--ink);letter-spacing:-.5px}.topbar-tools{align-items:center}.profile{width:32px;height:32px}.page-heading{margin-bottom:20px;gap:8px}.page-heading p{font-size:13px}h1{font-size:32px}.hero{margin-bottom:22px}.hero p{font-size:13px}.toolbar{gap:8px}.toolbar input{flex-basis:100%;min-width:0;width:100%}.toolbar select{flex:1;min-width:0}.shelf{grid-template-columns:repeat(2,minmax(0,1fr));gap:25px 20px}.jacket-type strong{font-size:23px}.jacket-type{gap:16px}.shelf-book h3{font-size:13px}.shelf-book p{font-size:11px}.cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 12px}.book{padding:11px}.cover-slot{height:auto;aspect-ratio:2/3;margin-bottom:13px}.cover-fallback{font-size:19px;inset:12px 9px;padding:3px}.book h3{font-size:14px}.book p{font-size:11px}.book .action{display:flex;width:100%;margin:7px 0 0;font-size:11px;padding:8px 5px}.book details{grid-column:1/-1}.book summary{font-size:11px}#search{flex-wrap:wrap;gap:8px}#q{width:100%;flex-basis:100%}#search select{flex:1}#go{flex:1}.controls{padding:17px;margin:16px 0}.controls h2{font-size:21px}.search-filters{gap:6px}.search-filters button{font-size:11px;padding:8px 11px}.jobs,.jobs tbody,.jobs tr,.jobs td{display:block;width:100%}.jobs thead{display:none}.jobs tr{border-bottom:1px solid var(--line);padding:15px 0}.jobs td{display:grid;grid-template-columns:100px minmax(0,1fr);gap:12px;border:0;padding:7px 0;font-size:12px}.jobs td:before{content:attr(data-label);color:var(--muted);font-size:12px}.jobs td p,.jobs td button{grid-column:2}.jobs .action{justify-self:start}.watch-row{gap:10px}.watch-row .action{padding:8px;font-size:11px}.app-footer{font-size:11px;margin-top:30px}.empty-state{padding:36px 16px}.empty-state h2{font-size:21px}.empty-state p{font-size:13px}.detail-cover{width:95px;margin-right:16px}dialog{padding:20px}.stats{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+
+.store-hero{background:var(--accent-soft);border-radius:18px;padding:clamp(24px,4vw,48px);display:grid;grid-template-columns:minmax(0,1.15fr) minmax(220px,.85fr);align-items:center;gap:40px;overflow:hidden;margin-bottom:25px}.store-hero h1{max-width:550px;font-size:clamp(34px,3.8vw,54px);line-height:1.08;margin-top:0}.store-hero p{color:var(--muted);max-width:450px;font-size:15px}.store-hero button{margin-top:10px}.store-featured{height:290px;position:relative;display:flex;align-items:center;justify-content:center;isolation:isolate}.hero-jacket{width:142px;position:absolute;border:0!important;background:transparent!important;padding:0!important;box-shadow:none;color:var(--ink)!important;transition:transform .18s}.hero-jacket .jacket{box-shadow:5px 15px 25px #0b254038}.hero-jacket:first-child{transform:translateX(-88px) rotate(-12deg);z-index:0}.hero-jacket:nth-child(2){z-index:2;transform:translateY(-10px)}.hero-jacket:nth-child(3){transform:translateX(88px) rotate(12deg);z-index:1}.store-tabs{display:flex;gap:8px;overflow:auto;padding:4px 2px 12px;scrollbar-width:thin}.store-tabs button{border-radius:24px;white-space:nowrap;min-height:40px;font-size:13px;padding:9px 18px}.store-tabs button[aria-pressed=true]{background:var(--ink);color:var(--surface);border-color:var(--ink)}.store-note{font-size:12px;color:var(--muted);margin:4px 0 25px}.store-section{margin:34px 0 40px}.store-section-head{display:flex;gap:16px;justify-content:space-between;align-items:center;margin-bottom:6px}.store-section-head h2{font-size:24px;margin:0}.store-section>p{font-size:12px;color:var(--muted);margin:8px 0 20px;max-width:75ch}.rail-tools{display:flex;gap:5px}.rail-tools .icon-button{min-height:36px;min-width:36px;font-size:21px;padding:3px}.store-rail{display:grid;grid-auto-flow:column;grid-auto-columns:155px;gap:23px;overflow-x:auto;overscroll-behavior-x:contain;padding:5px 2px 16px;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:var(--line) transparent}.store-card{scroll-snap-align:start;display:block;padding:0!important;background:transparent!important;border:0!important;text-align:left;font-weight:400!important;min-width:0;color:var(--ink)!important}.store-card .jacket{aspect-ratio:2/3}.store-card h3{font-size:14px;margin:13px 0 5px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.store-card p{color:var(--muted);font-size:12px;margin:0}.store-card .format-tag{font-size:10px}.store-source{font-size:11px;color:var(--muted)}.store-source a{color:inherit}.store-empty{padding:35px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);font-size:14px}.result-toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin:15px 0}.result-toolbar h2{font-size:19px;margin:0}.result-toolbar select{font-size:12px;min-height:38px;padding:7px 11px}.result-excerpt{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;color:var(--muted);font-size:12px!important;line-height:1.6;min-height:36px}.result-badges{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}.result-badges span{font-size:10px;padding:4px 6px;background:var(--accent-soft);color:var(--gold);border-radius:4px}.file-info{color:var(--muted)}.detail-description{clear:both;border-top:1px solid var(--line);padding-top:20px;margin-top:24px}.detail-description h3{font-size:18px}.detail-description p{font-size:14px;white-space:pre-line;line-height:1.8}.detail-meta{font-size:12px;color:var(--muted)}.preview-note{font-size:11px!important;color:var(--muted)}.detail-search{display:flex;gap:10px;flex-wrap:wrap;margin:15px 0}.store-status{margin-left:auto;font-size:11px;color:var(--muted)}
+@media(max-width:700px){.store-hero{display:block;padding:25px 23px;margin-bottom:18px}.store-hero h1{font-size:35px;max-width:320px}.store-hero p{font-size:13px}.store-featured{height:214px;margin-top:15px}.hero-jacket{width:110px}.hero-jacket:first-child{transform:translateX(-72px) rotate(-12deg)}.hero-jacket:nth-child(3){transform:translateX(72px) rotate(12deg)}.store-section{margin:28px 0}.store-section-head h2{font-size:21px}.store-rail{grid-auto-columns:135px;gap:18px}.store-card h3{font-size:13px}.store-tabs button{font-size:12px;padding:8px 14px}.store-note{font-size:11px}.store-section>p{font-size:11px}.app-sidebar{padding-left:3px;padding-right:3px}.nav-link{font-size:9px;gap:5px}.result-toolbar h2{font-size:17px}.result-excerpt{font-size:11px!important}.result-badges span{font-size:9px}.store-status{display:none}}
+
+:root{--bg:#f6f7f9;--surface:#fff;--ink:#20232d;--muted:#6f7482;--line:#e1e3e9;--gold:#bc243b;--gold-muted:#797483;--red:#bc243b;--accent-soft:#f7e9ed}
+:root[data-theme=dark]{--bg:#0c0d12;--surface:#16181f;--ink:#f4f4f7;--muted:#a5a7b3;--line:#2b2e39;--gold:#ff687c;--gold-muted:#aaa3b3;--red:#d72d49;--accent-soft:#291a24}
+.app-sidebar{inset:0 0 auto;width:100%;height:78px;flex-direction:row;align-items:center;padding:12px clamp(20px,3.5vw,64px);gap:35px;border:0;border-bottom:1px solid var(--line);background:var(--surface)}.brand{font-size:23px;letter-spacing:-.8px;padding:0;gap:10px;flex:none}.brand svg{color:var(--gold);width:30px}.brand-caption,.sidebar-bottom{display:none}.app-nav{flex-direction:row;gap:3px;align-items:center;margin-left:auto}.nav-link{font-size:12px;gap:8px;white-space:nowrap;padding:11px 12px;min-height:43px;border-radius:7px}.nav-link svg{width:18px;height:18px}.nav-link[aria-current=page]{background:var(--accent-soft);color:var(--gold)}.shell-settings,.shell-watchlist{color:var(--muted);display:flex;align-items:center;justify-content:center;width:40px;height:40px;border:1px solid var(--line);border-radius:8px;flex:none}.shell-settings svg,.shell-watchlist svg{width:19px;height:19px}.shell-settings[aria-current=page]{color:var(--gold);background:var(--accent-soft)}.shell-watchlist{display:none}.app-main{margin:78px auto 0;max-width:1560px;padding:0 clamp(22px,4vw,62px) 35px}.topbar{height:68px;margin-bottom:25px;border:0}.topbar-title{font-size:12px;color:var(--muted);font-weight:500}.profile{background:var(--surface);border:1px solid var(--line);color:var(--muted)}.icon-button{border-color:var(--line)}.store-hero{border:1px solid var(--line);background:var(--surface);border-radius:14px;min-height:330px;padding:clamp(28px,4vw,55px);position:relative}.store-hero h1{font-size:clamp(36px,4.2vw,61px);letter-spacing:-.055em}.store-hero:before{content:"";position:absolute;width:5px;top:48px;bottom:48px;left:0;background:var(--red);border-radius:0 4px 4px 0}.store-hero p{line-height:1.8}.store-card .jacket,.shelf-book .jacket{border-radius:3px 7px 7px 3px}.store-section-head h2{letter-spacing:-.03em;font-weight:650}.store-tabs{gap:8px}.store-tabs button{background:transparent;border-radius:8px}.store-tabs button[aria-pressed=true]{background:var(--accent-soft);color:var(--gold);border-color:var(--gold)}.source-note{font-size:12px;color:var(--muted)}.section-title{display:flex;align-items:center;gap:13px;justify-content:space-between;margin:0 0 24px}.section-title p{margin:0;font-size:14px;color:var(--muted)}.section-title h1{margin:0 0 9px}.section-tools{display:flex;gap:8px;align-items:center}.availability-toggle{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:600;color:var(--ink);padding:12px 0}.availability-toggle input{accent-color:var(--red);width:17px;height:17px;min-height:17px;margin:0}.search-mode-bar{display:flex;gap:6px;margin:24px 0 0;flex-wrap:wrap}.search-mode-bar button{background:transparent!important;color:var(--muted)!important;border:1px solid var(--line)!important;min-height:38px;border-radius:7px;font-size:12px;padding:8px 17px}.search-mode-bar button[aria-pressed=true]{color:var(--gold)!important;border-color:var(--gold)!important;background:var(--accent-soft)!important}#search{margin-top:12px}.search-area{padding:24px;background:var(--surface);border:1px solid var(--line);border-radius:12px;margin-bottom:24px}.search-area .hero{margin-bottom:12px}.search-area .hero h1{font-size:31px}.search-area .hero p{font-size:13px}.search-controls{display:flex;justify-content:space-between;align-items:center;gap:20px;border-top:1px solid var(--line);margin-top:15px;padding-top:6px}.search-result-note{color:var(--muted);font-size:12px;margin:8px 0 16px}.book{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:18px;position:relative}.book h3{font-size:17px;line-height:1.4}.author-link{display:inline!important;background:transparent!important;border:0!important;color:var(--muted)!important;padding:0!important;font-size:12px!important;min-height:30px;font-weight:400!important;text-align:left}.author-link:hover{color:var(--gold)!important;text-decoration:underline}.availability-badge{font-size:10px!important;min-height:24px;padding:4px 7px;display:inline-flex;gap:5px;align-items:center;border-radius:4px;margin:5px 0;background:var(--accent-soft);color:var(--gold)}.availability-badge[data-state=available]{color:#20854e;background:#20854e14}.availability-badge[data-state=pending]{color:var(--muted);background:var(--bg)}.availability-badge[data-state=unavailable]{color:#c06053;background:#c0605315}.availability-badge[data-state=available]:before{content:'●';font-size:7px}.file-info{font-size:11px}.empty-state{background:var(--surface)}.author-panel{border:1px solid var(--line);border-radius:13px;padding:28px;background:var(--surface);margin-bottom:25px}.author-panel h1{margin:0 0 10px}.author-panel>p{font-size:14px;color:var(--muted);max-width:65ch}.author-search{display:flex;gap:10px;margin:24px 0 15px}.author-search input{flex:1;min-width:0}.author-profile{display:flex;align-items:center;gap:18px;margin:20px 0}.author-avatar{width:64px;height:64px;border:1px solid var(--line);border-radius:50%;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-size:26px;color:var(--gold)}.author-profile h2{margin:0 0 5px;font-size:24px}.author-profile p{font-size:12px;color:var(--muted);margin:0}.pagination-row{display:flex;justify-content:center;gap:10px;margin:28px 0}.settings-layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:30px;margin-top:30px}.settings-nav{display:flex;flex-direction:column;gap:5px;align-self:start;position:sticky;top:100px}.settings-nav a{display:flex;align-items:center;padding:13px 15px;text-decoration:none;border-radius:7px;color:var(--muted);font-size:13px}.settings-nav a[aria-current=page]{background:var(--accent-soft);color:var(--gold)}.settings-content{min-width:0}.settings-panel{background:var(--surface);border:1px solid var(--line);padding:27px;border-radius:12px}.settings-panel>h2{font-size:23px;margin:0 0 7px}.settings-panel>p{font-size:13px;color:var(--muted);max-width:66ch}.setting-row{display:flex;align-items:center;justify-content:space-between;gap:25px;padding:22px 0;border-bottom:1px solid var(--line)}.setting-row h3{margin:0 0 6px;font-size:14px}.setting-row p{font-size:12px;color:var(--muted);margin:0;max-width:48ch}.setting-row select{font-size:13px;min-width:150px}.setting-row input[type=checkbox]{width:21px;height:21px;accent-color:var(--red);min-height:21px;flex:none}.settings-footer{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-top:24px}.settings-footer p{font-size:12px;color:var(--muted)}.source-choice{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:16px;align-items:center;padding:19px 0;border-bottom:1px solid var(--line)}.source-choice input{width:19px;height:19px;min-height:19px;accent-color:var(--red)}.source-choice strong{display:block;font-size:14px;margin-bottom:4px}.source-choice small{font-size:11px;color:var(--muted)}.source-kind{font-size:10px;border:1px solid var(--line);border-radius:5px;padding:5px 8px;color:var(--muted)}.connection-card{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line);padding:18px;border-radius:9px;margin:20px 0;gap:16px}.connection-card h3{margin:0 0 6px;font-size:15px}.connection-card p{font-size:12px;color:var(--muted);margin:0}.connection-state{font-size:11px;white-space:nowrap;padding:6px 9px;background:var(--accent-soft);color:var(--gold);border-radius:5px}.external-catalog{margin-top:25px;padding:20px;background:var(--bg);border-radius:9px}.external-catalog h3{margin:0 0 8px}.external-catalog p,.external-catalog a{font-size:12px;line-height:1.6}.settings-panel .controls{border:0;padding:0;box-shadow:none;margin:24px 0}.download-tabs{display:flex;gap:7px;flex-wrap:wrap;margin:24px 0}.download-tabs button{background:var(--surface)!important;color:var(--muted)!important;border-color:var(--line)!important;min-height:36px;font-size:12px;padding:8px 13px}.download-tabs button[aria-pressed=true]{color:var(--gold)!important;background:var(--accent-soft)!important;border-color:var(--gold)!important}.job-book{display:flex;align-items:center;gap:13px}.job-book img{width:42px;height:63px;object-fit:cover;border-radius:3px}.job-book strong{font-size:14px;display:block;font-weight:600}.job-book small{display:block;color:var(--muted);font-size:11px;margin-top:5px}.job-state{display:inline-flex;padding:6px 10px;font-size:11px;border-radius:5px;background:var(--accent-soft);color:var(--gold)}.job-state[data-state=failed]{color:#e47575;background:#e4757512}.job-state[data-state=delivered]{color:#56ad7e;background:#56ad7e12}#download-center{padding:0;border:0;background:transparent}#download-center>h2{font-size:32px;margin-bottom:13px}.jobs{background:var(--surface);border:1px solid var(--line);border-radius:11px;overflow:hidden}.jobs td,.jobs th{padding:20px}.jobs td:nth-child(2){font-size:12px}.topbar-title strong{color:var(--ink);font-weight:500}.settings-inline-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+@media(max-width:1150px) and (min-width:701px){.app-sidebar{gap:15px;padding-left:22px;padding-right:22px}.nav-link{font-size:11px;padding:11px 8px;gap:5px}.nav-link svg{display:none}.brand{font-size:20px}.app-nav{gap:0}}
+@media(max-width:700px){.app-sidebar{inset:0 0 auto;height:65px;padding:12px 18px;gap:12px;border-bottom:1px solid var(--line)}.brand{font-size:20px}.brand svg{width:25px;height:28px}.app-nav{position:fixed;inset:auto 0 0;height:calc(67px + env(safe-area-inset-bottom));padding:4px 5px env(safe-area-inset-bottom);background:var(--surface);border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:0;margin:0;z-index:30}.app-nav .nav-link{flex:1;min-height:57px;padding:6px 2px;gap:5px;font-size:9px;flex-direction:column;justify-content:center}.app-nav .nav-link svg{display:block;width:21px;height:21px}.app-nav [data-view-target=watchlist]{display:none}.shell-watchlist{display:flex;margin-left:auto;width:35px;height:35px}.shell-settings{width:35px;height:35px}.app-main{margin:65px 0 0;padding:0 18px calc(90px + env(safe-area-inset-bottom))}.topbar{height:53px;margin-bottom:14px}.topbar-title{font-size:11px}.topbar-tools .profile{display:none}.topbar-tools button{width:34px;min-height:34px;padding:6px}.store-hero{min-height:0;padding:25px 22px;border-radius:11px}.store-hero h1{font-size:36px}.store-hero:before{top:30px;bottom:30px;width:3px}.store-hero p{font-size:13px}.store-featured{height:195px}.hero-jacket{width:100px}.hero-jacket:first-child{transform:translateX(-65px) rotate(-12deg)}.hero-jacket:nth-child(3){transform:translateX(65px) rotate(12deg)}.store-tabs{gap:6px}.store-tabs button{padding:8px 12px;font-size:11px}.cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 11px}.book{padding:11px}.book h3{font-size:14px}.search-area{padding:18px 15px}.search-area .hero h1{font-size:27px}.search-mode-bar{gap:5px}.search-mode-bar button{padding:7px 11px;font-size:11px;min-height:35px}#search select{min-width:0;font-size:12px;padding:10px 9px}.search-controls{display:block;gap:10px}.availability-toggle{font-size:11px}.author-panel{padding:21px 18px}.author-panel h1{font-size:29px}.author-search{gap:7px}.author-search input{font-size:13px;width:100px}.author-search button{font-size:12px;padding:10px}.author-profile h2{font-size:22px}.author-avatar{height:52px;width:52px;font-size:22px}.settings-layout{display:block;margin-top:22px}.settings-nav{flex-direction:row;overflow:auto;position:static;padding-bottom:15px;margin-bottom:10px;gap:4px}.settings-nav a{white-space:nowrap;padding:10px 12px;font-size:12px}.settings-panel{padding:21px 17px}.setting-row{gap:12px;align-items:center}.setting-row h3{font-size:13px}.setting-row p{font-size:11px}.setting-row select{min-width:105px;max-width:125px;padding:10px 8px;font-size:12px}.source-choice{gap:12px;grid-template-columns:20px minmax(0,1fr)}.source-kind{display:none}.settings-footer{align-items:stretch;flex-direction:column;gap:5px}.settings-footer button{width:100%}.settings-footer p{margin:6px 0}.connection-card{padding:14px;gap:10px}.connection-state{font-size:10px}.section-title{display:block;margin-bottom:20px}.section-title p{font-size:13px}.jobs{border:0;background:transparent}.jobs tr{padding:17px;background:var(--surface);border:1px solid var(--line);border-radius:10px;margin-bottom:13px}.jobs td{padding:7px 0}.jobs td:first-child{display:block}.jobs td:first-child:before{display:none}.jobs td:not(:first-child){grid-template-columns:72px minmax(0,1fr);gap:10px}.jobs td:nth-child(2){font-size:11px}.job-book strong{font-size:14px}.job-book img{width:42px;height:63px}.job-book small{font-size:10px}.jobs .action{font-size:11px}.availability-badge{font-size:9px!important;padding:4px 5px}.download-tabs{gap:5px}.download-tabs button{font-size:11px;padding:8px 10px}}
+
+
+.app-sidebar>.brand{display:flex}
+.result-actions{display:grid;grid-template-columns:minmax(0,1fr) 42px;gap:7px;margin-top:12px}.book .result-actions>.action{margin:0;min-height:42px;width:100%;padding:9px 6px;display:flex;font-size:11px}.book .result-actions>.save-action{font-size:0}.result-actions>.save-action:before{content:none;font-size:22px;font-weight:400}.result-actions>.download-action{grid-column:1/-1}.book .file-info{margin-top:10px;padding-top:10px}.book .author-link{display:block!important;line-height:1.5;min-height:25px}
+
+.save-action svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6}
+/* Book-first layout: readable catalogue, spacious book details, quiet metadata. */
+.app-main{max-width:1760px}
+.nav-link{font-size:14px}.topbar-title{font-size:14px}
+.search-area{padding:30px 32px;background:var(--surface);border-radius:14px}
+.search-area .hero h1{font-family:Georgia,'Times New Roman',serif;font-size:42px;font-weight:400;letter-spacing:-.035em}
+.search-area .hero p{font-size:15px}.search-mode-bar button{font-size:14px;min-height:42px}
+#search{gap:12px;margin-top:18px}#search input,#search select,#search button{font-size:15px;min-height:50px}
+.search-controls{padding-top:12px}.availability-toggle,.search-result-note{font-size:13px}
+.result-toolbar{margin:32px 0 24px}.result-toolbar h2{font-size:24px}.result-toolbar select{font-size:14px}
+.cards{grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:34px 28px}
+.book{padding:0;border:0;border-radius:0;background:transparent;display:flex;flex-direction:column;align-self:stretch}
+.book .cover-slot{display:block;flex:none;width:100%;height:300px;max-width:none;min-height:0;margin:0 0 18px;padding:24px;border:1px solid var(--line)!important;border-radius:10px;background:var(--surface)!important;box-shadow:none;overflow:hidden}
+.book .cover{inset:24px;width:calc(100% - 48px);height:calc(100% - 48px);object-fit:contain;filter:drop-shadow(3px 6px 6px #0003)}
+.book .cover-fallback{inset:24px 38px;background:var(--jacket);border:0;box-shadow:3px 6px 10px #0002;border-radius:2px 5px 5px 2px;padding:18px;font-size:24px}
+.book .cover-slot.cover-ready .cover-fallback{display:none}
+.book .book-detail{display:flex;flex-direction:column;flex:1;min-width:0}
+.book h3{font:400 22px/1.3 Georgia,'Times New Roman',serif;letter-spacing:-.025em;margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.book .author-link{font-size:14px!important;line-height:1.5;min-height:30px;margin-bottom:5px}
+.book .availability-badge{align-self:flex-start;font-size:11px!important;padding:5px 8px}
+:root[data-theme=dark] .availability-badge[data-state=available]{color:#8ed2ab;background:#17352a}
+.book .result-badges{margin:5px 0 0;gap:9px}.book .result-badges .book-source{width:100%;font-size:11px}.book .result-badges span{font-size:12px;padding:0;border:0;background:transparent;color:var(--muted)}
+.book .result-excerpt{display:none}
+.book .result-actions{margin-top:auto;padding-top:16px;gap:8px}
+.book .result-actions>.action{font-size:13px;min-height:44px;border-radius:7px}
+.book .result-actions>.save-action{font-size:0}
+.book .result-actions>.subtle{background:transparent;border-color:var(--line)}
+.book .editions-link{align-self:flex-start;background:transparent!important;color:var(--muted)!important;border:0!important;padding:9px 0 0;min-height:32px;font-size:12px;font-weight:400}
+.book .editions-link:hover{text-decoration:underline}
+#book-dialog{box-sizing:border-box;width:min(1080px,calc(100% - 64px));max-width:none;max-height:calc(100dvh - 64px);padding:0;overflow:auto;border-radius:18px;box-shadow:0 30px 100px #0007;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+#book-dialog::backdrop{background:#040609ba;backdrop-filter:blur(5px)}
+#close-detail{position:sticky;top:18px;float:right;z-index:2;margin:18px 22px 0 0;min-height:40px;padding:9px 13px;font-size:13px;background:var(--surface);border-color:var(--line)}
+#detail-content{clear:both;padding:24px 48px 40px}
+.book-hero{display:grid;grid-template-columns:240px minmax(0,1fr);gap:44px;align-items:start}
+.book-art{position:sticky;top:72px}.book-art .jacket{aspect-ratio:2/3;border-radius:3px 7px 7px 3px;box-shadow:8px 14px 28px #0003}
+.book-art .jacket img{object-fit:contain;background:var(--surface)}
+.book-overview{min-width:0}.detail-author{font-size:15px;color:var(--muted)!important;background:transparent!important;border:0!important;padding:0;min-height:28px;text-align:left;font-weight:400}
+#detail-title{font:400 clamp(30px,3vw,43px)/1.13 Georgia,'Times New Roman',serif;letter-spacing:-.035em;margin:10px 0 18px;max-width:22ch}
+.book-facts{display:flex;gap:14px;flex-wrap:wrap;font-size:14px;color:var(--muted);margin:0 0 26px}
+.book-facts span+span{border-left:1px solid var(--line);padding-left:14px}
+.edition-selection{border-top:1px solid var(--line);padding-top:22px}.edition-selection label{display:block;font-size:13px;color:var(--muted);margin-bottom:9px}
+.edition-selection select{display:block;width:100%;max-width:100%;font-size:14px;min-height:46px;text-overflow:ellipsis;margin-bottom:12px}
+.selected-edition>.availability-badge{font-size:12px!important;margin:0 0 12px}
+.detail-actions{display:flex;gap:10px;flex-wrap:wrap;margin:0}
+.detail-actions .action{margin:0;min-height:48px;padding:12px 18px;font-size:14px;flex:1;white-space:normal}
+.detail-actions .download-action{order:-1;flex:2}.detail-actions .save-action{background:transparent!important;color:var(--ink)!important;border:1px solid var(--line)!important}
+.detail-hint{font-size:12px;color:var(--muted);margin:12px 0 0;line-height:1.6}
+#detail-content .detail-description{margin-top:28px;border-top:1px solid var(--line);padding-top:24px}
+#detail-content h3{font-size:17px;margin:0 0 12px;letter-spacing:-.015em;clear:none}
+.detail-description p,.description{font-size:15px;line-height:1.8;color:var(--muted);max-width:65ch;white-space:pre-line;margin:0}
+.detail-description .preview-note{font-size:11px;margin-top:10px}
+.book-specs{margin:34px 0 0;border-top:1px solid var(--line);padding-top:22px}
+.book-specs>summary{font-size:14px;color:var(--muted);font-weight:500}
+.edition-spec-list{display:grid;grid-template-columns:1fr 1fr;gap:0 30px;margin-top:12px}
+.edition-spec{padding:22px 0;border-bottom:1px solid var(--line);min-width:0}.edition-spec p,.edition-spec a{font-size:13px;margin:6px 0}
+.library-owned{color:var(--gold);font-size:14px;margin:12px 0}.book-overview>.description{margin-top:24px}
+@media(min-width:1800px){.app-main{padding-inline:64px}.cards{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}.book .cover-slot{height:340px}.nav-link{padding-inline:16px}}
+@media(max-width:1100px) and (min-width:701px){.nav-link{font-size:12px}.book-hero{grid-template-columns:200px minmax(0,1fr);gap:28px}#detail-content{padding-inline:32px}.cards{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:28px 22px}}
+@media(max-width:700px){
+ .app-main{padding-inline:18px}.nav-link{font-size:10px}.topbar-title{font-size:12px}
+ .search-area{padding:22px 17px}.search-area .hero h1{font-size:33px}.search-area .hero p{font-size:14px}
+ .search-mode-bar{gap:6px}.search-mode-bar button{font-size:12px;padding:9px 12px;min-height:40px}
+ #search{gap:9px}#search input,#search select,#search button{font-size:14px;min-height:46px}
+ .search-controls .availability-toggle{font-size:12px}.search-result-note{font-size:12px;line-height:1.6}
+ .result-toolbar{margin-top:25px}.result-toolbar h2{font-size:21px}.result-toolbar select{font-size:12px;max-width:140px}
+ .cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:26px 16px}
+ .book .cover-slot{height:220px;padding:13px;margin-bottom:14px;border-radius:7px}
+ .book .cover{inset:13px;width:calc(100% - 26px);height:calc(100% - 26px)}
+ .book .cover-fallback{inset:13px 18px;padding:10px;font-size:19px}
+ .book h3{font-size:19px;-webkit-line-clamp:3}.book .author-link{font-size:12px!important;min-height:26px}
+ .book .result-badges{gap:6px}.book .result-badges span{font-size:11px}
+ .book .availability-badge{font-size:10px!important}.book .result-actions{grid-template-columns:minmax(0,1fr) 36px;gap:6px;padding-top:12px}
+ .book .result-actions>.action{font-size:11px;min-height:40px;padding:8px 4px}.book .result-actions>.save-action{font-size:0}
+ .book .editions-link{font-size:11px}
+ #book-dialog{width:calc(100% - 20px);max-height:calc(100dvh - 24px);border-radius:14px}
+ #close-detail{top:12px;margin:12px 14px 0 0;font-size:12px;min-height:36px;padding:8px 11px}
+ #detail-content{padding:22px 22px 30px}
+ .book-hero{display:block}.book-art{position:static;width:150px;margin:0 auto 26px}.book-art .jacket{box-shadow:6px 12px 20px #0003}
+ .detail-author{font-size:13px}#detail-title{font-size:31px;max-width:none;line-height:1.15;margin:9px 0 16px}
+ .book-facts{font-size:13px;margin-bottom:22px}.edition-selection{padding-top:20px}.edition-selection select{font-size:13px}
+ .detail-actions{gap:8px}.detail-actions .action{font-size:13px;min-height:48px;padding:11px 12px}
+ .detail-description p,.description{font-size:14px;line-height:1.8}.book-specs{margin-top:26px}.edition-spec-list{grid-template-columns:1fr}
+}
+@media(max-width:360px){.cards{gap:24px 12px}.book .cover-slot{height:185px}.book h3{font-size:17px}.book .result-actions{grid-template-columns:1fr}.book .result-actions>.save-action{display:none}.book-art{width:130px}#detail-content{padding-inline:18px}#detail-title{font-size:28px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+
+
+@media(max-width:700px){
+ #book-dialog .book-hero{display:grid;grid-template-columns:96px minmax(0,1fr);gap:0 18px}
+ #book-dialog .book-art{grid-column:1;grid-row:1/4;width:96px;margin:0;align-self:start}
+ #book-dialog .book-overview{display:contents}
+ #book-dialog .detail-author{grid-column:2;align-self:end;min-height:0;line-height:1.5}
+ #book-dialog #detail-title{grid-column:2;font-size:27px;line-height:1.17;margin:9px 0 14px}
+ #book-dialog .book-facts{grid-column:2;font-size:12px;margin-bottom:0;gap:10px}
+ #book-dialog .edition-selection,#book-dialog .detail-description{grid-column:1/-1;margin-top:26px}
+ #book-dialog .library-owned{grid-column:2}
+ #book-dialog .book-overview>.detail-actions,#book-dialog .book-overview>.detail-hint,#book-dialog .book-overview>.description,#book-dialog .book-overview>h3{grid-column:1/-1;margin-top:22px}
+}
+/* Kiosk shelves: immediate catalogue browsing, large covers and touch controls. */
+.kiosk-welcome{border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent;padding:10px 0 38px;min-height:0;gap:50px;margin-bottom:24px}
+.kiosk-welcome:before{display:none}.kiosk-welcome h1{font:400 clamp(40px,4vw,66px)/1.08 Georgia,'Times New Roman',serif;letter-spacing:-.045em;margin:0 0 16px}
+.kiosk-welcome p{font-size:16px;max-width:50ch;margin-bottom:24px}
+#kiosk-search{display:flex;gap:10px;max-width:620px}#kiosk-query{min-width:0;flex:1;background:var(--surface);font-size:16px;min-height:54px}
+#kiosk-search button{margin:0;min-height:54px;padding-inline:22px;font-size:15px;white-space:nowrap}
+.kiosk-count{display:block;font-size:13px;color:var(--muted);margin-top:16px}
+.kiosk-welcome .store-featured{position:relative;display:flex;gap:22px;height:260px;margin:0;justify-content:flex-end;padding:10px 12px}
+.kiosk-welcome .hero-jacket,.kiosk-welcome .hero-jacket:first-child,.kiosk-welcome .hero-jacket:nth-child(2),.kiosk-welcome .hero-jacket:nth-child(3){position:static;transform:none;width:145px;min-width:0;margin:0}
+.kiosk-welcome .hero-jacket .jacket{box-shadow:6px 12px 20px #0004}
+.store-tabs{gap:10px;padding-bottom:16px}.store-tabs button{font-size:14px;min-height:46px;padding:11px 19px;border-radius:8px}
+.store-section{margin:38px 0 46px;scroll-margin-top:100px}.store-section-head h2{font-size:28px;letter-spacing:-.035em}
+.store-section>p{font-size:13px;line-height:1.7;margin-bottom:22px}
+.store-rail{grid-auto-columns:190px;gap:28px;padding:8px 2px 20px}
+.store-card .jacket{border-radius:3px 7px 7px 3px}.store-card .jacket img{object-fit:contain;background:var(--surface)}
+.store-card h3{font:400 20px/1.3 Georgia,'Times New Roman',serif;margin:16px 0 8px;letter-spacing:-.02em}
+.store-card p{font-size:13px;line-height:1.5}.store-card .format-tag{font-size:10px;color:var(--muted);border:0;padding:0;margin-top:10px}
+.rail-tools{align-items:center;gap:8px}.rail-tools .icon-button{min-height:42px;min-width:42px;font-size:25px}
+.shelf-all{font-size:13px;background:transparent!important;min-height:42px;padding:9px 13px;white-space:nowrap}
+.store-rail.expanded{grid-auto-flow:row;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));grid-auto-columns:auto;gap:32px 28px;overflow:visible;scroll-snap-type:none}
+.store-note{font-size:12px;margin-top:0}.store-source{opacity:.8}.store-source a{text-decoration:none}
+#kiosk-toggle{font-size:13px;padding:10px 14px;white-space:nowrap}
+:root[data-kiosk=true] .app-main{max-width:none;padding-inline:clamp(24px,4vw,100px)}
+:root[data-kiosk=true] .app-footer,:root[data-kiosk=true] .profile,:root[data-kiosk=true] .topbar-title{display:none}
+:root[data-kiosk=true] .topbar{justify-content:flex-end;height:62px;margin-bottom:6px}
+:root[data-kiosk=true] .store-rail{grid-auto-columns:210px;gap:32px}
+:root[data-kiosk=true] .store-rail.expanded{grid-template-columns:repeat(auto-fill,minmax(190px,1fr));grid-auto-columns:auto}
+@media(min-width:1800px){.store-rail{grid-auto-columns:210px;gap:32px}.store-rail.expanded{grid-template-columns:repeat(auto-fill,minmax(190px,1fr));grid-auto-columns:auto}.kiosk-welcome .store-featured{justify-content:center}}
+@media(max-width:1000px) and (min-width:701px){.kiosk-welcome{grid-template-columns:1.25fr .75fr;gap:25px}.kiosk-welcome .hero-jacket{width:100px!important}.kiosk-welcome .store-featured{height:200px;gap:10px}.store-section-head h2{font-size:25px}}
+@media(max-width:700px){
+ .kiosk-welcome{display:block;padding:12px 0 25px;margin-bottom:18px}.kiosk-welcome h1{font-size:39px;max-width:none}.kiosk-welcome p{font-size:14px;line-height:1.6;margin-bottom:20px}
+ .kiosk-welcome #store-featured{display:none}#kiosk-search{gap:8px}#kiosk-query{font-size:14px;min-height:48px}#kiosk-search button{font-size:12px;padding-inline:12px;min-height:48px}
+ .kiosk-count{font-size:12px;margin-top:14px}.store-tabs{gap:8px;padding-bottom:12px}.store-tabs button{font-size:12px;min-height:42px;padding:10px 14px}
+ .store-section{margin:28px 0 34px;scroll-margin-top:80px}.store-section-head h2{font-size:23px}
+ .store-section>p{font-size:12px;margin-bottom:18px}.store-rail{grid-auto-columns:145px;gap:20px}
+ .store-card h3{font-size:18px}.store-card p{font-size:12px}.store-rail.expanded{grid-template-columns:repeat(2,minmax(0,1fr));gap:26px 18px}
+ .rail-tools{gap:5px}.rail-tools .icon-button{display:none}.shelf-all{font-size:11px;min-height:36px;padding:7px 9px}
+ #kiosk-toggle{width:auto;min-height:34px;font-size:11px;padding:7px 10px}
+ :root[data-kiosk=true] .app-main{padding-inline:18px}:root[data-kiosk=true] .store-rail{grid-auto-columns:155px;gap:20px}
+ :root[data-kiosk=true] .store-rail.expanded{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-columns:auto}
+}
+/* Genre browsing follows the book kiosk's type and cover system. */
+.genre-picker{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:30px 0}
+.genre-tile{position:relative;overflow:hidden;min-height:128px;padding:28px;text-align:left;border:1px solid var(--line)!important;border-left:5px solid var(--genre-color)!important;border-radius:8px;background:var(--surface)!important;color:var(--ink)!important}
+.genre-tile span{font:400 27px/1.2 Georgia,'Times New Roman',serif;letter-spacing:-.025em}
+.genre-tile:hover,.genre-tile[aria-pressed=true]{border-color:var(--genre-color)!important}
+.genre-tile[aria-pressed=true]{box-shadow:inset 0 0 0 1px var(--genre-color)}
+.genre-picker.compact{display:flex;gap:9px;overflow:auto;padding:3px 1px 12px;scrollbar-width:thin}
+.genre-picker.compact .genre-tile{flex:none;min-height:44px;padding:10px 15px;border-left-width:3px!important;white-space:nowrap}
+.genre-picker.compact .genre-tile span{font:500 14px/1.4 'Segoe UI',system-ui,sans-serif}
+.genre-heading{display:flex;justify-content:space-between;align-items:center;gap:20px;margin:30px 0 12px}
+.genre-heading h2{font:400 36px/1.2 Georgia,'Times New Roman',serif;margin:15px 0 0;letter-spacing:-.03em}
+#genre-all{background:transparent!important;color:var(--muted)!important;padding:0;border:0;font-size:13px;min-height:28px}
+.genre-heading label{font-size:13px;color:var(--muted)}.genre-heading select{font-size:14px;margin-left:10px}
+#hoster-books{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:24px;margin:25px 0}#hoster-books .cover-fallback{font-size:18px;inset:24px;padding:12px;overflow:hidden;overflow-wrap:anywhere}#hoster-jobs{margin-top:20px}#hoster-jobs article{margin-top:14px}
+#genre-message{font-size:13px;line-height:1.7;margin:14px 0 28px;max-width:75ch}
+@media(max-width:700px){.genre-picker{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:25px}.genre-tile{min-height:104px;padding:19px 14px}.genre-tile span{font-size:22px}.genre-picker.compact{gap:8px}.genre-picker.compact .genre-tile span{font-size:12px}.genre-heading{gap:12px;align-items:flex-end}.genre-heading h2{font-size:29px}.genre-heading label{font-size:11px}.genre-heading select{font-size:12px;margin-left:0;padding:9px 7px;display:block;margin-top:6px;max-width:128px}#genre-message{font-size:12px}}
+</style></head>
+<body><aside class="app-sidebar"><a class="brand" href="/discover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5c4-2 6-1 9 1 3-2 5-3 9-1v15c-4-2-6-1-9 1-3-2-5-3-9-1zM12 6v15"/></svg>RoyalBooks</a><p class="brand-caption">Deine Bücher. Dein Regal.</p><nav class="app-nav" aria-label="Navigation"><a class="nav-link" href="/discover" data-view-target="store"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v11h-6v-7H9v7H3z"/></svg><span>Entdecken</span></a><a class="nav-link" href="/authors" data-view-target="authors"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg><span>Autoren</span></a><a class="nav-link" href="/library" data-view-target="library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h4v16H4zM10 4h4v16h-4zM17 4l4 15-3 1-4-15z"/></svg><span>Bibliothek</span></a><a class="nav-link" href="/search" data-view-target="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><span>Suche</span></a><a class="nav-link" href="/watchlist" data-view-target="watchlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg><span>Merkliste</span></a><a class="nav-link" href="/downloads" data-view-target="download-center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg><span>Downloads</span></a></nav><a class="shell-watchlist" href="/watchlist" data-view-target="watchlist" aria-label="Merkliste"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg></a><a class="shell-settings" href="/settings/general" data-view-target="settings" aria-label="Einstellungen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 3-.5 3-2 1-3-.5-1 3 2.5 2v2L2.5 15l1 3 3-.5 2 1L9 22h5l.5-3.5 2-1 3 .5 1-3-2.5-1.5v-2l2.5-2-1-3-3 .5-2-1L14 3z"/><circle cx="11.5" cy="12.5" r="3"/></svg></a><div class="sidebar-bottom"><span class="connection-dot"></span>Mit deiner Bibliothek verbunden</div></aside><main class="app-main"><header class="topbar"><span class="topbar-title" id="topbar-title">RoyalBooks</span><div class="topbar-tools"><button id="kiosk-toggle" class="subtle" type="button" aria-pressed="false">Vollbild</button><button class="icon-button" id="theme-toggle" type="button" aria-label="Darstellung wechseln" title="Hell / Dunkel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13a8 8 0 0 1-9-9 8 8 0 1 0 9 9z"/></svg></button><span class="profile" aria-label="Persönliche Bibliothek">RB</span></div></header><section id="store" data-view="store"><div class="store-hero kiosk-welcome"><div><h1>Dein Buchkiosk.</h1><p>Stöbere durch die Regale oder suche dein nächstes Buch.</p><form id="kiosk-search"><input id="kiosk-query" type="search" aria-label="Im Buchkiosk suchen" placeholder="Titel, Autor oder ISBN" minlength="2" maxlength="120" required><button id="store-find" type="submit">Buch suchen</button></form><span id="kiosk-count" class="kiosk-count"></span></div><div id="store-featured" class="store-featured" aria-label="Bücher im Fokus"></div></div><div class="store-tabs" aria-label="Entdecken filtern"><button type="button" class="subtle" data-shelf-filter="all" aria-pressed="true">Alle entdecken</button><button type="button" class="subtle" data-view-target="genres">Genres</button><button type="button" class="subtle" data-shelf-filter="releases" aria-pressed="false">Aktuelle Ausgaben</button><button type="button" class="subtle" data-shelf-filter="fiction" aria-pressed="false">Romane</button><button type="button" class="subtle" data-shelf-filter="nonfiction" aria-pressed="false">Sachbücher</button><button type="button" class="subtle" data-shelf-filter="trending" aria-pressed="false">Angesagt</button></div><label class="availability-toggle"><input id="store-available-only" type="checkbox">Nur sofort erreichbare EPUBs</label><p id="store-message" class="store-note" role="status">Deine Buchauswahl wird vorbereitet …</p><div id="store-shelves" aria-live="polite"></div></section><section id="genres" data-view="genres" hidden><div class="section-title"><div><h1>Durch Genres stöbern.</h1><p>Entdecke deine nächste Geschichte.</p></div><button type="button" class="subtle" data-open-view="store">Zum Buchkiosk</button></div><div id="genre-picker" class="genre-picker" aria-label="Genre auswählen"></div><div id="genre-heading" class="genre-heading" hidden><div><button id="genre-all" class="subtle" type="button">Alle Genres</button><h2 id="genre-title"></h2></div><label>Sprache <select id="genre-language"><option value="de">Deutsch</option><option value="en">Englisch</option><option value="all">Alle Sprachen</option></select></label></div><label id="genre-filter" class="availability-toggle" hidden><input id="genre-available-only" type="checkbox">Nur erreichbare EPUBs</label><p id="genre-message" class="muted" role="status">Wähle ein Genre.</p><div id="genre-books" class="cards" aria-live="polite"></div><div class="pagination-row"><button id="genre-more" class="subtle" type="button" hidden>Weitere Bücher laden</button></div></section><section id="authors" data-view="authors" hidden><div class="author-panel"><h1>Die Welt deiner Autoren.</h1><p>Gib einen Namen ein und entdecke die Werke aus deinen ausgewählten Buchquellen.</p><form id="author-search" class="author-search"><input id="author-q" type="search" placeholder="Zum Beispiel Stephen King" aria-label="Autor suchen" minlength="2" maxlength="120" required><button id="author-go">Werke entdecken</button></form><label class="availability-toggle"><input id="author-available-only" type="checkbox" checked>Nur erreichbare EPUBs</label></div><div class="author-profile" id="author-profile" hidden><span class="author-avatar" id="author-initials"></span><div><h2 id="author-name"></h2><p id="author-count"></p></div></div><p id="author-message" class="muted" role="status">Suche nach einem Autor, um seine Werke zu sehen.</p><div id="author-books" class="cards" aria-live="polite"></div><div class="pagination-row"><button id="author-more" type="button" class="subtle" hidden>Weitere Werke laden</button></div></section><section id="library" data-view="library" hidden><div class="page-heading"><div><h1>Deine Bibliothek</h1><p>Alle deine Bücher. Bereit für das nächste Kapitel.</p></div><button type="button" class="icon-button" id="library-refresh" aria-label="Bibliothek aktualisieren" title="Aktualisieren"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 7a7 7 0 0 1 12-2l2 7M4 12l2 7a7 7 0 0 0 12-2"/></svg></button></div><div class="toolbar"><input type="search" id="library-query" placeholder="In deiner Bibliothek suchen" aria-label="Bibliothek durchsuchen" maxlength="120"><select id="library-sort" aria-label="Bibliothek sortieren"><option value="recent">Zuletzt hinzugefügt</option><option value="title">Nach Titel</option><option value="author">Nach Autor</option></select><div class="layout-toggle"><button class="icon-button" id="view-grid" type="button" aria-label="Regalansicht" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></button><button class="icon-button" id="view-list" type="button" aria-label="Listenansicht" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5h13M8 12h13M8 19h13M3 5h1M3 12h1M3 19h1"/></svg></button></div></div><div class="section-heading"><h2 id="shelf-heading">Dein Bücherregal</h2><span class="count-badge" id="library-count">Wird geladen …</span></div><p id="library-message" class="muted" role="status"></p><div id="library-books" class="shelf" aria-live="polite"></div><div class="library-actions"><button id="library-more" type="button" class="subtle" hidden>Weitere Bücher laden</button></div></section><section data-view="search" hidden><div class="search-area"><section class="hero">
+<h1>Finde dein nächstes Buch.</h1>
+<p class="muted">Entdecke Bücher, sammle Lesewünsche und ergänze deine Bibliothek. Suche nach einem Titel, einem Autor oder einer ISBN.</p></section>
+<div class="search-mode-bar" aria-label="Suchart"><button type="button" data-search-mode="all" aria-pressed="true">Alles</button><button type="button" data-search-mode="title" aria-pressed="false">Titel</button><button type="button" data-search-mode="author" aria-pressed="false">Autor</button><button type="button" data-search-mode="isbn" aria-pressed="false">ISBN / EAN</button></div><form id="search"><input type="search" id="q" placeholder="Titel, Autor oder ISBN" required minlength="2" maxlength="120" aria-label="Suche"><select id="language" aria-label="Sprache"><option value="de">Deutsch</option><option value="en">Englisch</option><option value="all">Alle</option></select><select id="result-limit" aria-label="Treffer pro Quelle"><option value="30">30 Treffer</option><option value="60">60 Treffer</option></select><button id="go">Bücher suchen</button></form>
+<div class="search-controls"><label class="availability-toggle"><input id="search-available-only" type="checkbox" checked>Nur erreichbare EPUBs</label><span class="source-note">Dateiquellen werden automatisch geprüft.</span></div></div><div id="message" role="status" class="muted">Suche nach einem Buch. RoyalBooks nutzt automatisch eingebaute Quellen.</div>
+<p id="access-banner" class="search-notice" role="status" hidden></p>
 <p id="search-notice" class="search-notice" hidden></p>
 <div id="search-filters" class="search-filters" hidden aria-label="Suchergebnisse filtern">
 <button type="button" data-filter="all" aria-pressed="true">Alle Titel</button>
-<button type="button" data-filter="epub" aria-pressed="false">Mit EPUB-Link</button>
+<button type="button" data-filter="epub" aria-pressed="false">EPUB-Dateieinträge</button>
+<button type="button" data-filter="files" aria-pressed="false">Mit Dateieintrag</button>
 <button type="button" data-filter="metadata" aria-pressed="false">Nur Buchdaten</button>
 </div>
 <details id="source-details"><summary class="muted">Integrierte Quellen und Diagnose</summary>
 <section id="stats" class="stats" aria-label="Providerstatus"></section></details>
-<section id="books" class="cards" aria-live="polite"></section>
+<details class="search-diagnostics"><summary id="source-summary">Quellenstatus ansehen</summary><div id="search-diagnostics"></div></details>
+<div class="result-toolbar" id="result-toolbar" hidden><h2>Deine Suchergebnisse</h2><select id="result-sort" aria-label="Suchergebnisse sortieren"><option value="relevance">Beste Treffer</option><option value="title">Titel A–Z</option><option value="year">Neueste Ausgabe</option></select></div><section id="books" class="cards" aria-live="polite"></section><div class="pagination-row"><button id="search-more" class="subtle" type="button" hidden>Weitere Treffer laden</button></div></section>
 <details class="controls" id="admin-access">
 <summary style="cursor:pointer;font-weight:750">Verwaltungszugang für Merkliste und Aufträge (optional)</summary>
-<p class="muted">Die normale Buchsuche benötigt keinen Token. Für persönliche Merkliste, NAS-Prüfung und Auftragsverwaltung ist der RoyalBooks-API-Token weiterhin nötig; er wird nur in dieser Browser-Sitzung gehalten.</p>
+<p class="muted">Die Suche ist frei. Melde dieses Gerät einmal für Merkliste und Downloads an. Der Zugang bleibt sieben Tage erhalten; der API-Token wird nicht im Browser gespeichert.</p>
 <label for="token">RoyalBooks-API-Token</label>
 <input id="token" type="password" autocomplete="off" placeholder="Token aus deiner NAS-.env">
+<button id="access-login" type="button">Dieses Gerät anmelden</button>
+<button id="access-logout" type="button" class="subtle" hidden>Abmelden</button>
+<p id="access-status" class="muted" role="status" aria-live="polite">Zugang wird geprüft …</p>
 </details>
-<section class="controls" id="watchlist">
+<section class="controls" id="watchlist" data-view="watchlist" hidden>
 <h2>Meine Merkliste</h2>
-<p class="muted">Gespeicherte ältere Einträge bleiben erhalten. Zum Öffnen der persönlichen Merkliste wird der optionale Verwaltungszugang benötigt.</p>
+<p class="muted">Bücher, die du als Nächstes lesen möchtest. Deine gespeicherten Titel bleiben hier erhalten.</p>
 <button type="button" id="watchlist-refresh" class="subtle">Merkliste öffnen</button>
 <div id="watchlist-message" role="status" class="muted"></div>
 <div id="watchlist-items" aria-live="polite"></div>
 </section>
-<section class="controls" id="catalog-controls" hidden>
+<section id="hosters" data-view="hosters" hidden>
+<div class="section-title"><div><h1>Bücher bei Byte.to</h1><p>Veröffentlichungen durchsuchen und mit dem kostenlosen Downloader übernehmen.</p></div></div>
+<form id="hoster-search" class="controls"><label for="hoster-q">Titel oder Autor</label><div style="display:flex;gap:10px;flex-wrap:wrap"><input id="hoster-q" type="search" maxlength="140" placeholder="Buchtitel oder Autor" style="flex:1;min-width:180px"><button id="hoster-find" type="submit">Suchen</button><button id="hoster-latest" type="button" class="subtle">Neue Einträge</button></div></form>
+<p id="hoster-catalog-message" role="status" aria-live="polite"></p><div id="hoster-books" class="results"></div><button id="hoster-more" type="button" class="subtle" hidden>Weitere Bücher</button>
+<section class="controls"><h2>Hoster-Aufträge</h2><p>Bei kostenlosen Hostern können Wartezeiten und Captchas nötig sein. Erst eine vollständig geprüfte EPUB wird an BookOrbit übergeben.</p><p id="hoster-engine-message" role="status"></p><a id="hoster-control" class="action" target="_blank" rel="noopener noreferrer" hidden>Downloader öffnen / Captcha bearbeiten</a><div id="hoster-jobs"></div></section>
+</section>
+<section class="controls" id="download-center" data-view="download-center" hidden><h2>Deine Downloads</h2><button type="button" class="subtle" data-open-view="hosters">Byte.to &amp; Hoster-Aufträge</button><p class="muted">Bestätigte EPUB-Aufträge werden geprüft und im verbundenen Book Dock bereitgestellt. Historische Aufträge bleiben bis zur Freigabe pausiert.</p>
+
+<button id="refresh" class="subtle" type="button">Aufträge aktualisieren</button> <button id="preflight" class="subtle" type="button">NAS-Einrichtung prüfen</button><div id="preflight-results" role="status" aria-live="polite"></div><div id="job-message" role="status" class="muted"></div><div class="download-tabs" aria-label="Downloads filtern"><button type="button" data-job-filter="all" aria-pressed="true">Alle</button><button type="button" data-job-filter="active" aria-pressed="false">Aktiv</button><button type="button" data-job-filter="delivered" aria-pressed="false">Übergeben</button><button type="button" data-job-filter="failed" aria-pressed="false">Fehler</button></div><div style="overflow:auto"><table class="jobs"><thead><tr><th>Quelle / Buch-ID</th><th>Status</th><th>Details</th></tr></thead><tbody id="job-rows"></tbody></table></div></section>
+<details class="controls" id="catalog-controls" hidden><summary>Optionalen Offline-Katalog verwalten</summary>
 <h2>Offiziellen Gutenberg-Katalog einrichten</h2>
 <p class="muted">Ohne Kommandozeile: erst Buchdaten (CSV), dann EPUB-Formatinformationen (RDF) importieren. Der zweite Schritt verarbeitet ein großes Archiv. Die Abfragen erfolgen nur nach deinem Klick.</p>
 <div style="display:flex;flex-wrap:wrap;gap:9px;margin:14px 0">
@@ -145,75 +231,141 @@ form select,form button{flex:1}
 <button type="button" class="subtle" id="sync-rdf">2 · EPUB-Formate laden</button>
 <button type="button" class="subtle" id="sync-refresh">Status prüfen</button></div>
 <div id="import-status" class="muted" role="status" aria-live="polite">Für den Import den API-Token unten eingeben.</div>
-</section>
-<section class="controls" id="download-center"><h2>Auftragsarchiv und Calibre</h2><p class="muted">Frühere Downloadaufträge bleiben gespeichert. Die alten Katalog-Downloader sind standardmäßig pausiert; Indexer-Suchergebnisse lösen keine automatischen Downloads aus.</p>
-<p class="muted">Für Auftragsdetails den optionalen Verwaltungszugang oberhalb der Merkliste öffnen.</p>
-<button id="refresh" class="subtle" type="button">Aufträge aktualisieren</button> <button id="preflight" class="subtle" type="button">NAS-Einrichtung prüfen</button><div id="preflight-results" role="status" aria-live="polite"></div><div id="job-message" role="status" class="muted"></div><div style="overflow:auto"><table class="jobs"><thead><tr><th>Gutenberg-ID</th><th>Status</th><th>Details</th></tr></thead><tbody id="job-rows"></tbody></table></div></section>
-<footer class="muted">Die Übergabe an Calibre-Web Automated wird als „delivered“ angezeigt, nicht als bestätigter Bibliotheksimport. Keine unbekannten Downloadserver, keine Kopierschutz-Umgehung.</footer>
-<script>
+</details>
+<dialog id="book-dialog" aria-labelledby="detail-title"><button id="close-detail" class="subtle" type="button">Schließen</button><div id="detail-content"></div></dialog>
+<section id="settings" data-view="settings" hidden><div class="section-title"><div><h1>Einstellungen</h1><p>Deine Buchwelt. So, wie du sie brauchst.</p></div></div><div class="settings-layout"><nav class="settings-nav" aria-label="Einstellungsbereiche"><a href="/settings/general" data-settings-tab="general">Allgemein</a><a href="/settings/sources" data-settings-tab="sources">Quellen & Kataloge</a><a href="/settings/library" data-settings-tab="library">BookOrbit & Bibliothek</a><a href="/settings/system" data-settings-tab="system">System & Diagnose</a><a href="/settings/access" data-settings-tab="access">Gerätezugang</a></nav><div class="settings-content"><section class="settings-panel" data-settings-panel="general"><h2>Deine Voreinstellungen</h2><p>Such- und Quelleneinstellungen bleiben auf deinem RoyalBooks-Server gespeichert.</p><div class="setting-row"><div><h3>Bevorzugte Sprache</h3><p>Wird für die Buchsuche vorausgewählt.</p></div><select id="pref-language" aria-label="Bevorzugte Sprache"><option value="de">Deutsch</option><option value="en">Englisch</option><option value="all">Alle Sprachen</option></select></div><div class="setting-row"><div><h3>Nur erreichbare EPUBs</h3><p>Downloadangebote erscheinen erst nach einer Dateiserver-Prüfung. Katalogtitel bleiben optional einblendbar.</p></div><input id="pref-available-only" type="checkbox" checked aria-label="Nur erreichbare EPUBs voreinstellen"></div><div class="setting-row"><div><h3>Treffer je Quelle</h3><p>Mehr Ergebnisse können die Suche verlängern.</p></div><select id="pref-result-limit" aria-label="Trefferzahl"><option value="25">25 Treffer</option><option value="30">30 Treffer</option><option value="60">60 Treffer</option></select></div><div class="setting-row"><div><h3>Darstellung</h3><p>Hell oder dunkel. Wird auf diesem Gerät gespeichert.</p></div><select id="pref-theme" aria-label="Darstellung"><option value="dark">Dunkel</option><option value="light">Hell</option></select></div></section><section class="settings-panel" data-settings-panel="sources" hidden><h2>Quellen & Kataloge</h2><button type="button" class="subtle" data-open-view="hosters">Byte.to durchsuchen / Downloader</button><p>Wähle die Quellen für deine Suche. Ein Katalogeintrag allein ist noch kein Dateiangebot.</p><div id="source-choices"></div><div class="external-catalog"><h3>Thalia Gratis-Katalog</h3><p>Den kostenlosen Thalia-Katalog kannst du im Browser entdecken. RoyalBooks zeigt einen Download erst an, wenn eine ausgewählte Dateiquelle eine erreichbare EPUB liefert.</p><a href="https://www.thalia.de/ebook/aktuelles/ebooks-sale/kostenlose-ebooks" target="_blank" rel="noopener noreferrer">Gratis-eBooks bei Thalia öffnen</a></div></section><section class="settings-panel" data-settings-panel="library" hidden><h2>BookOrbit & Bibliothek</h2><p>Deine vorhandenen Bücher und die Übergabe neuer EPUBs.</p><div class="connection-card"><div><h3>BookOrbit-Bibliothek</h3><p>Vorhandene Bücher und Cover in RoyalBooks anzeigen.</p></div><span id="setting-library-state" class="connection-state">Wird geprüft …</span></div><div class="connection-card"><div><h3>Automatischer Import</h3><p>Geprüfte Downloads an BookOrbit übergeben.</p></div><span id="setting-ingest-state" class="connection-state">Wird geprüft …</span></div><div class="connection-card"><div><h3>BookOrbit-Verbindung</h3><p>Anmeldung, Book Dock und Importbestätigung getrennt prüfen.</p></div><span id="setting-bookorbit-state" class="connection-state">Nicht geprüft</span></div><div id="bookorbit-result" role="status"></div><div class="settings-inline-actions"><button id="bookorbit-test" type="button">BookOrbit-Integration testen</button><a id="bookorbit-link" class="action" target="_blank" rel="noopener noreferrer" hidden>BookOrbit öffnen</a></div><div class="settings-inline-actions"><button type="button" class="subtle" data-open-view="library">Bibliothek öffnen</button><button type="button" class="subtle" data-open-view="download-center">Downloads ansehen</button></div></section><section class="settings-panel" data-settings-panel="system" hidden><h2>System & Diagnose</h2><p>Quellenstatus, NAS-Verbindung und optionale Offline-Kataloge.</p><div id="system-tools"></div><div id="system-catalog"></div><div id="system-sources"></div></section><section class="settings-panel" data-settings-panel="access" hidden><h2>Gerätezugang</h2><p id="setting-access-note">Dieses Gerät kann hier für Merkliste und Downloads angemeldet werden.</p><div id="settings-access-controls"></div></section><div class="settings-footer"><p id="preferences-message" role="status"></p><button id="preferences-save" type="button">Einstellungen speichern</button></div></div></div></section><footer class="app-footer"><span>RoyalBooks · Deine persönliche Bibliothek</span><a href="/settings" id="settings-link">Einstellungen &amp; Quellen</a></footer></main><script>
 const $=id=>document.getElementById(id);
 const text=(tag,value,cls)=>{const el=document.createElement(tag);el.textContent=value;if(cls)el.className=cls;return el};
-function safeUrl(raw){try{const u=new URL(raw);return u.protocol==='https:'?u.href:null}catch{return null}}
-async function loadStats(){try{const r=await fetch('/api/providers');if(!r.ok)return;const v=await r.json();if(v.search_mode==='built_in_direct'){
- $('stats').replaceChildren(text('span','Library Genesis · eingebaute Buchsuche','stat'));
- return;
+let adminAuthenticated=false;
+let authReady=Promise.resolve();
+function authHeaders(extra={}){
+ const headers={'X-RoyalBooks-Client':'web',...extra};
+ if($('token').value)headers['X-API-Key']=$('token').value;
+ return headers;
 }
-$('stats').replaceChildren(...v.providers.map(p=>{const s=v.recent_metrics.find(x=>x.provider===p.name);return text('span',p.name+': '+(s ? s.found+' Treffer-Suchen / '+s.errors+' Fehler (letzte '+s.attempts+')' : 'noch ungetestet'),'stat')}));
-if(Array.isArray(v.source_profiles)){
-  for(const p of v.source_profiles.filter(x=>x.enabled)){
-    const label=p.role==='bibliography'?'Buchdaten':p.role==='epub_catalog'?'EPUB-Katalog':'EPUB-Quelle';
-    $('stats').append(text('span',p.display_name+' · '+label,'stat'));
+function showAccess(active,message=''){
+ adminAuthenticated=active;
+ $('access-banner').hidden=!active;
+ $('access-banner').textContent=active?'Dieses Gerät ist angemeldet. Merkliste und EPUB-Übernahme sind freigeschaltet.':'';
+ $('token').hidden=active;$('access-login').hidden=active;$('access-logout').hidden=!active;
+ $('access-status').textContent=message||(active?'Dieses Gerät ist für Downloads und Merkliste angemeldet.':'Dieses Gerät ist noch nicht angemeldet.');
+}
+async function adminFetch(url,options={}){
+ const response=await fetch(url,{...options,credentials:'same-origin',headers:{...authHeaders(),...(options.headers||{})}});
+ if(response.status===401)showAccess(false,'Zugang abgelaufen. Bitte erneut anmelden.');
+ return response;
+}
+async function initializeAccess(){
+ const code=new URLSearchParams(location.hash.slice(1)).get('code');
+ if(code)history.replaceState(null,'','/');
+ try{
+  const response=await fetch(code?'/api/auth/connect':'/api/auth/status',code?{
+   method:'POST',headers:{'Content-Type':'application/json','X-RoyalBooks-Client':'web'},credentials:'same-origin',body:JSON.stringify({code})
+  }:{credentials:'same-origin'});
+  const data=await response.json();
+  if(!response.ok){
+   if(code){
+    const current=await fetch('/api/auth/status',{credentials:'same-origin'});
+    const access=await current.json();
+    if(current.ok&&access.authenticated){showAccess(true);return}
+   }
+   throw Error(code?'Dieser Anmeldelink ist abgelaufen oder wurde auf einem anderen Gerät verwendet. Bitte einen neuen Link anfordern.':'Zugang konnte nicht geprüft werden.');
   }
+  showAccess(data.authenticated);
+  if(data.network_access){
+   $('access-banner').textContent='Heimnetzzugang aktiv. Merkliste und EPUB-Übernahme sind dauerhaft freigeschaltet.';
+   $('admin-access').hidden=true;$('setting-access-note').textContent='Heimnetzzugang aktiv. Dieses Gerät ist automatisch für Merkliste und Downloads freigeschaltet.';
+  }
+ }catch(error){showAccess(false,error.message);$('admin-access').open=true}
 }
-if(v.catalog&&v.catalog.indexed) $('stats').append(text('span','Buchkatalog: '+v.catalog.records+' Titel','stat'));
-else $('stats').append(text('span','Buchkatalog noch nicht geladen','stat'));
-if(v.format_catalog&&v.format_catalog.indexed) $('stats').append(text('span','EPUB-Formatkatalog: '+v.format_catalog.records+' Links · unbestätigt','stat'));
-else $('stats').append(text('span','EPUB-Formatkatalog noch nicht geladen','stat'))}catch{}}
+async function signIn(){
+ try{
+  const response=await fetch('/api/auth/login',{method:'POST',credentials:'same-origin',
+   headers:{'Content-Type':'application/json','X-RoyalBooks-Client':'web'},body:JSON.stringify({token:$('token').value})});
+  if(!response.ok)throw Error(response.status===401?'Der Token ist ungültig.':'Anmeldung fehlgeschlagen.');
+  $('token').value='';showAccess(true);await loadJobs();loadLibrary();loadWatchlist();
+ }catch(error){showAccess(false,error.message)}
+}
+$('access-login').addEventListener('click',signIn);
+$('token').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();signIn()}});
+$('access-logout').addEventListener('click',async()=>{
+ const response=await fetch('/api/auth/logout',{method:'POST',credentials:'same-origin',headers:{'X-RoyalBooks-Client':'web'}});
+ if(response.ok){$('token').value='';showAccess(false);$('job-rows').replaceChildren();$('watchlist-items').replaceChildren();
+  if(jobTimer){clearTimeout(jobTimer);jobTimer=null}if(catalogTimer){clearTimeout(catalogTimer);catalogTimer=null}}
+});
+
+function safeUrl(raw){try{const u=new URL(raw);return u.protocol==='https:'&&!u.username&&!u.password?u.href:null}catch{return null}}
+async function loadStats(){try{
+ const response=await fetch('/api/providers');if(!response.ok)return;
+ const data=await response.json();sourceManifest=data.source_profiles||[];renderSourceChoices();
+ $('stats').replaceChildren(...data.providers.map(provider=>{
+  const profile=data.source_profiles.find(p=>p.name===provider.name);
+  const health={available:'Erreichbar',slow:'Langsam',unavailable:'Nicht erreichbar'};
+  const card=text('div','', 'stat');
+  card.append(text('strong',profile?profile.display_name:provider.name));
+  card.append(text('p',health[provider.health]||'Noch nicht abgefragt'));
+  if(profile)card.append(text('p',profile.role==='bibliography'?'Buchdaten ohne Dateiangebot':profile.role==='file_listing'?'Dateilisting · ungeprüft':'EPUB-Katalog'));
+  if(provider.checked_at)card.append(text('p','Geprüft: '+new Date(provider.checked_at).toLocaleTimeString('de-DE')));
+  if(provider.error){const details=document.createElement('details');details.append(text('summary','Diagnose'),text('p',provider.error));card.append(details)}
+  return card;
+ }));
+}catch{}}
+const transferLabels={download_complete:'Datei vollständig geladen · Prüfung läuft',legacy_unverified:'Altinstallation · nicht erneut übergeben',publishing:'Übergabe läuft',handed_off:'An Book Dock übergeben · Import unbestätigt',dock_present:'Datei in Book Dock · Import unbestätigt',import_unconfirmed:'Bibliotheksimport noch nicht bestätigt',dock_processing:'BookOrbit verarbeitet Metadaten · Import unbestätigt',dock_ready:'Book Dock verarbeitet · wartet auf Bibliotheksaufnahme',dock_error:'BookOrbit meldet einen Verarbeitungsfehler · bitte prüfen',import_confirmed:'Import durch Bibliotheksdatei bestätigt',needs_review:'Manuelle Übergabeprüfung erforderlich'};
+const orbitErrors={bookorbit_credentials_missing:'BookOrbit-Zugangsdaten fehlen noch in der Secret-Datei.',bookorbit_secret_permissions:'Die Secret-Datei muss geschützt und für RoyalBooks lesbar sein.',bookorbit_secret_unreadable:'Secret-Datei nicht lesbar.',bookorbit_secret_invalid:'Secret-Datei enthält ungültige Einträge.',bookorbit_unavailable:'BookOrbit ist nicht erreichbar.',bookorbit_url_invalid:'BookOrbit-Adresse fehlt oder ist ungültig.',bookorbit_http_401:'BookOrbit-Anmeldung oder Sitzung ist ungültig.',bookorbit_http_403:'Dem BookOrbit-Benutzer fehlen die erforderlichen Berechtigungen.',bookorbit_auth_cooldown:'Anmeldung vorübergehend pausiert. Zugangsdaten prüfen.',bookorbit_session_invalid:'BookOrbit liefert keine gültige Sitzung.',bookorbit_extraction_failed:'BookOrbit konnte die Buchdatei nicht verarbeiten.'};
 let jobTimer=null;
 const jobStatusLabels={
  queued:'Wartend',downloading:'EPUB wird heruntergeladen',
- staged:'EPUB geprüft',delivering:'An Calibre übergeben',
- delivered:'An Importordner übergeben',failed:'Fehlgeschlagen',
+ staged:'EPUB geprüft',delivering:'Übergabe an BookOrbit läuft',
+ delivered:'An Book Dock übergeben · Import unbestätigt',failed:'Fehlgeschlagen',
  needs_review:'Manuelle Prüfung erforderlich'
 };
-async function loadJobs(){const token=$('token').value;if(!token){$('job-message').textContent='API-Token eingeben, um die Aufträge zu sehen.';return}
-try{const r=await fetch('/api/jobs',{headers:{'X-API-Key':token}});if(!r.ok)throw Error('HTTP '+r.status);const result=await r.json();
+async function loadJobs(){const token=$('token').value;if(!token&&!adminAuthenticated){$('job-message').textContent='API-Token eingeben, um die Aufträge zu sehen.';return}
+try{const r=await adminFetch('/api/jobs',{headers:authHeaders()});if(!r.ok)throw Error('HTTP '+r.status);const result=await r.json();
 if(jobTimer){clearTimeout(jobTimer);jobTimer=null}
 const active=result.jobs.some(job=>['queued','downloading','staged','delivering'].includes(job.status));
-if(active)jobTimer=setTimeout(()=>{
+if(active||!$('download-center').hidden)jobTimer=setTimeout(()=>{
  if(document.visibilityState==='visible')loadJobs();
-},5000);
-$('job-message').textContent=result.legacy_worker_enabled?'Legacy-Modus aktiv.':'Alte Katalogdownloads pausiert. Die Aufträge bleiben erhalten.';
-$('job-rows').replaceChildren(...result.jobs.map(job=>{const row=document.createElement('tr');
-const info=text('td',job.error||((job.file_size||0)?job.file_size+' Bytes':'–'));
+},active?5000:8000);
+$('job-message').textContent=result.downloads_enabled?'Downloads aktiv. Historische Aufträge ohne erneute Freigabe bleiben pausiert.':'Downloads pausiert.';
+$('job-rows').replaceChildren(...result.jobs.filter(job=>jobFilter==='all'||(jobFilter==='active'?['queued','downloading','staged','delivering'].includes(job.status):job.status===jobFilter)).map(job=>{const row=document.createElement('tr');
+const jobErrors={http_500:'Der Dateiserver meldet einen Fehler. Eine andere Ausgabe kann funktionieren.',http_502:'Der Dateiserver ist vorübergehend nicht erreichbar.',http_503:'Der Dateiserver ist gerade überlastet.',http_504:'Der Dateiserver antwortet zu langsam.',http_404:'Diese Datei ist auf dem Server nicht mehr vorhanden.',ReadTimeout:'Die Übertragung wurde wegen einer zu langsamen Serverantwort beendet.',ConnectTimeout:'Die Verbindung zum Dateiserver dauert zu lange.',duplicate_epub:'Diese Datei wurde bereits von RoyalBooks übernommen.',untrusted_redirect:'Die Quelle verweist auf einen noch nicht freigegebenen Downloadserver.',catalog_md5_mismatch:'Die Datei stimmt nicht mit der ausgewählten Ausgabe überein.',publisher_epub_metadata_missing_or_expired:'Der Dateieintrag ist abgelaufen. Bitte die Suche erneut öffnen.'};
+const info=text('td',(jobErrors[job.error]||job.error)||((job.file_size||0)?job.file_size+' Bytes':'–'));
+if(job.error==='libgen_catalog_unavailable')info.textContent='Die Quelle liefert derzeit nur eine Server-Standardseite statt des Buchkatalogs.';
+if(job.error==='libgen_download_link_missing')info.textContent='Für diese Datei liefert aktuell keiner der geprüften Spiegel einen Downloadlink.';
+if(job.status==='queued'&&job.retry_at){
+ info.append(text('p','Automatischer nächster Versuch um '+new Date(job.retry_at*1000).toLocaleTimeString('de-DE')+'.','muted'));
+}
 const observations={
  awaiting_ingest:'EPUB liegt noch im Importordner',
  file_absent_unverified:'EPUB nicht mehr im Importordner – Import unbestätigt',
- ingest_not_configured:'Calibre-Importordner nicht verbunden',
- ingest_unavailable:'Calibre-Importordner nicht erreichbar',
+ ingest_not_configured:'Book Dock nicht verbunden',
+ ingest_unavailable:'Book Dock nicht erreichbar',
  staged_ready:'EPUB bereit zur Übergabe',
  staged_missing:'Zwischengespeicherte EPUB fehlt',
  manual_review_destination_present:'Manuelle Prüfung: Übergabedatei vorhanden',
  manual_review_staged_present:'Manuelle Prüfung: zwischengespeicherte Datei vorhanden',
  manual_review_unknown:'Manuelle Prüfung erforderlich'
 };
+if(job.library_transfer?.steps?.includes('validated'))info.append(text('p','✓ Vollständig heruntergeladen · ✓ EPUB-Prüfung erfolgreich','muted'));
+if(job.library_transfer){info.append(text('p',transferLabels[job.library_transfer.status]||'Noch nicht an Book Dock übergeben','muted'));if(job.library_transfer.error)info.append(text('p',orbitErrors[job.library_transfer.error]||'Übergabe konnte nicht sicher abgeschlossen werden.','muted'))}
 if(job.handoff_observation){
   info.append(text('p', observations[job.handoff_observation]||job.handoff_observation,'muted'));
 }
-if(result.legacy_worker_enabled&&job.status==='failed'&&['ReadTimeout','ConnectTimeout','ConnectError','ReadError','RemoteProtocolError','PoolTimeout','WriteTimeout','WriteError','http_429','http_500','http_502','http_503','http_504'].includes(job.error)&&job.attempts<3){
+if(result.downloads_enabled&&job.status==='failed'&&['ReadTimeout','ConnectTimeout','ConnectError','ReadError','RemoteProtocolError','PoolTimeout','WriteTimeout','WriteError','http_429','http_500','http_502','http_503','http_504','libgen_catalog_unavailable'].includes(job.error)&&job.attempts<3){
 const btn=text('button','Erneut versuchen','action');btn.type='button';btn.addEventListener('click',()=>retryJob(job));info.append(btn);
 }
 if(job.status==='delivered'&&result.library_configured){
- const b=text('button','In Calibre prüfen','action');b.type='button';
+ const b=text('button','In BookOrbit prüfen','action');b.type='button';
  b.addEventListener('click',()=>checkLibrary(job));info.append(b);
 }
-row.append(text('td',String(job.source_id)),text('td',(jobStatusLabels[job.status]||job.status)+' · Versuch '+job.attempts+'/3'),info);return row}))}catch(err){$('job-message').textContent='Aufträge nicht abrufbar: '+err.message}}
+const identity=text('td','');const label=text('div','','job-book');if(job.book?.cover_url&&coverUrl(job.book.cover_url)){const image=document.createElement('img');image.src=coverUrl(job.book.cover_url);image.alt='';image.loading='lazy';label.append(image)}const words=text('div','');words.append(text('strong',job.book?.title||sourceName(job.source)+' · EPUB'),text('small',job.book?.authors?.join(', ')||'Auftrag '+job.source_id));label.append(words);identity.append(label);
+row.append(identity,text('td',((job.status==='queued'&&!job.v2_authorized&&!result.legacy_worker_enabled)?'Historisch · pausiert':job.status==='queued'&&job.retry_at?'Wiederholung geplant':(transferLabels[job.library_transfer?.status]||jobStatusLabels[job.status]||job.status))+' · Versuch '+job.attempts+'/3'),info);['Buch / Quelle','Status','Details'].forEach((label,i)=>row.children[i].dataset.label=label);return row}))}catch(err){$('job-message').textContent='Aufträge nicht abrufbar: '+err.message}}
 async function retryJob(job){
 if(!confirm('Darf dieses Buch weiterhin rechtmäßig heruntergeladen werden, und möchtest du den Auftrag erneut starten?'))return;
-const token=$('token').value;if(!token){$('job-message').textContent='API-Token fehlt.';return}
+const token=$('token').value;if(!token&&!adminAuthenticated){$('job-message').textContent='API-Token fehlt.';return}
 try{
- const r=await fetch('/api/jobs/'+encodeURIComponent(job.id)+'/retry',{method:'POST',
- headers:{'Content-Type':'application/json','X-API-Key':token},
+ const r=await adminFetch('/api/jobs/'+encodeURIComponent(job.id)+'/retry',{method:'POST',
+ headers:authHeaders({'Content-Type':'application/json'}),
  body:JSON.stringify({rights_confirmed:true})});
  const data=await r.json();if(!r.ok)throw Error(data.detail||'HTTP '+r.status);
  $('job-message').textContent='Auftrag erneut eingereiht: '+job.source_id;loadJobs();
@@ -221,32 +373,38 @@ try{
 }
 async function checkLibrary(job){
 const token=$('token').value;
-if(!token){$('job-message').textContent='API-Token fehlt.';return}
+if(!token&&!adminAuthenticated){$('job-message').textContent='API-Token fehlt.';return}
 try{
- const response=await fetch('/api/jobs/'+encodeURIComponent(job.id)+'/library-check',
-   {headers:{'X-API-Key':token}});
+ const response=await adminFetch('/api/jobs/'+encodeURIComponent(job.id)+'/library-check',
+   {headers:authHeaders()});
  const data=await response.json();if(!response.ok)throw Error(data.detail||'HTTP '+response.status);
  const status=data.verification.status;
  const explanations={
-  identical_epub_present:'Identische EPUB in der Calibre-Bibliothek gefunden (Zuordnung zu diesem Auftrag nicht beweisbar).',
-  no_exact_match_unverified:'Keine identische EPUB gefunden – Import nicht widerlegt, da Calibre Dateien ändern kann.',
-  calibre_metadata_missing:'Calibre metadata.db fehlt am eingebundenen Pfad.',
-  calibre_metadata_unreadable:'Calibre-Datenbank nicht lesbar.',
-  library_unavailable:'Calibre-Bibliothek ist nicht verfügbar.',
+  import_confirmed:'Import in BookOrbit durch identische Bibliotheksdatei bestätigt.',
+  import_unconfirmed:'Übergabe erfolgt, Bibliotheksaufnahme nicht bestätigt. Es wird nicht erneut übergeben.',
+  legacy_unverified:'Historischer Auftrag der Altinstallation; keine erneute Übergabe.',
+  dock_processing:'BookOrbit verarbeitet die Buchdatei. Bibliotheksaufnahme noch ausstehend.',
+  dock_ready:'Datei in Book Dock verarbeitet. Bibliotheksaufnahme noch ausstehend.',
+  dock_error:'BookOrbit meldet einen Verarbeitungsfehler. Bitte Book Dock öffnen.',
+  not_handed_off:'Noch nicht an Book Dock übergeben.',
+  manual_review_required:'Unklare Übergabe; manuelle Prüfung erforderlich.',
+  identical_epub_present:'Identische EPUB in der BookOrbit-Bibliothek gefunden (Zuordnung zu diesem Auftrag nicht beweisbar).',
+  no_exact_match_unverified:'Keine identische EPUB gefunden – Import nicht widerlegt, da BookOrbit Dateien ändern kann.',
+  library_unavailable:'BookOrbit-Bibliothek ist nicht verfügbar.',
   too_many_candidates_unverified:'Zu viele mögliche Treffer – keine sichere Aussage möglich.',
   missing_verified_download_digest:'Kein prüfbarer Original-Hash gespeichert.'
  };
- $('job-message').textContent='Buch '+job.source_id+': '+(explanations[status]||status);
+ $('job-message').textContent='Buch '+job.source_id+': '+(explanations[status]||'Importstatus noch nicht bestätigt.')+(data.verification.error?' '+(orbitErrors[data.verification.error]||'BookOrbit-Prüfung nicht erreichbar.'):'');
 }catch(err){$('job-message').textContent='Bibliotheksprüfung fehlgeschlagen: '+err.message}
 }
 $('preflight').addEventListener('click',async ()=>{
   const output=$('preflight-results');
   const token=$('token').value;
-  if(!token){output.replaceChildren(text('p','Bitte zuerst den API-Token eingeben.','muted'));return}
+  if(!token&&!adminAuthenticated){output.replaceChildren(text('p','Bitte zuerst den API-Token eingeben.','muted'));return}
   $('preflight').disabled=true;
   output.replaceChildren(text('p','NAS-Einstellungen werden ausschließlich lesend geprüft …','muted'));
   try{
-    const response=await fetch('/api/preflight',{headers:{'X-API-Key':token}});
+    const response=await adminFetch('/api/preflight',{headers:authHeaders()});
     if(!response.ok)throw Error('HTTP '+response.status);
     const result=await response.json();
     const checks=Array.isArray(result.checks)?result.checks:[];
@@ -257,16 +415,16 @@ $('preflight').addEventListener('click',async ()=>{
       const label=check.status==='ok'?'✓':check.status==='error'?'✕':'!';
       fragment.append(text('p',label+' '+check.name+': '+check.detail,'muted'));
     }
-    fragment.append(text('p','Nur Konfigurationsprüfung: Der tatsächliche CWA-Import wird dadurch nicht bestätigt.','muted'));
+    fragment.append(text('p','Nur Konfigurationsprüfung: Der tatsächliche BookOrbit-Import wird dadurch nicht bestätigt.','muted'));
     output.replaceChildren(fragment);
   }catch(error){output.replaceChildren(text('p','NAS-Prüfung fehlgeschlagen: '+error.message,'muted'))}
   finally{$('preflight').disabled=false}
 });
 async function loadWatchlist(){
   const token=$('token').value;
-  if(!token){$('watchlist-message').textContent='Bitte zunächst den API-Token unter Automatische Übernahme eingeben.';return}
+  if(!token&&!adminAuthenticated){$('watchlist-message').textContent='Bitte den Verwaltungszugang oberhalb der Merkliste öffnen.';return}
   try{
-    const response=await fetch('/api/watchlist',{headers:{'X-API-Key':token}});
+    const response=await adminFetch('/api/watchlist',{headers:authHeaders()});
     if(!response.ok)throw Error('HTTP '+response.status);
     const data=await response.json(), items=data.items||[];
     $('watchlist-message').textContent=items.length+' gespeicherte Bücher · Speicherung löst keinen Download aus.';
@@ -281,8 +439,8 @@ async function loadWatchlist(){
       remove.addEventListener('click',async ()=>{
         if(!confirm('Dieses Buch aus der Merkliste entfernen?'))return;
         try{
-          const response=await fetch('/api/watchlist/'+encodeURIComponent(book.id),
-              {method:'DELETE',headers:{'X-API-Key':$('token').value}});
+          const response=await adminFetch('/api/watchlist/'+encodeURIComponent(book.id),
+              {method:'DELETE',headers:authHeaders()});
           if(!response.ok)throw Error('HTTP '+response.status);
           await loadWatchlist();
         }catch(error){$('watchlist-message').textContent='Entfernen fehlgeschlagen: '+error.message}
@@ -293,7 +451,7 @@ async function loadWatchlist(){
 }
 async function saveBook(book){
   const token=$('token').value;
-  if(!token){$('watchlist-message').textContent='Zum Merken zuerst den API-Token eingeben.';return}
+  if(!token&&!adminAuthenticated){$('watchlist-message').textContent='Zum Merken zuerst den API-Token eingeben.';return}
   const payload={
     source:book.source,source_id:String(book.source_id),title:book.title,
     authors:(book.authors||[]).slice(0,8).map(name=>name.slice(0,120)),
@@ -301,8 +459,8 @@ async function saveBook(book){
     info_url:safeUrl(book.info_url)
   };
   try{
-    const response=await fetch('/api/watchlist',{method:'POST',
-      headers:{'Content-Type':'application/json','X-API-Key':token},body:JSON.stringify(payload)});
+    const response=await adminFetch('/api/watchlist',{method:'POST',
+      headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify(payload)});
     const data=await response.json();
     if(!response.ok)throw Error(data.detail||'HTTP '+response.status);
     $('watchlist-message').textContent=book.title+' gespeichert.';
@@ -314,9 +472,9 @@ let catalogTimer=null;
 const importLabels={queued:'Wartend',downloading:'Offizielle Daten werden geladen',indexing:'Daten werden lokal indexiert',completed:'Import abgeschlossen',failed:'Import fehlgeschlagen',interrupted:'Import durch Neustart unterbrochen'};
 async function refreshImports(){
   const token=$('token').value;
-  if(!token){$('import-status').textContent='Für den Import bitte zuerst den API-Token eingeben.';return}
+  if(!token&&!adminAuthenticated){$('import-status').textContent='Für den Import bitte zuerst den API-Token eingeben.';return}
   try{
-    const response=await fetch('/api/catalog/imports',{headers:{'X-API-Key':token}});
+    const response=await adminFetch('/api/catalog/imports',{headers:authHeaders()});
     if(!response.ok) throw Error('HTTP '+response.status);
     const data=await response.json(), imports=data.imports||[];
     const active=imports.some(job=>['queued','downloading','indexing'].includes(job.status));
@@ -338,13 +496,13 @@ async function refreshImports(){
 }
 async function startImport(source){
   const token=$('token').value;
-  if(!token){$('import-status').textContent='Bitte den API-Token für die Katalogverwaltung eingeben.';return}
+  if(!token&&!adminAuthenticated){$('import-status').textContent='Bitte den API-Token für die Katalogverwaltung eingeben.';return}
   const message=source==='csv'?'Offiziellen Gutenberg-Buchkatalog jetzt herunterladen und neu indexieren?':
   'Das offizielle RDF-Archiv herunterladen und EPUB-Formate indexieren? Das Archiv kann über 100 MB groß sein.';
   if(!confirm(message))return;
   $('sync-csv').disabled=true;$('sync-rdf').disabled=true;
   try{
-    const response=await fetch('/api/catalog/imports',{method:'POST',headers:{'Content-Type':'application/json','X-API-Key':token},
+    const response=await adminFetch('/api/catalog/imports',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),
       body:JSON.stringify({source})});
     const body=await response.json();
     if(!response.ok)throw Error(body.detail||'HTTP '+response.status);
@@ -358,77 +516,74 @@ $('sync-refresh').addEventListener('click',refreshImports);
 $('token').addEventListener('change',refreshImports);
 $('refresh').addEventListener('click',loadJobs);
 $('token').addEventListener('change',loadJobs);
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&$('token').value)loadJobs()});
-async function addBook(book){if(!confirm('Hast du geprüft, dass du dieses Buch in deinem Land rechtmäßig herunterladen und speichern darfst?'))return;
-const token=$('token').value;if(!token){$('job-message').textContent='Bitte zuerst den API-Token eintragen.';return}
-try{const r=await fetch('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json','X-API-Key':token},body:JSON.stringify({provider:book.source,source_id:Number(book.source_id),rights_confirmed:true})});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&($('token').value||adminAuthenticated))loadJobs()});
+async function addBook(book){
+await authReady;
+const token=$('token').value;if(!token&&!adminAuthenticated){showView('settings');showSettingsTab('access');$('admin-access').open=true;$('token').focus();$('job-message').textContent='Für Downloadaufträge den RoyalBooks-Verwaltungszugang eingeben. Kein Anbieterkonto erforderlich.';return}
+if(!confirm('Hast du geprüft, dass du dieses Buch in deinem Land rechtmäßig herunterladen und speichern darfst?'))return;
+try{const r=await adminFetch('/api/jobs',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({provider:book.source,source_id:Number(book.acquisition_id||book.source_id),rights_confirmed:true})});
 const data=await r.json();if(!r.ok)throw Error(data.detail||'HTTP '+r.status);$('job-message').textContent='Auftrag für '+book.title+' vorgemerkt.';loadJobs()}catch(err){$('job-message').textContent='Übernahme fehlgeschlagen: '+err.message}
-$('job-message').scrollIntoView({block:'nearest'})}
+showView('download-center');$('job-message').scrollIntoView({block:'nearest'})}
 
-const sourceNames={gutendex:'Gutendex',openlibrary:'Open Library',gutenberg_catalog:'Gutenberg',
-wikisource:'Wikisource',standardebooks:'Standard Ebooks',dnb:'Deutsche Nationalbibliothek',google_books:'Google Books'};
+const sourceNames={webshare:'Webshare',byte:'Byte.to',gutendex:'Gutendex',openlibrary:'Open Library',gutenberg_catalog:'Gutenberg',
+libgen:'Library Genesis',wikisource:'Wikisource',standardebooks:'Standard Ebooks',dnb:'Deutsche Nationalbibliothek',google_books:'Google Books',memoryoftheworld:'Memory of the World'};
 const sourceName=key=>sourceNames[key]||key;
 let lastSearchResult=null;
 let searchFilter='all';
 
 function renderEditionInfo(container,item){
   container.append(text('p',sourceName(item.source)+' · '+(item.language||(item.source==='openlibrary'?'Sprache je nach Ausgabe':'Sprache unbekannt'))+(item.year?' · '+item.year:''),'pill'));
-  if(item.isbn13)container.append(text('p','ISBN-13: '+item.isbn13,'muted'));
+  for(const isbn of item.isbns||[item.isbn13].filter(Boolean))container.append(text('p','ISBN: '+isbn,'muted'));
+  if(item.file_evidence==='verified_epub_cached')container.append(text('p','EPUB vollständig geprüft · Sprache aus Buchdatei bestätigt','pill'));
+  else if(item.formats&&item.formats.length)container.append(text('p',item.formats.join(' / ')+' · laut Katalog','pill'));
+  if(item.language_evidence==='catalog_claim_unverified')container.append(text('p','Sprache vom Anbieter angegeben · Datei nicht geprüft','muted'));
   if(item.epub_url)container.append(text('p','EPUB-Link gelistet · Verfügbarkeit und Rechte noch prüfen','pill'));
-  else container.append(text('p','Buchdaten · kein Downloadangebot dieser Quelle','muted'));
+  else if(item.file_evidence==='verified_epub_cached')container.append(text('p','Geprüfte Datei zwischengespeichert · direkt zur Bibliothek hinzufügen','muted'));
+  else if(item.source==='byte')container.append(text('p','Hoster-Veröffentlichung · Format und Sprache noch ungeprüft','muted'));
+  else container.append(text('p',item.file_evidence==='listed_unverified'?'Dateieintrag gelistet · kein geprüfter Download':'Buchdaten · kein Downloadangebot dieser Quelle','muted'));
 }
 
-function renderEditionActions(container,item,compact=false){
+function renderEditionActions(container,item,compact=false,hideSource=false){
   const url=safeUrl(item.info_url);
-  if(url){
+  if(url&&!hideSource){
     const link=text('a','Quelle ansehen ↗');link.href=url;link.target='_blank';link.rel='noopener noreferrer';
     container.append(link);
   }
-  const save=text('button',compact?'Merken':'Auf Merkliste','subtle action');
-  save.type='button';save.addEventListener('click',()=>saveBook(item));container.append(save);
-  if(['gutendex','gutenberg_catalog','wikisource','standardebooks'].includes(item.source)&&item.epub_url){
-    const button=text('button','EPUB übernehmen','action');button.type='button';
-    button.addEventListener('click',()=>addBook(item));container.append(button);
+  const save=text('button',compact?'Merken':'Auf Merkliste','subtle action save-action');
+  save.type='button';save.setAttribute('aria-label',compact?'Merken':'Auf Merkliste');save.title='Auf Merkliste';if(hideSource){save.textContent='';const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d','M6 3h12v18l-6-4-6 4z');svg.append(path);save.append(svg)}save.addEventListener('click',()=>saveBook(item));container.append(save);
+  if(item.source==='byte'){const b=text('button','Über Hoster laden','action');b.type='button';b.addEventListener('click',()=>queueHoster(item));container.append(b)}
+  if(item.download_supported||(['gutendex','gutenberg_catalog','wikisource','standardebooks'].includes(item.source)&&item.epub_url)){
+    const button=text('button','EPUB übernehmen','action download-action');button.type='button';
+    const ref=fileReference(item);if(ref)button.dataset.availabilityKey=ref.source+':'+ref.record_id;button.disabled=!reachable(item);button.title=reachable(item)?'Datei erreichbar; vollständige EPUB-Prüfung beim Download':'Datei wird geprüft oder ist nicht erreichbar';button.addEventListener('click',()=>addBook(item));container.append(button);
   }
 }
 
 function resultCard(group,items){
   const members=group.item_indexes.map(index=>items[index]).filter(Boolean);
   if(!members.length)return null;
-  const main=items[group.primary_index]||members[0];
+  const main=members.find(reachable)||items[group.primary_index]||members[0];
   const article=text('article','','book');
-  const wrap=text('div','','cover-slot');
-  wrap.append(text('span','✦','cover-fallback'));
-  const cover=main.cover_url||(main.source==='dnb'&&main.isbn13?
-       'https://covers.openlibrary.org/b/isbn/'+encodeURIComponent(main.isbn13)+'-M.jpg?default=false':null);
-  if(safeUrl(cover)){
+  const wrap=text('button','','subtle cover-slot');wrap.type='button';wrap.setAttribute('aria-label',main.title+' ansehen');wrap.addEventListener('click',()=>showDetails(main,members));
+  wrap.style.setProperty('--jacket',jacketColor(main.title));
+  wrap.append(text('span',main.source==='byte'&&main.title.length>90?main.title.slice(0,87)+'…':main.title,'cover-fallback'));
+  const cover=main.cover_url||members.find(item=>item.cover_url)?.cover_url||(main.source==='dnb'&&main.isbn13?
+       'https://covers.openlibrary.org/b/isbn/'+encodeURIComponent(main.isbn13)+'-L.jpg?default=false':null);
+  if(coverUrl(cover)){
     const img=document.createElement('img');img.className='cover';img.alt='Covervorschau (falls für diese Ausgabe verfügbar)';
     img.loading='lazy';
     img.onerror=()=>img.remove();
-    img.onload=()=>{if(img.naturalWidth<10||img.naturalHeight<10)img.remove()};
-    img.src=safeUrl(cover);wrap.append(img);
+    img.style.visibility='hidden';img.onload=()=>{if(img.naturalWidth<10||img.naturalHeight<10)img.remove();else{img.style.visibility='visible';wrap.classList.add('cover-ready')}};
+    img.src=coverUrl(cover);wrap.append(img);
   }
   const info=text('div','','book-detail');
   info.append(text('h3',main.title));
-  info.append(text('p',main.authors.join(', ')||'Autor nicht im Katalog genannt','muted'));
-  renderEditionInfo(info,main);
-  renderEditionActions(info,main);
-  if(members.length>1){
-    const details=document.createElement('details');
-    const summary=document.createElement('summary');
-    summary.textContent=members.length+' Katalogeinträge / Ausgaben ansehen';
-    details.append(summary);
-    details.append(text('p','Einträge sind nur zur Übersicht gruppiert. ISBNs können unterschiedliche Ausgaben bezeichnen.','muted'));
-    for(const item of members){
-      const edition=text('div','','edition-row');
-      edition.append(text('p',item.title,'source-label'));
-      edition.append(text('p',item.authors.join(', ')||'Autor unbekannt','muted'));
-      renderEditionInfo(edition,item);
-      renderEditionActions(edition,item,true);
-      details.append(edition);
-    }
-    info.append(details);
-  }
+  const author=text('button',main.authors.join(', ')||'Autor unbekannt','author-link');author.type='button';author.addEventListener('click',()=>viewAuthor(main.authors[0]||''));info.append(author);info.append(availabilityBadge(main));
+  const badges=text('div','','result-badges');badges.append(text('span',main.source==='byte'?'Hoster-Veröffentlichung':main.download_supported?'EPUB-Angebot':main.formats?.length?main.formats.join(' / '):'Buchdaten'));if(main.year)badges.append(text('span',String(main.year)));if(main.language)badges.append(text('span',main.language==='de'?'Deutsch':main.language==='en'?'Englisch':main.language));badges.append(text('span',sourceName(main.source),'book-source'));info.append(badges);
+  const excerpt=main.description||members.find(item=>item.description)?.description;
+  if(excerpt)info.append(text('p',excerpt,'result-excerpt'));
+  const actions=text('div','','result-actions');const open=text('button','Buchdetails','subtle action');open.type='button';open.addEventListener('click',()=>showDetails(main,members));actions.append(open);
+  renderEditionActions(actions,main,false,true);info.append(actions);
+  if(members.length>1){const editions=text('button',members.length+' Ausgaben ansehen','subtle editions-link');editions.type='button';editions.addEventListener('click',()=>showDetails(main,members));info.append(editions)}
   article.append(wrap,info);
   return article;
 }
@@ -439,12 +594,19 @@ function renderResults(){
   const groups=lastSearchResult.display_groups||items.map((_,index)=>({
     primary_index:index,item_indexes:[index],epub_count:items[index].epub_url?1:0
   }));
-  const visible=groups.filter(group=>searchFilter==='all'||
-      (searchFilter==='epub'?group.epub_count>0:group.epub_count===0));
+  const visible=groups.filter(group=>(!$('search-available-only').checked||group.item_indexes.some(index=>reachable(items[index])))).filter(group=>searchFilter==='all'||
+      (searchFilter==='epub'?group.epub_count>0:searchFilter==='files'?group.item_indexes.some(index=>['listed_unverified','verified_epub_cached'].includes(items[index].file_evidence)):group.item_indexes.every(index=>items[index].file_evidence==='metadata_only')));
+  const sort=$('result-sort').value;
+  if(sort==='title')visible.sort((a,b)=>items[a.primary_index].title.localeCompare(items[b.primary_index].title,'de'));
+  if(sort==='year')visible.sort((a,b)=>(items[b.primary_index].year||0)-(items[a.primary_index].year||0));
+  $('result-toolbar').hidden=false;
   const cards=visible.map(group=>resultCard(group,items)).filter(Boolean);
   $('books').replaceChildren(...cards);
+  const waiting=items.filter(book=>fileState(book).status==='pending').length;
+  $('message').textContent=visible.length+' angezeigte Bücher · '+items.filter(reachable).length+' erreichbare EPUBs'+(waiting?' · '+waiting+' Dateien in Prüfung':'');
   if(!cards.length){
-    const message=searchFilter==='epub'?'Kein EPUB-Link zu dieser Suche gefunden. Du kannst die Titel trotzdem auf die Merkliste setzen.':
+    const pending=items.some(book=>fileState(book).status==='pending');
+    const message=pending&&$('search-available-only').checked?'Dateien werden im Hintergrund geprüft. Erreichbare EPUBs erscheinen automatisch.':searchFilter==='epub'?'Keine EPUB-Datei für diesen Filter gefunden. Versuche Titel und Autor, zum Beispiel „Es author:Stephen King“, oder wähle alle Sprachen.':
       'Keine passenden Einträge für diesen Filter.';
     $('books').append(text('p',message,'muted'));
   }
@@ -457,61 +619,501 @@ document.querySelectorAll('#search-filters button').forEach(button=>button.addEv
 }));
 
 
-function releaseCard(item){
-  const card=text('article','','book release-card');
-  card.append(text('div','▤','release-symbol'));
-  const info=text('div','','book-detail');
-  info.append(text('h3',item.title||'Titel unbekannt'));
-  info.append(text('p',(item.author||'Autor unbekannt')+
-    (item.year?' · '+item.year:'')+(item.publisher?' · '+item.publisher:''),'muted'));
-  const labels=text('div','','release-meta');
-  labels.append(text('span',item.language_hint==='de'?'Deutsch laut Katalog':
-    item.language_hint==='en'?'Englisch laut Katalog':'Sprache unbekannt'));
-  labels.append(text('span',item.format_hint||'Format unbekannt'));
-  if(Number.isInteger(item.size_bytes)&&item.size_bytes>0)
-    labels.append(text('span',(item.size_bytes/1048576).toFixed(1)+' MiB'));
-  labels.append(text('span','Trefferwert '+item.score+'/100'));
-  info.append(labels);
-  info.append(text('p',(item.indexer||'Buchquelle')+
-    ' · Katalogeintrag, noch kein geprüfter Download','muted'));
-  const url=safeUrl(item.source_url);
-  if(url){
-    const anchor=text('a','Buchausgabe beim Anbieter ansehen ↗');
-    anchor.href=url;anchor.target='_blank';anchor.rel='noopener noreferrer';
-    info.append(anchor);
-  }
-  card.append(info);return card;
+function detailHero(book){
+ const content=$('detail-content');content.replaceChildren();
+ const hero=text('div','','book-hero'),art=text('div','','book-art');
+ art.append(makeJacket({...book,authors:Array.isArray(book.authors)?book.authors.join(', '):book.authors}));
+ const info=text('div','','book-overview');
+ const author=text('button',(Array.isArray(book.authors)?book.authors.join(', '):book.authors)||'Autor unbekannt','subtle detail-author');author.type='button';author.addEventListener('click',()=>viewAuthor(Array.isArray(book.authors)?book.authors[0]:book.authors));
+ const title=text('h2',book.title);title.id='detail-title';info.append(author,title);hero.append(art,info);content.append(hero);
+ return {content,info};
 }
+function showDetails(main,members){
+ const editions=[...members].sort((a,b)=>Number(reachable(b))-Number(reachable(a))||Number(b.download_supported)-Number(a.download_supported));
+ const {content,info}=detailHero(main);
+ const metadata=text('div','','book-facts');
+ for(const value of [main.language==='de'?'Deutsch':main.language==='en'?'Englisch':main.language,main.year?String(main.year):null])if(value)metadata.append(text('span',value));
+ info.append(metadata);
+ const selection=text('div','','edition-selection');
+ const selected=text('div','','selected-edition');
+ if(editions.length>1){
+  const label=text('label','Ausgabe wählen');label.htmlFor='detail-edition-select';
+  const select=document.createElement('select');select.id='detail-edition-select';
+  editions.forEach((book,index)=>{const option=text('option',sourceName(book.source)+(book.year?' · '+book.year:'')+' · '+(book.formats?.join('/')||'Buchdaten')+(reachable(book)?' · erreichbar':'')+' ('+(index+1)+')');option.value=String(index);select.append(option)});
+  select.addEventListener('change',()=>choose(Number(select.value)));selection.append(label,select);
+ }
+ function choose(index){
+  const book=editions[index];selected.replaceChildren();
+  selected.append(availabilityBadge(book));
+  const actions=text('div','','detail-actions');renderEditionActions(actions,book,false,true);const save=actions.querySelector('.save-action');save.textContent='Auf Merkliste';
+  if(!book.download_supported&&book.source!=='byte'){const search=text('button','EPUB-Ausgaben suchen','action');search.type='button';search.addEventListener('click',()=>searchForBook(book));actions.append(search)}
+  selected.append(actions);
+  const hint=text('p',book.source==='byte'?'Hoster-Veröffentlichung. Dateiformat, Sprache und Verfügbarkeit werden erst im Downloadablauf geprüft.':book.file_evidence==='verified_epub_cached'?'EPUB vollständig geprüft; Titel und Sprache aus der Buchdatei bestätigt.':book.download_supported?'Die vollständige EPUB-Prüfung erfolgt beim Download.':'Für diesen Katalogeintrag ist keine EPUB hinterlegt.','detail-hint');selected.append(hint);
+ }
+ selection.append(selected);info.append(selection);choose(0);
+ appendDescription(main,info);
+ const technical=document.createElement('details');technical.className='book-specs';technical.append(text('summary','Ausgaben & Dateidetails ('+members.length+')'));
+ const list=text('div','','edition-spec-list');
+ for(const item of editions){const row=text('section','','edition-spec');row.append(text('h3',sourceName(item.source)+(item.year?' · '+item.year:'')));renderEditionInfo(row,item);const url=safeUrl(item.info_url);if(url){const link=text('a','Beim Anbieter ansehen');link.href=url;link.target='_blank';link.rel='noopener noreferrer';row.append(link)}list.append(row)}
+ technical.append(list);content.append(technical);
+ $('book-dialog').showModal();$('book-dialog').scrollTop=0;
+}
+$('result-sort').addEventListener('change',renderResults);
+$('close-detail').addEventListener('click',()=>$('book-dialog').close());
+$('book-dialog').addEventListener('click',event=>{if(event.target===$('book-dialog')){const r=$('book-dialog').getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)$('book-dialog').close()}});
 
-$('search').addEventListener('submit',async e=>{
-  e.preventDefault();
+async function runBookSearch(more=false){
+  availabilityGeneration++;if(availabilityTimer)clearTimeout(availabilityTimer);
+  if(!more)searchPage=1;
   $('go').disabled=true;
   $('message').textContent='RoyalBooks durchsucht eingebaute Buchquellen …';
-  $('books').replaceChildren();
-  $('search-filters').hidden=true;
+  if(!more)$('books').replaceChildren();
+  $('search-filters').hidden=true;$('result-toolbar').hidden=true;
   $('search-notice').hidden=true;
   try{
-    const params=new URLSearchParams({q:$('q').value.trim(),language:$('language').value});
+    const params=new URLSearchParams({q:$('q').value.trim(),language:$('language').value,limit:$('result-limit').value,mode:searchMode,page:searchPage});
     const response=await fetch('/api/books/search?'+params);
     const result=await response.json();
-    if(!response.ok)throw Error(typeof result.detail==='string'?result.detail:'HTTP '+response.status);
-    const items=Array.isArray(result.items)?result.items:[];
+    if(!response.ok)throw Error(result.detail==='invalid_book_isbn_ean'?'Bitte eine gültige ISBN-10, ISBN-13 oder Buch-EAN eingeben.':typeof result.detail==='string'?result.detail:'HTTP '+response.status);
+    lastSearchResult=more?mergeSearch(lastSearchResult,result):result;
+    if(currentView==='search')history.replaceState(null,'','/search?'+new URLSearchParams({q:$('q').value.trim(),mode:searchMode}));
+    $('search-more').hidden=!result.has_more;
+    if(result.resolved_work){$('search-notice').textContent='ISBN erkannt: „'+result.resolved_work+'“. Angezeigt werden auch andere EPUB-Ausgaben desselben Werks.';$('search-notice').hidden=false}
+    if(result.query_analysis?.original_query){$('search-notice').textContent='Gesucht nach „'+result.query+'“ (Schreibweise des Autors korrigiert).';$('search-notice').hidden=false}
+    $('search-filters').hidden=false;
     const sources=Array.isArray(result.sources)?result.sources:[];
-    const available=sources.some(x=>x.status!=='unavailable');
-    $('message').textContent=items.length+' Buchtreffer · '+
-      (available?'Direktquelle abgefragt':'Direktquellen derzeit nicht erreichbar');
-    if(!items.length){
-      $('books').append(text('p',available?
-        'Keine passende Ausgabe gefunden. Versuche Titel, Autor oder die Einstellung „Alle Sprachen“.':
-        'RoyalBooks kann die eingebauten Buchquellen momentan nicht erreichen. Versuche es später erneut.','muted'));
-    }else $('books').replaceChildren(...items.map(releaseCard));
-    const notices=[];
-    if(!available)notices.push('Alle eingebauten Direktadressen waren nicht erreichbar oder haben keine lesbare Suchseite geliefert.');
-    if(items.length)notices.push('Die Katalogangaben sind unbestätigt. Ein EPUB-Eintrag bedeutet noch keinen geprüften Download.');
-    $('search-notice').textContent=notices.join(' ');
-    $('search-notice').hidden=!notices.length;
-  }catch(err){$('message').textContent='Indexer-Suche fehlgeschlagen: '+err.message}
+    const succeeded=sources.filter(source=>['found','empty'].includes(source.status));
+    const outages=sources.filter(source=>source.status==='error').length;
+    const evidence=result.search_evidence||{};
+    $('message').textContent=(result.display_groups||[]).length+' Bücher · '+(evidence.epub_acquisition_candidates??evidence.epub_links_listed_unverified??0)+' EPUB-Kandidaten · '+(evidence.file_listings_unverified||0)+' Dateieinträge';
+    const diagnostics=$('search-diagnostics');diagnostics.replaceChildren(...sources.map(source=>text('p',sourceName(source.provider)+': '+source.status+(source.cached?' (Cache)':'')+(source.error?' · '+source.error:''),'muted')));
+    $('source-summary').textContent=outages?outages+' von '+sources.length+' Quellen momentan nicht erreichbar':'Quellenstatus ansehen';
+    renderResults();checkFiles(lastSearchResult.items,'search');
+    if(!result.items.length)$('message').textContent=succeeded.length?'Keine passende Ausgabe gefunden. Versuche Titel, Autor oder alle Sprachen.':'Die Quellen sind momentan nicht erreichbar. Versuche es später erneut.';
+    await loadStats();
+  }catch(err){$('message').textContent='Buchsuche fehlgeschlagen: '+err.message}
   finally{$('go').disabled=false}
+}
+$('search').addEventListener('submit',event=>{event.preventDefault();runBookSearch()});
+
+const jacketPalette=['#244f63','#75494c','#47604e','#625172','#8a663c','#305c7b'];
+function jacketColor(title){let hash=0;for(const c of title||'Buch')hash=((hash*31)+c.charCodeAt(0))>>>0;return jacketPalette[hash%jacketPalette.length]}
+function coverUrl(raw){
+ if(typeof raw!=='string')return null;
+ if(/^\/api\/library\/[0-9]+\/cover$/.test(raw))return raw;
+ const safe=safeUrl(raw);if(!safe)return null;
+ const url=new URL(safe),match=url.pathname.match(/^\/(?:covers|fictioncovers)\/[0-9]+\/([a-f0-9]{32})(?:_small)?\.jpg$/);
+ if(['libgen.li','libgen.gl','libgen.bz','libgen.la'].includes(url.hostname)&&match)return '/api/catalog-cover/'+match[1]+'?quality=original';
+ if(url.hostname==='covers.openlibrary.org')url.pathname=url.pathname.replace(/-[SM]\.jpg$/, '-L.jpg');
+ return url.href;
+}
+function makeJacket(book){
+ const cover=text('div','','jacket');cover.style.setProperty('--jacket',jacketColor(book.title));
+ const type=text('div','','jacket-type');type.append(text('strong',book.title),text('small',book.authors));cover.append(type);
+ if(coverUrl(book.cover_url)){const image=document.createElement('img');image.src=coverUrl(book.cover_url);image.alt='Cover von '+book.title;image.loading='lazy';image.onerror=()=>image.remove();cover.append(image)}
+ return cover;
+}
+let libraryItems=[],libraryGeneration=0,libraryHasMore=false,libraryQueryTimer=null;
+function libraryMessage(message,buttonLabel,action){
+ const empty=text('div','','empty-state');empty.append(text('h2',message));
+ if(buttonLabel){const button=text('button',buttonLabel);button.type='button';button.addEventListener('click',action);empty.append(button)}
+ $('library-books').replaceChildren(empty);
+}
+function openLibraryBook(book){
+ const {info}=detailHero(book);
+ info.append(text('p','In deiner Bibliothek','library-owned'),text('p',book.formats.join(' / ')||'Keine Datei hinterlegt','book-facts'));
+ const actions=text('div','','detail-actions');
+ if(book.epub_url){const download=text('a','EPUB auf dieses Gerät laden','action primary-link');download.href=book.epub_url;download.download='';actions.append(download)}
+ info.append(actions,text('p','Öffne die EPUB nach dem Laden in deiner Lese-App.','detail-hint'));
+ if(book.description)info.append(text('h3','Über dieses Buch'),text('p',book.description,'description'));
+ $('book-dialog').showModal();$('book-dialog').scrollTop=0;
+}
+function renderLibrary(){
+ $('library-books').replaceChildren(...libraryItems.map(book=>{
+  const card=text('article','','shelf-book');const button=text('button','');button.type='button';button.setAttribute('aria-label',book.title+' öffnen');
+  button.append(makeJacket(book),text('h3',book.title),text('p',book.authors),text('span',book.formats.includes('EPUB')?'EPUB':(book.formats[0]||'Buch'),'format-tag'));
+  button.addEventListener('click',()=>openLibraryBook(book));card.append(button);return card;
+ }));
+ if(!libraryItems.length)libraryMessage($('library-query').value?'Keine passenden Bücher gefunden.':'Dein Regal wartet auf das erste Buch.','Bücher entdecken',()=>showView('search'));
+ $('library-more').hidden=!libraryHasMore;
+}
+async function loadLibrary(more=false){
+ if(!adminAuthenticated){$('library-count').textContent='Zugang erforderlich';libraryMessage('Melde dich für deine Bibliothek an.','Zugang öffnen',()=>{showView('settings');$('admin-access').open=true});return}
+ const generation=++libraryGeneration;
+ $('library-books').classList.add('loading-shelf');$('library-more').disabled=true;
+ $('library-message').textContent='Bibliothek wird geladen …';
+ try{
+  const params=new URLSearchParams({q:$('library-query').value.trim(),sort:$('library-sort').value,offset:String(more?libraryItems.length:0)});
+  const response=await adminFetch('/api/library?'+params);const data=await response.json();
+  if(generation!==libraryGeneration)return;
+  if(!response.ok)throw Error(data.detail||'library_unavailable');
+  libraryItems=more?[...libraryItems,...data.items]:data.items;libraryHasMore=data.has_more;
+  $('library-count').textContent=data.total+' '+(data.total===1?'Buch':'Bücher');
+  $('shelf-heading').textContent=$('library-query').value?'Suchergebnisse':$('library-sort').value==='recent'?'Zuletzt hinzugefügt':'Dein Bücherregal';
+  $('library-message').textContent=$('library-query').value?data.filtered_total+' passende Bücher':'';
+  renderLibrary();
+ }catch(error){
+  if(generation!==libraryGeneration)return;
+  const messages={library_not_configured:'Verbinde BookOrbit in den Einstellungen und hinterlege die Secret-Datei auf dem NAS.',library_unavailable:'Die Bibliothek ist gerade nicht erreichbar.',library_unreadable:'Die BookOrbit-Buchdaten konnten nicht gelesen werden.'};
+  $('library-count').textContent='Nicht erreichbar';$('library-message').textContent=messages[error.message]||'Bibliothek konnte nicht geladen werden.';
+  $('library-more').hidden=true;libraryMessage('Deine Bücher konnten nicht geladen werden.','Erneut versuchen',()=>loadLibrary());
+ }finally{if(generation===libraryGeneration){$('library-books').classList.remove('loading-shelf');$('library-more').disabled=false}}
+}
+function showView(name,updateHash=true){
+ if(name==='hosters'){loadHosterCatalog();loadHosterJobs()}
+ const valid=['hosters','store','genres','library','search','authors','watchlist','download-center','settings'];if(!valid.includes(name))name='store';
+ for(const section of document.querySelectorAll('[data-view]'))section.hidden=section.dataset.view!==name;
+ for(const link of document.querySelectorAll('[data-view-target]')){
+  if(link.dataset.viewTarget===name)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');
+ }
+ currentView=name;
+ if(updateHash&&location.pathname!==viewPath(name))history.pushState(null,'',viewPath(name));
+ $('topbar-title') && ($('topbar-title').textContent=viewNames[name]||'RoyalBooks');
+ if(name==='settings'){showSettingsTab(location.pathname.split('/')[2]||settingsTab,false);loadPreferences()}
+ if(name==='search'&&lastSearchResult)checkFiles(lastSearchResult.items,'search');
+ if(name==='authors'&&authorResult)checkFiles(authorResult.items,'authors');
+ if(name==='store')loadStore();
+ if(name==='genres'){if(updateHash)clearGenreSelection();loadGenreManifest();if(genreResult)checkFiles(genreResult.items,'genres')}
+ if(name==='library'&&adminAuthenticated)loadLibrary();
+ if(name==='watchlist'&&adminAuthenticated)loadWatchlist();
+ if(name==='download-center'&&adminAuthenticated)loadJobs();
+ window.scrollTo({top:0,behavior:'instant'});
+}
+function setLibraryLayout(layout){
+ const list=layout==='list';$('library-books').classList.toggle('list-layout',list);
+ $('view-grid').setAttribute('aria-pressed',String(!list));$('view-list').setAttribute('aria-pressed',String(list));
+ try{localStorage.setItem('royalbooks-layout',list?'list':'grid')}catch{}
+}
+function setTheme(theme){document.documentElement.dataset.theme=theme;document.querySelector('meta[name="theme-color"]').content=theme==='dark'?'#14202d':'#f4f6f8';$('theme-toggle').setAttribute('aria-label',theme==='dark'?'Helle Darstellung':'Dunkle Darstellung');try{localStorage.setItem('royalbooks-theme',theme)}catch{}}
+let storeFilter='all',storePoll=null,storeLoading=false,storeSnapshot=null,previewGeneration=0;
+function searchForBook(book){
+ if($('book-dialog').open)$('book-dialog').close();
+ showView('search');
+ const author=(book.authors||[])[0];
+ $('q').value=(book.title.slice(0,80)+(author?' author:'+author.slice(0,30):'')).slice(0,120);
+ $('search').requestSubmit();
+}
+function appendDescription(book,content){
+ const generation=++previewGeneration;
+ const section=text('section','','detail-description');section.append(text('h3','Über dieses Buch'));
+ const paragraph=text('p',book.description||'Buchbeschreibung wird geprüft …');section.append(paragraph);content.append(section);
+ if(book.description)return;
+ const isbn=(book.isbns||[book.isbn13]).find(value=>/^97[89][0-9]{10}$/.test(value||''));
+ const work=book.source==='openlibrary'&&/^OL[0-9]+W$/.test(book.source_id)?book.source_id:null;
+ if(!isbn&&!work){paragraph.textContent='Diese Quelle hat keine Inhaltsbeschreibung hinterlegt.';return}
+ const params=new URLSearchParams(isbn?{isbn}:{work});
+ fetch('/api/book-preview?'+params).then(response=>{if(!response.ok)throw Error();return response.json()}).then(data=>{
+  if(generation!==previewGeneration||!section.isConnected)return;
+  paragraph.textContent=data.description||'Für diese Ausgabe liegt noch keine Inhaltsbeschreibung vor.';
+  if(data.description){const note=text('p','Beschreibung: '+data.source+(data.scope==='work'?' · Werkbeschreibung':''),'preview-note');section.append(note)}
+ }).catch(()=>{if(generation===previewGeneration)paragraph.textContent='Die Buchbeschreibung ist gerade nicht erreichbar.'});
+}
+function storeCard(book){
+ const card=text('button','','subtle store-card');card.type='button';card.dataset.storeBook=book.source+':'+book.source_id;card.setAttribute('aria-label',book.title+' ansehen');
+ card.append(makeJacket({...book,authors:(book.authors||[]).join(', ')}),text('h3',book.title),text('p',(book.authors||[]).join(', ')||'Autor unbekannt'),text('span',reachable(book)?'EPUB erreichbar':book.download_supported?'Dateiprüfung':'Katalogtitel','format-tag'));
+ card.addEventListener('click',()=>showDetails(book,[book]));return card;
+}
+function renderStore(data){
+ const positions=new Map([...document.querySelectorAll('.store-rail[data-shelf]')].map(rail=>[rail.dataset.shelf,rail.scrollLeft]));
+ const focused=document.activeElement?.dataset.storeBook;
+ const original=(data.shelves||[]).filter(shelf=>shelf.status!=='disabled');
+ const only=$('store-available-only').checked;
+ const shelves=original.map(shelf=>({...shelf,items:shelf.items.filter(book=>!only||reachable(book))})).filter(shelf=>!only||shelf.id!=='trending');
+ const hero=shelves.find(s=>s.id==='releases'&&s.items.length)?.items||shelves.find(s=>s.items.length)?.items||[];
+ const total=new Set(original.flatMap(shelf=>shelf.items).map(book=>book.source+':'+book.source_id)).size;$('kiosk-count').textContent=total?total+' Bücher zum Stöbern':'';
+ $('store-featured').replaceChildren(...hero.slice(0,3).map(book=>{const button=text('button','','subtle hero-jacket');button.type='button';button.setAttribute('aria-label',book.title+' ansehen');button.append(makeJacket({...book,authors:(book.authors||[]).join(', ')}));button.addEventListener('click',()=>showDetails(book,[book]));return button}));
+ $('store-featured').hidden=hero.length===0;
+ const sections=[];
+ for(const shelf of shelves){
+  if(storeFilter!=='all'&&storeFilter!==shelf.id)continue;
+  if(storeFilter==='all'&&!shelf.items.length)continue;
+  const section=text('section','','store-section');const heading=text('div','','store-section-head');heading.append(text('h2',shelf.title));
+  const tools=text('div','','rail-tools');const rail=text('div','','store-rail');rail.dataset.shelf=shelf.id;if(storeFilter!=='all')rail.classList.add('expanded');
+  for(const [label,direction,symbol] of [['Zurück',-1,'‹'],['Weitere Bücher',1,'›']]){
+   const button=text('button',symbol,'subtle icon-button');button.type='button';button.setAttribute('aria-label',label+' · '+shelf.title);button.addEventListener('click',()=>rail.scrollBy({left:direction*rail.clientWidth*.8,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'}));tools.append(button);
+  }
+  if(storeFilter==='all'&&shelf.items.length){const all=text('button','Alle '+shelf.items.length+' ansehen','subtle shelf-all');all.type='button';all.addEventListener('click',()=>{storeFilter=shelf.id;for(const tab of document.querySelectorAll('[data-shelf-filter]'))tab.setAttribute('aria-pressed',String(tab.dataset.shelfFilter===storeFilter));renderStore(storeSnapshot);$('store-shelves').scrollIntoView({block:'start'})});tools.prepend(all)}
+  heading.append(tools);section.append(heading,text('p',shelf.note));
+  if(shelf.items.length){
+   rail.append(...shelf.items.map(storeCard));section.append(rail);
+   const note=text('p',shelf.stale?'Gespeicherte Auswahl · Aktualisierung derzeit nicht möglich.':'','store-source');
+   const source=text('a',shelf.id==='trending'?'Tagestrends: Open Library':'Quelle: Library Genesis');source.href=safeUrl(shelf.source_url);source.target='_blank';source.rel='noopener noreferrer';note.append(source);
+   if(shelf.updated_at)note.append(document.createTextNode(' · '+new Date(shelf.updated_at*1000).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})));
+   section.append(note);
+  }else section.append(text('div',(only||shelf.status==='loading')?'Erreichbare EPUBs werden im Hintergrund ermittelt …':'Diese Auswahl ist momentan nicht erreichbar. Über die Suche kannst du weitere Quellen nutzen.','store-empty'));
+  sections.push(section);
+ }
+ $('store-shelves').replaceChildren(...sections);
+ for(const rail of document.querySelectorAll('.store-rail[data-shelf]'))rail.scrollLeft=positions.get(rail.dataset.shelf)||0;
+ if(focused){const target=[...document.querySelectorAll('[data-store-book]')].find(el=>el.dataset.storeBook===focused);if(target)target.focus({preventScroll:true})}
+ const available=shelves.some(s=>s.items.length);
+ const checking=original.some(s=>s.items.some(book=>fileState(book).status==='pending'));
+ $('store-message').textContent=only&&checking?'Dateiquellen werden im Hintergrund geprüft. Erreichbare EPUBs erscheinen automatisch.':available?(shelves.some(s=>s.stale&&s.items.length)?'Deine gespeicherte Auswahl bleibt verfügbar, auch wenn eine Quelle ausfällt.':'Deine Auswahl wird automatisch im Hintergrund aktualisiert.'):(data.refreshing?'Die erste Auswahl wird gerade geladen. Du kannst bereits nach Büchern suchen.':'Die Auswahl ist momentan nicht verfügbar. Die Buchsuche funktioniert unabhängig davon.');
+}
+async function loadStore(){
+ if(storeLoading)return;storeLoading=true;
+ if(!storeSnapshot){try{const cached=JSON.parse(localStorage.getItem('royalbooks-store-v2'));if(cached&&Array.isArray(cached.shelves)){storeSnapshot=cached;renderStore(storeSnapshot)}}catch{}}
+ if(storePoll){clearTimeout(storePoll);storePoll=null}
+ try{
+  const response=await fetch('/api/store');if(!response.ok)throw Error();
+  storeSnapshot=await response.json();try{localStorage.setItem('royalbooks-store-v2',JSON.stringify(storeSnapshot))}catch{}renderStore(storeSnapshot);if(currentView==='store')checkFiles(storeSnapshot.shelves.flatMap(s=>s.items),'store');
+  if(storeSnapshot.refreshing||storeSnapshot.shelves.some(s=>s.status==='loading'))storePoll=setTimeout(()=>{if(!$('store').hidden&&document.visibilityState==='visible')loadStore()},2500);
+ }catch{if(!storeSnapshot)$('store-message').textContent='Die Startseite konnte nicht geladen werden. Nutze die Suche oder versuche es später erneut.';else $('store-message').textContent='Gespeicherte Auswahl · Verbindung wird erneut geprüft.';storePoll=setTimeout(()=>{if(currentView==='store')loadStore()},5000)}
+ finally{storeLoading=false}
+}
+$('kiosk-search').addEventListener('submit',event=>{event.preventDefault();showView('search');$('q').value=$('kiosk-query').value;setSearchMode('all');runBookSearch()});
+document.querySelectorAll('[data-shelf-filter]').forEach(button=>button.addEventListener('click',()=>{
+ storeFilter=button.dataset.shelfFilter;
+ for(const other of document.querySelectorAll('[data-shelf-filter]'))other.setAttribute('aria-pressed',String(other===button));
+ if(storeSnapshot)renderStore(storeSnapshot);
+}));
+
+let genreManifest=[],genreManifestPromise=null,activeGenre=null,genreResult=null,genrePage=1,genreGeneration=0;
+async function loadGenreManifest(){
+ if(genreManifest.length)return;
+ if(!genreManifestPromise)genreManifestPromise=fetch('/api/genres').then(response=>{if(!response.ok)throw Error();return response.json()}).then(data=>{
+  genreManifest=data.genres;
+  $('genre-picker').replaceChildren(...genreManifest.map(genre=>{const button=text('button','','subtle genre-tile');button.type='button';button.dataset.genre=genre.id;button.style.setProperty('--genre-color',genre.color);button.setAttribute('aria-pressed','false');button.append(text('span',genre.title));button.addEventListener('click',()=>chooseGenre(genre.id));return button}));
+ }).catch(()=>{$('genre-message').textContent='Genres sind gerade nicht erreichbar. Versuche es erneut.'}).finally(()=>{genreManifestPromise=null});
+ await genreManifestPromise;
+}
+async function chooseGenre(slug,update=true){
+ await loadGenreManifest();const genre=genreManifest.find(genre=>genre.id===slug);if(!genre){$('genre-message').textContent='Dieses Genre ist nicht verfügbar.';return}
+ activeGenre=slug;genrePage=1;genreResult=null;$('genre-books').replaceChildren();
+ $('genre-title').textContent=genre.title;$('genre-heading').hidden=false;$('genre-filter').hidden=false;$('genre-picker').classList.add('compact');
+ for(const button of document.querySelectorAll('[data-genre]'))button.setAttribute('aria-pressed',String(button.dataset.genre===slug));
+ await loadGenre(false,update);
+}
+async function loadGenre(more=false,update=true){
+ if(!activeGenre)return;const generation=++genreGeneration;
+ $('genre-more').disabled=true;$('genre-message').textContent='Bücher werden nach Genre geladen …';
+ const language=$('genre-language').value;
+ if(update)history.pushState(null,'','/genres?'+new URLSearchParams({genre:activeGenre,language}));
+ try{
+  const response=await fetch('/api/genres/'+encodeURIComponent(activeGenre)+'?'+new URLSearchParams({language,page:genrePage}));const data=await response.json();
+  if(generation!==genreGeneration)return;if(!response.ok)throw Error();
+  genreResult=mergeSearch(more?genreResult:null,data);$('genre-more').hidden=!data.has_more;renderGenreResults();if(currentView==='genres')checkFiles(genreResult.items,'genres');
+ }catch{if(more&&generation===genreGeneration)genrePage--;if(generation===genreGeneration)$('genre-message').textContent='Diese Auswahl konnte nicht geladen werden. Versuche ein anderes Genre oder lade erneut.'}
+ finally{if(generation===genreGeneration)$('genre-more').disabled=false}
+}
+function renderGenreResults(){
+ if(!genreResult)return;const items=genreResult.items;
+ const groups=genreResult.display_groups.filter(group=>!$('genre-available-only').checked||group.item_indexes.some(i=>reachable(items[i])));
+ $('genre-books').replaceChildren(...groups.map(group=>resultCard(group,items)).filter(Boolean));
+ $('genre-message').textContent=groups.length?groups.length+' geladene Titel · Genreangaben aus den Katalogen. EPUB-Angebote werden separat geprüft.':$('genre-available-only').checked?'Noch keine erreichbare EPUB in dieser Auswahl. Schalte den Filter aus, um alle Katalogtitel zu sehen.':genreResult.sources?.some(s=>s.status==='error')?'Eine Genrequelle ist momentan nicht erreichbar. Versuche ein anderes Genre oder lade erneut.':'Keine Titel für diese Sprache und dieses Genre gefunden. Versuche alle Sprachen oder prüfe die gewählten Quellen.';
+}
+function clearGenreSelection(){genreGeneration++;activeGenre=null;genreResult=null;$('genre-picker').classList.remove('compact');$('genre-heading').hidden=true;$('genre-filter').hidden=true;$('genre-more').hidden=true;$('genre-books').replaceChildren();$('genre-message').textContent='Wähle ein Genre.';for(const button of document.querySelectorAll('[data-genre]'))button.setAttribute('aria-pressed','false')}
+async function restoreGenreRoute(){const params=new URLSearchParams(location.search);const slug=params.get('genre');if(!slug){clearGenreSelection();return;}$('genre-language').value=['de','en','all'].includes(params.get('language'))?params.get('language'):'de';await chooseGenre(slug,false)}
+$('genre-all').addEventListener('click',()=>{$('genre-picker').classList.remove('compact');$('genre-picker').scrollIntoView({block:'start'})});
+$('genre-more').addEventListener('click',()=>{genrePage++;loadGenre(true,false)});
+$('genre-language').addEventListener('change',()=>chooseGenre(activeGenre));
+$('genre-available-only').addEventListener('change',renderGenreResults);
+
+
+let hosterPage=1,hosterQuery='',hosterGeneration=0,hosterTimer=null,hosterDrafts=new Map();
+async function loadHosterCatalog(append=false){
+ const generation=++hosterGeneration;$('hoster-find').disabled=true;$('hoster-catalog-message').textContent='Byte.to wird geladen …';
+ try{const r=await fetch('/api/hosters/catalog?'+new URLSearchParams({q:hosterQuery,page:hosterPage}));const data=await r.json();if(!r.ok)throw Error(data.detail||'Quelle nicht erreichbar');if(generation!==hosterGeneration)return;
+ const cards=data.items.map(item=>{const book={...item,source:'byte',source_id:String(item.source_id),formats:[],download_supported:false,language:null};return resultCard({primary_index:0,item_indexes:[0]},[book])});
+ if(append)$('hoster-books').append(...cards);else $('hoster-books').replaceChildren(...cards);
+ $('hoster-more').hidden=!data.has_more;$('hoster-catalog-message').textContent=data.items.length?'Veröffentlichungen laut Quelle. Die Hosterdateien sind noch nicht geprüft.':'Keine passenden E-Book-Einträge auf dieser Ergebnisseite.';
+ }catch(error){if(generation===hosterGeneration)$('hoster-catalog-message').textContent='Byte.to konnte nicht geladen werden: '+error.message}finally{if(generation===hosterGeneration)$('hoster-find').disabled=false}
+}
+async function queueHoster(book){
+ if(!adminAuthenticated){showView('settings');showSettingsTab('access');return}
+ if(!confirm('Diese Veröffentlichung rechtmäßig über die kostenlosen Hoster herunterladen? Wartezeiten oder Captchas können erforderlich sein.'))return;
+ try{const r=await adminFetch('/api/hosters/jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source_id:Number(book.source_id),rights_confirmed:true})});const data=await r.json();if(!r.ok)throw Error(data.detail==='hoster_engine_not_configured'?'Der Hoster-Downloader ist noch nicht eingerichtet.':data.detail||'Auftrag nicht möglich');if($('book-dialog').open)$('book-dialog').close();showView('hosters')}
+ catch(error){alert(error.message)}
+}
+async function loadHosterJobs(){
+ if(hosterTimer)clearTimeout(hosterTimer);if(!adminAuthenticated){$('hoster-engine-message').textContent='Für Aufträge dieses Gerät anmelden.';return}
+ try{const r=await adminFetch('/api/hosters');const data=await r.json();if(!r.ok)throw Error('Aufträge nicht erreichbar');
+ $('hoster-engine-message').textContent=data.configured?(data.engine?.reachable?'Kostenloser Downloader eingerichtet und erreichbar.':'Downloader eingerichtet · Verbindung wird geprüft.'):'Hoster-Downloader noch nicht eingerichtet.';
+ const url=safeUrl(data.control_url);$('hoster-control').hidden=!url;if(url)$('hoster-control').href=url;
+ const states={queued:'Wartet auf Linkauflösung',resolving:'Downloadcontainer werden ermittelt',dispatched:'Beim Downloader · Hosterstatus / Captcha dort prüfen',staged:'EPUB geprüft',delivering:'Übergabe an BookOrbit',delivered:'An Book Dock übergeben',failed:'Fehlgeschlagen',needs_review:'Manuelle Prüfung nötig'};
+ if($('hoster-jobs').contains(document.activeElement)&&document.activeElement.tagName==='TEXTAREA'){hosterTimer=setTimeout(()=>loadHosterJobs(),5000);return}
+ $('hoster-jobs').replaceChildren(...data.jobs.map(job=>{const card=text('article','','controls');card.append(text('h3',job.book.title),text('p',transferLabels[job.library_transfer?.status]||states[job.status]||job.status));const source=safeUrl(job.book.info_url);if(source){const link=text('a','Buchseite öffnen');link.href=source;link.target='_blank';link.rel='noopener noreferrer';card.append(link)}const progress=data.engine?.jobs?.[job.id];if(progress?.bytes_loaded)card.append(text('p',new Intl.NumberFormat('de-DE').format(progress.bytes_loaded)+' / '+new Intl.NumberFormat('de-DE').format(progress.bytes_total)+' Bytes beim Downloader'));if(job.retry_at)card.append(text('p','Nächster Versuch: '+new Date(job.retry_at*1000).toLocaleTimeString('de-DE')));if(job.error)card.append(text('p',({engine_cloudflare_blocked:'Filecrypt blockiert den Downloader mit Cloudflare. Öffne die Buchseite im normalen Browser und füge den dort freigegebenen Hoster-Dateilink unten ein.',engine_download_failed:'Der Downloader meldet einen Dateifehler. Ein anderer Hosterlink derselben Veröffentlichung kann helfen.',hoster_book_title_mismatch:'Der Titel in der EPUB passt nicht ausreichend zur angeforderten Veröffentlichung.',hoster_multiple_books_need_selection:'Das Paket enthält mehrere unterschiedliche Bücher. Es wird nicht automatisch importiert.'})[job.error]||job.error,'muted'));if(['engine_cloudflare_blocked','engine_download_failed','byte_no_download_containers','byte_unsupported_container','byte_container_unresolved','http_403','http_451'].includes(job.error)){const input=text('textarea','');input.placeholder='Nitroflare- oder ddownload-Dateilink, eine URL je Zeile';input.setAttribute('aria-label','Hoster-Dateilinks für '+job.book.title);input.rows=3;input.value=hosterDrafts.get(job.id)||'';input.addEventListener('input',()=>hosterDrafts.set(job.id,input.value));input.style.width='100%';input.style.boxSizing='border-box';const resume=text('button','Mit Hosterlink fortsetzen','action');resume.type='button';resume.addEventListener('click',()=>resumeHoster(job,input,resume));card.append(input,resume)}if(job.file_size)card.append(text('small',new Intl.NumberFormat('de-DE').format(job.file_size)+' Bytes · EPUB geprüft'));return card}));
+ }catch(error){$('hoster-engine-message').textContent=error.message}
+ hosterTimer=setTimeout(()=>{if(currentView==='hosters'&&document.visibilityState==='visible')loadHosterJobs()},5000);
+}
+async function resumeHoster(job,input,button){
+ const links=(input.value||hosterDrafts.get(job.id)||'').split(/\s+/).map(s=>s.trim()).filter(Boolean);if(!links.length)return;
+ button.disabled=true;try{const r=await adminFetch('/api/hosters/jobs/'+encodeURIComponent(job.id)+'/links',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({links,rights_confirmed:true})});const data=await r.json();if(!r.ok)throw Error(data.detail==='hoster_direct_file_links_required'?'Bitte den Nitroflare- oder ddownload-Dateilink aus dem geöffneten Container verwenden; kein Filecrypt-Containerlink.':data.detail||'Fortsetzen fehlgeschlagen');hosterDrafts.delete(job.id);await loadHosterJobs()}catch(error){alert(error.message)}finally{button.disabled=false}
+}
+$('hoster-search').addEventListener('submit',e=>{e.preventDefault();hosterQuery=$('hoster-q').value.trim();hosterPage=1;loadHosterCatalog()});
+$('hoster-latest').addEventListener('click',()=>{hosterQuery='';$('hoster-q').value='';hosterPage=1;loadHosterCatalog()});
+$('hoster-more').addEventListener('click',()=>{hosterPage++;loadHosterCatalog(true)});
+
+let currentView='store',settingsTab='general',searchMode='all',searchPage=1,authorPage=1,authorResult=null;
+let platformPreferences={language:'de',available_only:true,result_limit:30,sources:[]},sourceManifest=[],preferencesLoaded=false;
+let availabilityMap=new Map(),availabilityGeneration=0,availabilityTimer=null,jobFilter='all';
+const viewNames={hosters:'Byte.to & Hoster',genres:'Genres',store:'Entdecken',search:'Buchsuche',authors:'Autoren & Werke',library:'Deine Bibliothek',watchlist:'Merkliste','download-center':'Downloads',settings:'Einstellungen'};
+const routes={hosters:'/hosters',genres:'/genres',store:'/discover',search:'/search',authors:'/authors',library:'/library',watchlist:'/watchlist','download-center':'/downloads',settings:'/settings'};
+function viewPath(name){return name==='settings'?'/settings/'+settingsTab:(routes[name]||'/discover')}
+function routeView(path){return Object.keys(routes).find(key=>path===routes[key]||(key==='settings'&&path.startsWith('/settings/')))||'store'}
+function showSettingsTab(tab,update=true){
+ if(!['general','sources','library','system','access'].includes(tab))tab='general';settingsTab=tab;
+ for(const panel of document.querySelectorAll('[data-settings-panel]'))panel.hidden=panel.dataset.settingsPanel!==tab;
+ for(const link of document.querySelectorAll('[data-settings-tab]')){if(link.dataset.settingsTab===tab)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current')}
+ if(update&&location.pathname!=='/settings/'+tab)history.pushState(null,'','/settings/'+tab);
+}
+function renderSourceChoices(){
+ if(!$('source-choices'))return;
+ const existing=new Set([...document.querySelectorAll('[data-source-choice]:checked')].map(el=>el.dataset.sourceChoice));
+ $('source-choices').replaceChildren(...sourceManifest.filter(source=>source.enabled).map(source=>{
+  const label=text('label','','source-choice'),input=document.createElement('input');input.type='checkbox';input.dataset.sourceChoice=source.name;
+  input.checked=(preferencesLoaded?platformPreferences.sources.includes(source.name):true);
+  const body=text('span','');body.append(text('strong',source.display_name),text('small',source.may_offer_epub?'EPUB-Dateiquelle · Erreichbarkeit wird geprüft':'Buchdaten und Ausgaben · kein eigener Download'));
+  label.append(input,body,text('span',source.may_offer_epub?'Dateiquelle':'Buchkatalog','source-kind'));return label;
+ }));
+}
+async function loadPreferences(){
+ if(!adminAuthenticated)return;
+ try{
+  const response=await adminFetch('/api/settings');if(!response.ok)return;
+  const data=await response.json();platformPreferences=data.preferences;
+  if(!preferencesLoaded){
+   $('language').value=platformPreferences.language;$('result-limit').value=String(platformPreferences.result_limit);
+   for(const id of ['search-available-only','author-available-only'])$(id).checked=platformPreferences.available_only;
+  }
+  preferencesLoaded=true;
+  $('pref-language').value=platformPreferences.language;$('pref-result-limit').value=String(platformPreferences.result_limit);$('pref-available-only').checked=platformPreferences.available_only;$('pref-theme').value=document.documentElement.dataset.theme||'dark';
+  $('setting-library-state').textContent=data.connections.library?'Konfiguriert':'Nicht eingerichtet';$('setting-ingest-state').textContent=data.connections.ingest?'Konfiguriert':'Nicht eingerichtet';
+  renderSourceChoices();redrawAvailability();loadBookOrbitStatus();
+ }catch{$('preferences-message').textContent='Einstellungen konnten nicht geladen werden.'}
+}
+function bookOrbitUrl(raw){try{const u=new URL(raw);return ['http:','https:'].includes(u.protocol)&&!u.username&&!u.password?u.href:null}catch{return null}}
+async function loadBookOrbitStatus(){
+ try{const r=await adminFetch('/api/bookorbit/status');if(!r.ok)throw Error();const data=await r.json();
+ $('setting-bookorbit-state').textContent=data.authenticated?'Angemeldet':data.reachable?'Erreichbar · Anmeldung fehlt':'Nicht erreichbar';
+ $('bookorbit-result').textContent=orbitErrors[data.error]||'';
+ const url=bookOrbitUrl(data.public_url);$('bookorbit-link').hidden=!url;if(url)$('bookorbit-link').href=url;
+ }catch{$('setting-bookorbit-state').textContent='Status nicht abrufbar'}
+}
+$('bookorbit-test').addEventListener('click',async()=>{
+ const button=$('bookorbit-test');button.disabled=true;$('bookorbit-result').textContent='Verbindung und Schreibberechtigung werden geprüft …';
+ try{const r=await adminFetch('/api/bookorbit/test',{method:'POST'});if(!r.ok)throw Error('HTTP '+r.status);const data=await r.json();
+ const lines=[data.connection.authenticated?'BookOrbit-Anmeldung erfolgreich.':orbitErrors[data.connection.error]||'BookOrbit-Anmeldung nicht bestätigt.',...(data.storage.checks||[]).map(c=>(c.status==='ok'?'✓ ':c.status==='error'?'✕ ':'! ')+c.detail),data.notice];
+ $('bookorbit-result').replaceChildren(...lines.map(line=>text('p',line,'muted')));
+ $('setting-bookorbit-state').textContent=data.connection.authenticated?'Angemeldet':'Anmeldung nicht bestätigt';
+ $('setting-ingest-state').textContent=(data.storage.checks||[]).some(c=>c.name==='bookorbit_write_probe'&&c.status==='ok')?'Schreibzugriff geprüft':'Prüfung nötig';
+ }catch(error){$('bookorbit-result').textContent='Integrationstest fehlgeschlagen: '+error.message}finally{button.disabled=false}
 });
+$('preferences-save').addEventListener('click',async()=>{
+ const sources=[...document.querySelectorAll('[data-source-choice]:checked')].map(el=>el.dataset.sourceChoice);
+ if(!sources.length){$('preferences-message').textContent='Wähle mindestens eine Quelle aus.';return}
+ $('preferences-save').disabled=true;
+ try{
+  const response=await adminFetch('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({language:$('pref-language').value,available_only:$('pref-available-only').checked,result_limit:Number($('pref-result-limit').value),sources})});
+  if(!response.ok)throw Error();platformPreferences=(await response.json()).preferences;
+  $('language').value=platformPreferences.language;$('result-limit').value=String(platformPreferences.result_limit);
+  for(const id of ['search-available-only','author-available-only'])$(id).checked=platformPreferences.available_only;
+  setTheme($('pref-theme').value);$('preferences-message').textContent='Gespeichert. Deine Auswahl gilt auch nach einem Neustart.';redrawAvailability();
+ }catch{$('preferences-message').textContent='Speichern fehlgeschlagen. Prüfe deinen Gerätezugang.'}
+ finally{$('preferences-save').disabled=false}
+});
+for(const link of document.querySelectorAll('[data-settings-tab]'))link.addEventListener('click',event=>{event.preventDefault();showSettingsTab(link.dataset.settingsTab)});
+for(const button of document.querySelectorAll('[data-open-view]'))button.addEventListener('click',()=>showView(button.dataset.openView));
+function fileReference(book){
+ if(!book.download_supported)return null;
+ const record=Number(book.acquisition_id||book.source_id);
+ return Number.isSafeInteger(record)&&record>0?{source:book.source,record_id:record}:null;
+}
+function fileState(book){if(preferencesLoaded&&!platformPreferences.sources.includes(book.source))return {status:'disabled'};const ref=fileReference(book);if(!ref)return {status:'metadata'};const value=availabilityMap.get(ref.source+':'+ref.record_id);return value&&Date.now()/1000-value.checked_at<900?value:{status:'pending'}}
+function reachable(book){return fileState(book).status==='available'}
+function availabilityBadge(book){if(book.source==='byte')return text('span','Hoster · Datei ungeprüft','availability-badge');const status=fileState(book).status;if(book.file_evidence==='verified_epub_cached'&&status==='available'){const el=text('span','EPUB geprüft','availability-badge');el.dataset.state=status;const ref=fileReference(book);if(ref)el.dataset.fileBadge=ref.source+':'+ref.record_id;return el}const label={available:'Datei erreichbar',pending:'Datei wird geprüft',busy:'Prüfung wartet',unavailable:'Datei nicht erreichbar',metadata:'Katalogeintrag'}[status]||'Datei wird geprüft';const el=text('span',label,'availability-badge');el.dataset.state=status;const ref=fileReference(book);if(ref)el.dataset.fileBadge=ref.source+':'+ref.record_id;return el}
+function redrawAvailability(){for(const badge of document.querySelectorAll('#book-dialog [data-file-badge]')){const state=availabilityMap.get(badge.dataset.fileBadge)?.status||'pending';badge.dataset.state=state;badge.textContent={available:'Datei erreichbar',pending:'Datei wird geprüft',busy:'Prüfung wartet',unavailable:'Datei nicht erreichbar'}[state]||'Datei wird geprüft'}if(lastSearchResult)renderResults();if(authorResult)renderAuthorResults();if(genreResult)renderGenreResults();if(storeSnapshot)renderStore(storeSnapshot);for(const button of document.querySelectorAll('[data-availability-key]'))button.disabled=availabilityMap.get(button.dataset.availabilityKey)?.status!=='available'}
+async function checkFiles(items,context){
+ const refs=[...new Map((items||[]).filter(book=>!preferencesLoaded||platformPreferences.sources.includes(book.source)).map(fileReference).filter(Boolean).map(ref=>[ref.source+':'+ref.record_id,ref])).values()];let cursor=0;
+ if(!refs.length){redrawAvailability();return}
+ const generation=++availabilityGeneration;if(availabilityTimer)clearTimeout(availabilityTimer);
+ async function poll(){
+  if(generation!==availabilityGeneration)return;
+  try{
+   const response=await fetch('/api/availability',{method:'POST',headers:{'Content-Type':'application/json','X-RoyalBooks-Client':'web'},body:JSON.stringify({items:refs.slice(cursor,cursor+96),context:context==='store'?'store':'search'})});
+   if(!response.ok)throw Error();const data=await response.json();if(generation!==availabilityGeneration)return;
+   for(const value of data.items)availabilityMap.set(value.source+':'+value.record_id,value);
+   redrawAvailability();cursor=cursor+96>=refs.length?0:cursor+96;
+   if(generation===availabilityGeneration&&currentView===context&&refs.some(ref=>{const value=availabilityMap.get(ref.source+':'+ref.record_id);return !value||['pending','busy'].includes(value.status)}))availabilityTimer=setTimeout(poll,4000);
+  }catch{if(context==='search')$('search-notice').textContent='Dateiprüfung ist gerade nicht erreichbar. Ein erneuter Suchlauf versucht es noch einmal.'}
+ }
+ await poll();
+}
+for(const id of ['search-available-only','author-available-only','store-available-only'])$(id).addEventListener('change',()=>redrawAvailability());
+function setSearchMode(mode){
+ searchMode=mode;
+ for(const button of document.querySelectorAll('[data-search-mode]'))button.setAttribute('aria-pressed',String(button.dataset.searchMode===mode));
+ const placeholders={all:'Titel, Autor oder ISBN',title:'Buchtitel eingeben',author:'Autor oder Autorin eingeben',isbn:'ISBN-10, ISBN-13 oder Buch-EAN'};$('q').placeholder=placeholders[mode];
+}
+for(const button of document.querySelectorAll('[data-search-mode]'))button.addEventListener('click',()=>{setSearchMode(button.dataset.searchMode);$('q').focus()});
+function mergeSearch(previous,next){
+ const items=[...(previous?.items||[]),...(next.items||[])];const unique=[...new Map(items.map(book=>[book.source+':'+book.source_id,book])).values()];
+ return {...next,items:unique,display_groups:clientGroups(unique)};
+}
+function clientGroups(items){
+ const groups=new Map();
+ for(let i=0;i<items.length;i++){
+  const book=items[i];const normalize=value=>String(value||'').normalize('NFKD').toLowerCase().replace(/[\u0300-\u036f]/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+  const person=(book.authors||[])[0]||'';const parts=person.split(',');const author=parts.length>1?parts.slice(1).join(' ')+' '+parts[0]:person;
+  const key=normalize(book.title)+'|'+normalize(author)+'|'+(book.language||i);
+  if(!groups.has(key))groups.set(key,{primary_index:i,item_indexes:[],epub_count:0});
+  const group=groups.get(key);group.item_indexes.push(i);if(book.download_supported){group.epub_count++;if(!items[group.primary_index].download_supported)group.primary_index=i}
+ }
+ return [...groups.values()];
+}
+function viewAuthor(name){if($('book-dialog').open)$('book-dialog').close();showView('authors');$('author-q').value=name;$('author-search').requestSubmit()}
+async function loadAuthor(more=false){
+ const query=$('author-q').value.trim();if(query.length<2)return;
+ if(!more){authorPage=1;authorResult=null;$('author-books').replaceChildren()}
+ $('author-go').disabled=true;$('author-more').disabled=true;$('author-message').textContent='Werke werden in deinen Quellen gesucht …';
+ try{
+  const params=new URLSearchParams({q:query,mode:'author',language:$('language').value,limit:25,page:authorPage});
+  const response=await fetch('/api/books/search?'+params);const result=await response.json();if(!response.ok)throw Error();
+  authorResult=mergeSearch(more?authorResult:null,result);$('author-profile').hidden=false;$('author-name').textContent=result.query;
+  $('author-initials').textContent=query.split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  $('author-more').hidden=!result.has_more;renderAuthorResults();checkFiles(authorResult.items,'authors');
+  history.replaceState(null,'','/authors?q='+encodeURIComponent(query));
+ }catch{$('author-message').textContent='Werke konnten nicht geladen werden. Versuche es erneut.'}
+ finally{$('author-go').disabled=false;$('author-more').disabled=false}
+}
+function renderAuthorResults(){
+ if(!authorResult)return;
+ const items=authorResult.items,all=authorResult.display_groups||clientGroups(items);
+ const groups=all.filter(group=>!$('author-available-only').checked||group.item_indexes.some(i=>reachable(items[i])));
+ const cards=groups.map(group=>resultCard(group,items)).filter(Boolean);$('author-books').replaceChildren(...cards);
+ const pending=items.some(book=>fileState(book).status==='pending');
+ $('author-count').textContent=all.length+' Werke im geladenen Katalog · '+groups.length+' angezeigt';
+ $('author-message').textContent=pending?'Dateien werden im Hintergrund geprüft. Weitere Werke lassen sich nachladen.':groups.length?'Katalogeinträge aus deinen ausgewählten Quellen.':'Keine erreichbare EPUB gefunden. Deaktiviere den Filter, um alle geladenen Katalogwerke zu sehen.';
+}
+$('author-search').addEventListener('submit',event=>{event.preventDefault();loadAuthor()});
+$('author-more').addEventListener('click',()=>{authorPage++;loadAuthor(true)});
+$('search-more').addEventListener('click',()=>{searchPage++;runBookSearch(true)});
+for(const button of document.querySelectorAll('[data-job-filter]'))button.addEventListener('click',()=>{jobFilter=button.dataset.jobFilter;for(const other of document.querySelectorAll('[data-job-filter]'))other.setAttribute('aria-pressed',String(other===button));loadJobs()});
+
+$('settings-access-controls').append($('admin-access'));
+$('system-sources').append($('source-details'));
+$('system-catalog').append($('catalog-controls'));$('catalog-controls').hidden=false;
+$('system-tools').append($('preflight'),$('preflight-results'));
+$('catalog-controls').open=false;$('source-details').open=true;
+for(const link of document.querySelectorAll('[data-view-target],#settings-link,.brand'))link.addEventListener('click',event=>{event.preventDefault();showView(link.dataset.viewTarget||routeView(link.pathname))});
+window.addEventListener('hashchange',()=>showView(location.hash.slice(1),false));
+window.addEventListener('popstate',()=>{showView(routeView(location.pathname),false);if(currentView==='genres')restoreGenreRoute()});
+$('library-refresh').addEventListener('click',()=>loadLibrary());$('library-more').addEventListener('click',()=>loadLibrary(true));
+$('library-query').addEventListener('input',()=>{clearTimeout(libraryQueryTimer);libraryQueryTimer=setTimeout(()=>loadLibrary(),300)});
+$('library-sort').addEventListener('change',()=>loadLibrary());
+$('view-grid').addEventListener('click',()=>setLibraryLayout('grid'));$('view-list').addEventListener('click',()=>setLibraryLayout('list'));
+$('theme-toggle').addEventListener('click',()=>setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark'));
+try{setTheme(localStorage.getItem('royalbooks-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'dark'));setLibraryLayout(localStorage.getItem('royalbooks-layout')||'grid')}catch{setTheme('dark')}
+showView(location.hash.slice(1)||routeView(location.pathname),false);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!$('library').hidden&&adminAuthenticated)loadLibrary()});
+
 loadStats();
+authReady=initializeAccess();
+
+function setKiosk(enabled){document.documentElement.dataset.kiosk=String(enabled);$('kiosk-toggle').textContent=enabled?'Kiosk beenden':'Vollbild';$('kiosk-toggle').setAttribute('aria-pressed',String(enabled));try{localStorage.setItem('royalbooks-kiosk',String(enabled))}catch{}}
+try{setKiosk(localStorage.getItem('royalbooks-kiosk')==='true')}catch{}
+$('kiosk-toggle').addEventListener('click',async()=>{const enabled=document.documentElement.dataset.kiosk!=='true';setKiosk(enabled);try{if(enabled&&!document.fullscreenElement)await document.documentElement.requestFullscreen();else if(!enabled&&document.fullscreenElement)await document.exitFullscreen()}catch{}});
+document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement)setKiosk(false)});
+
+authReady.then(async()=>{await loadPreferences();loadLibrary();if(currentView==='hosters')loadHosterJobs();if(adminAuthenticated){loadJobs();loadWatchlist()}const params=new URLSearchParams(location.search);if(currentView==='genres')restoreGenreRoute();if(params.get('q')){if(currentView==='authors'){$('author-q').value=params.get('q');loadAuthor()}else if(currentView==='search'){$('q').value=params.get('q');setSearchMode(params.get('mode')||'all');runBookSearch()}}});
 </script></body></html>

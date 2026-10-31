@@ -14,6 +14,7 @@ import io
 import os
 import re
 import sqlite3
+from royalbooks.database import connect as db_connect
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -42,7 +43,7 @@ CREATE TABLE IF NOT EXISTS gutenberg_catalog_meta (
 
 
 def connect(path: str) -> sqlite3.Connection:
-    db = sqlite3.connect(path, timeout=20)
+    db = db_connect(path, timeout=20)
     db.row_factory = sqlite3.Row
     db.execute("PRAGMA busy_timeout=20000")
     return db

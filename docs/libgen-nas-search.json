@@ -1,0 +1,65 @@
+{
+  "query": "Harry Potter und der Stein der Weisen",
+  "http_status": 200,
+  "libgen_epub_listings": 15,
+  "libgen_acquisition_actions": 15,
+  "download_performed": false,
+  "sources": [
+    {
+      "provider": "libgen",
+      "status": "found",
+      "results": 23,
+      "duration_ms": 680,
+      "error": null,
+      "health": "available"
+    },
+    {
+      "provider": "dnb",
+      "status": "found",
+      "results": 30,
+      "duration_ms": 302,
+      "error": null,
+      "health": "available"
+    },
+    {
+      "provider": "openlibrary",
+      "status": "found",
+      "results": 13,
+      "duration_ms": 1757,
+      "error": null,
+      "health": "available"
+    },
+    {
+      "provider": "wikisource",
+      "status": "empty",
+      "results": 0,
+      "duration_ms": 370,
+      "error": null,
+      "health": "available"
+    },
+    {
+      "provider": "standardebooks",
+      "status": "skipped",
+      "results": 0,
+      "duration_ms": 0,
+      "error": null,
+      "health": "not_applicable"
+    },
+    {
+      "provider": "gutendex",
+      "status": "empty",
+      "results": 0,
+      "duration_ms": 168,
+      "error": null,
+      "health": "available"
+    },
+    {
+      "provider": "gutenberg_catalog",
+      "status": "empty",
+      "results": 0,
+      "duration_ms": 46,
+      "error": null,
+      "health": "available"
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "tested_at": "2026-10-25T08:12:09.964995+00:00",
+  "uid": 10001,
+  "calibre_access": "read_only",
+  "matching_title_before": 0,
+  "job_id": "001ef53325424f4abd42005991bdf535",
+  "title": "Faust",
+  "source": "libgen",
+  "job": {
+    "status": "delivered",
+    "error": null,
+    "sha256": "164c67c84439a5e48aed8f8f21dca2667b843c33c92a29d60aa014d4e3386ec8",
+    "file_size": 1927093,
+    "attempts": 1,
+    "handoff_observation": "awaiting_ingest"
+  },
+  "library_check": {
+    "status": "no_exact_match_unverified",
+    "notice": "Identical EPUB presence does not establish which job imported it. No exact match does not prove failure; CWA may rewrite EPUB contents.",
+    "checked_files": 0,
+    "candidate_records": 0,
+    "matches": []
+  },
+  "matching_title_after": 1,
+  "cwa_job_log": [
+    "[cwa-ingest-service] New file detected - /cwa-book-ingest/gutenberg-4511656384944961-001ef53325424f4abd42005991bdf535.epub - Starting Ingest Processor...",
+    "[ingest-processor] Checking if file is ready (timeout: 15 minutes): gutenberg-4511656384944961-001ef53325424f4abd42005991bdf535.epub",
+    "[ingest-processor]: No conversion needed for gutenberg-4511656384944961-001ef53325424f4abd42005991bdf535.epub, importing now...",
+    "[cwa-kindle-epub-fixer] 4 issues fixed with /cwa-book-ingest/gutenberg-4511656384944961-001ef53325424f4abd42005991bdf535.epub:",
+    "[ingest-processor] gutenberg-4511656384944961-001ef53325424f4abd42005991bdf535.epub successfully processed with the cwa-kindle-epub-fixer!",
+    "[ingest-processor] Added gutenberg-4511656384944961-001ef53325424f4abd42005991bdf535 to Calibre database",
+    "[cwa-ingest-service] Successfully processed: /cwa-book-ingest/gutenberg-4511656384944961-001ef53325424f4abd42005991bdf535.epub"
+  ]
+}

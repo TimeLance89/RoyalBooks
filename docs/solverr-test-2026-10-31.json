@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-31",
+  "project": "https://github.com/unseensnick/Solverr",
+  "version": "1.9.1",
+  "revision": "36294f132b7020d2210be1a8965df9658023b82c",
+  "image": "ghcr.io/unseensnick/solverr@sha256:85a2ec861880f13c2e9276a48cf86d71e3060efc6147f15d99e204386af7f703",
+  "runtime": {
+    "published_ports": {},
+    "nonroot_user": "flaresolverr",
+    "memory_limit_bytes": 2147483648,
+    "paid_solver_enabled": false,
+    "nas_bind_mounts": false
+  },
+  "health": {
+    "api_http": 200,
+    "reported_version": "1.9.1"
+  },
+  "filecrypt": {
+    "url": "https://filecrypt.cc/Container/3C598944D2.html",
+    "evidence_source": "Solverr container log",
+    "request_budget_ms": 120000,
+    "first_engine": "chrome",
+    "first_result": "timeout after approximately 60 seconds",
+    "automatic_fallback_engine": "stealth (Camoufox)",
+    "final_result": "Challenge still present after solving attempts",
+    "api_http": 500,
+    "success": false,
+    "hoster_file_access_verified": false,
+    "note": "Initial diagnostic writer hit a permission error after receiving the response. The failure result above is established from the service log, not a saved response payload."
+  },
+  "control": {
+    "url": "https://byte.to/?cat=43",
+    "api_http": 200,
+    "page_http": 200,
+    "seconds": 5.83,
+    "ebook_rows": 200,
+    "message": "Challenge not detected!",
+    "success": true,
+    "note": "Catalog access only; not a completed EPUB or a passed Filecrypt check."
+  },
+  "automatic_download_integration_enabled": false,
+  "existing_jobs_reset": false
+}

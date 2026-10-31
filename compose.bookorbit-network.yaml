@@ -1,0 +1,10 @@
+# Optional: use only after confirming this existing BookOrbit network name.
+services:
+  royalbooks:
+    networks:
+      - default
+      - bookorbit
+networks:
+  bookorbit:
+    external: true
+    name: ${BOOKORBIT_NETWORK:-bookorbit_default}

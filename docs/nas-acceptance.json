@@ -1,0 +1,25 @@
+{
+  "tested_at": "2026-10-25T07:39:44.829383+00:00",
+  "uid": 10001,
+  "calibre_access": "read_only",
+  "matching_title_before": 0,
+  "job_id": "4b5a635702294325b3c848cd7577ca1b",
+  "title": "Suspense",
+  "source": "standardebooks",
+  "job": {
+    "status": "delivered",
+    "error": null,
+    "sha256": "0a2bd035afd352465c4f1ef4b95064160e1bf8e1a4e49153174254ec3d6975d9",
+    "file_size": 781966,
+    "attempts": 1,
+    "handoff_observation": "awaiting_ingest"
+  },
+  "library_check": {
+    "status": "no_exact_match_unverified",
+    "notice": "Identical EPUB presence does not establish which job imported it. No exact match does not prove failure; CWA may rewrite EPUB contents.",
+    "checked_files": 0,
+    "candidate_records": 0,
+    "matches": []
+  },
+  "matching_title_after": 1
+}

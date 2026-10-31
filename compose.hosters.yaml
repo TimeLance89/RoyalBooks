@@ -1,0 +1,41 @@
+# Optional, independent free-hoster engine. No premium or MyJDownloader account.
+services:
+  royalbooks:
+    environment:
+      ROYALBOOKS_HOSTER_ENABLED: "1"
+      ROYALBOOKS_HOSTER_CONTROL_URL: ${ROYALBOOKS_HOSTER_CONTROL_URL:-}
+  book-downloader:
+    image: ${ROYALBOOKS_DOWNLOADER_IMAGE:-jlesage/jdownloader-2:latest}
+    restart: unless-stopped
+    ports:
+      - "${ROYALBOOKS_BIND_IP:-127.0.0.1}:${ROYALBOOKS_DOWNLOADER_PORT:-8095}:5800"
+    environment:
+      USER_ID: "10001"
+      GROUP_ID: "10001"
+      UMASK: "0077"
+      TZ: Europe/Berlin
+      SECURE_CONNECTION: "1"
+      WEB_AUTHENTICATION: "1"
+      WEB_AUTHENTICATION_USERNAME: royalbooks
+      WEB_AUTHENTICATION_PASSWORD: ${ROYALBOOKS_DOWNLOADER_PASSWORD:?Set a separate downloader password}
+      VNC_PASSWORD: ${ROYALBOOKS_DOWNLOADER_PASSWORD:?Set a separate downloader password}
+    volumes:
+      - "${ROYALBOOKS_DATA_PATH:-./data}/hoster/jdownloader:/config"
+      - "${ROYALBOOKS_DATA_PATH:-./data}/hoster/watch:/watch"
+      - "${ROYALBOOKS_DATA_PATH:-./data}/hoster/received:/downloads"
+    security_opt:
+      - no-new-privileges:true
+  book-downloader-status:
+    image: ${ROYALBOOKS_ENGINE_STATUS_IMAGE:-royalbooks-royalbooks}
+    restart: unless-stopped
+    network_mode: "service:book-downloader"
+    entrypoint: ["python", "-m", "royalbooks.engine_status"]
+    depends_on:
+      - book-downloader
+    volumes:
+      - "${ROYALBOOKS_DATA_PATH:-./data}/hoster/engine-state:/state"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true

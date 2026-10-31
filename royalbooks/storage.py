@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sqlite3
+from royalbooks.database import connect as db_connect
 from pathlib import Path
 
 
@@ -21,7 +22,7 @@ class MetricsStore:
             )""")
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, timeout=5)
+        db = db_connect(self.path, timeout=5)
         db.execute("PRAGMA busy_timeout=5000")
         return db
 
@@ -29,6 +30,7 @@ class MetricsStore:
         with self._connect() as db:
             db.execute("INSERT INTO attempts(provider, outcome, result_count, duration_ms, error_code) VALUES (?,?,?,?,?)",
                        (provider, outcome, count, duration_ms, error_code))
+            db.execute('DELETE FROM attempts WHERE id < (SELECT MAX(id) - 5000 FROM attempts)')
 
     def stats(self) -> list[dict]:
         with self._connect() as db:

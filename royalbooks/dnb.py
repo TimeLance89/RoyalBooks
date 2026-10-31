@@ -13,7 +13,7 @@ from xml.etree import ElementTree as ET
 import httpx
 from defusedxml import ElementTree as SafeET
 
-from royalbooks.providers import Book, Provider, ProviderError, isbn13
+from royalbooks.providers import Book, Provider, ProviderError, isbn13, valid_isbn10, canonical_isbn
 
 SRU = "https://services.dnb.de/sru/dnb"
 MARC = "{http://www.loc.gov/MARC21/slim}"
@@ -28,7 +28,7 @@ def _subfields(record: ET.Element, tag: str, codes: tuple[str, ...] = ("a",)) ->
             continue
         for element in field.findall(f"{MARC}subfield"):
             if element.get("code") in codes and element.text and element.text.strip():
-                values.append(element.text.strip())
+                values.append(''.join(c for c in element.text if ord(c) >= 32 and not 127 <= ord(c) <= 159).strip())
     return values
 
 
@@ -66,6 +66,8 @@ def parse_records(xml: bytes, limit: int, language: str | None) -> list[Book]:
         if not marker and control008 and len(control008) >= 38:
             marker = control008[35:38].lower()
         parsed_lang = {"ger": "de", "deu": "de", "eng": "en"}.get(marker, None)
+        if len(set(langs)) > 1:
+            parsed_lang = None
         # If a record explicitly carries a different language, don't mislabel it.
         if language and parsed_lang and parsed_lang != language:
             continue
@@ -75,11 +77,13 @@ def parse_records(xml: bytes, limit: int, language: str | None) -> list[Book]:
         for raw in _subfields(record, "020"):
             cleaned = re.sub(r"[^0-9X]", "", raw.split("(")[0].upper())
             isbn_values.append(cleaned)
-        books_isbn = isbn13(isbn_values)
+        books_isbn = isbn13(isbn_values) or next((canonical_isbn(n) for n in isbn_values if valid_isbn10(n)), None)
         records.append(Book(
             source="dnb", source_id=source_id, title=title, authors=authors,
             language=parsed_lang, year=int(match.group()) if match else None,
             cover_url=None, info_url=f"https://d-nb.info/{source_id}", isbn13=books_isbn,
+            isbns=tuple(dict.fromkeys(n for n in isbn_values if isbn13([n]) or valid_isbn10(n))),
+            description=' '.join(_subfields(record, '520'))[:6000] or None,
         ))
         if len(records) >= limit:
             break
@@ -91,17 +95,32 @@ class DNB(Provider):
     purpose = "metadata"
     min_interval = 1.5
 
-    async def search(self, client: httpx.AsyncClient, query: str, language: str | None, limit: int) -> list[Book]:
+    async def search(self, client: httpx.AsyncClient, query: str, language: str | None, limit: int, *, mode='all',page=1) -> list[Book]:
         # No CQL grammar from the input is accepted, only a conservative text query.
         words = re.findall(r"[\w-]+", query, flags=re.UNICODE)
         if not words:
             return []
         safe_title = " ".join(words)[:120]
-        cql = f'tit all "{safe_title}" and mat=books'
+        compact = re.sub(r'[^0-9X]', '', query.upper())
+        if isbn13([compact]):
+            cql = f'num="{compact}"'
+        elif mode=='author':
+            cql=f'per all "{safe_title}" and mat=books'
+        elif mode=='title':
+            cql=f'tit all "{safe_title}" and mat=books'
+        elif ' author:' in query:
+            title, author = query.split(' author:', 1)
+            title = ' '.join(re.findall(r'[\w-]+', title))
+            author = ' '.join(re.findall(r'[\w-]+', author))
+            cql = f'tit all "{title}" and per all "{author}" and mat=books'
+        else:
+            # The default index includes both title and author, unlike tit.
+            cql = f'woe all "{safe_title}" and mat=books'
         if language in ("de", "en"):
             cql += f' and spr={"ger" if language == "de" else "eng"}'
         params = {"version": "1.1", "operation": "searchRetrieve", "recordSchema": "MARC21-xml",
                   "maximumRecords": min(limit, 30), "query": cql}
+        if page>1:params['startRecord']=(page-1)*25+1
         async with self._lock:
             delay = max(0.0, self.min_interval - (monotonic() - self._last_request))
             if delay:
@@ -122,3 +141,6 @@ class DNB(Provider):
                         raise ProviderError(type(exc).__name__) from exc
                     await asyncio.sleep(0.5 * (2 ** attempt))
         raise ProviderError("dnb_retry_exhausted")
+
+    async def search_page(self,client,query,language,limit,page,mode):
+        return await self.search(client,query,language,min(limit,25),mode=mode,page=page)
