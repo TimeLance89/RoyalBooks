@@ -132,5 +132,5 @@ async def test_api_requires_token_and_delivered_job(tmp_path, monkeypatch):
         assert (await client.get("/api/jobs/"+"a"*32+"/library-check",headers=hdr)).status_code == 404
         result = await client.get(url,headers=hdr)
         assert result.status_code == 200
-        assert result.json()["verification"]["status"] == "identical_epub_present"
+        assert result.json()["verification"]["status"] == "legacy_unverified"
         assert (await client.get("/api/jobs/invalid/library-check",headers=hdr)).status_code == 422

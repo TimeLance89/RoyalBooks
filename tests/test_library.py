@@ -59,6 +59,7 @@ def test_symlink_cannot_escape(library,tmp_path):
 
 @pytest.mark.asyncio
 async def test_library_api_authentication_and_file_access(library,monkeypatch):
+    monkeypatch.setenv('ROYALBOOKS_LIBRARY_BACKEND','calibre-readonly')
     monkeypatch.setenv('ROYALBOOKS_CWA_LIBRARY_PATH',str(library))
     monkeypatch.setenv('ROYALBOOKS_API_TOKEN','test-library-key')
     monkeypatch.delenv('ROYALBOOKS_TRUSTED_NETWORKS',raising=False)

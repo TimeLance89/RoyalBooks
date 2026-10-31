@@ -15,15 +15,21 @@ services:
       ROYALBOOKS_DOWNLOADS_ENABLED: ${ROYALBOOKS_DOWNLOADS_ENABLED:-1}
       ROYALBOOKS_STORE_REFRESH_ENABLED: ${ROYALBOOKS_STORE_REFRESH_ENABLED:-1}
       ROYALBOOKS_ENABLE_LEGACY_WORKER: ${ROYALBOOKS_ENABLE_LEGACY_WORKER:-0}
-      ROYALBOOKS_CWA_INGEST_PATH: ${ROYALBOOKS_CWA_INGEST_PATH:+/cwa-ingest}
-      ROYALBOOKS_CWA_LIBRARY_PATH: ${ROYALBOOKS_CWA_LIBRARY_PATH:+/cwa-library}
+      ROYALBOOKS_LIBRARY_BACKEND: bookorbit
+      ROYALBOOKS_BOOKORBIT_URL: ${ROYALBOOKS_BOOKORBIT_URL:-}
+      ROYALBOOKS_BOOKORBIT_PUBLIC_URL: ${ROYALBOOKS_BOOKORBIT_PUBLIC_URL:-}
+      ROYALBOOKS_BOOKORBIT_INGEST_PATH: ${ROYALBOOKS_BOOKORBIT_INGEST_PATH:+/bookorbit-ingest}
+      ROYALBOOKS_BOOKORBIT_LIBRARY_PATH: ${ROYALBOOKS_BOOKORBIT_LIBRARY_PATH:+/bookorbit-library}
+      ROYALBOOKS_BOOKORBIT_SECRET_FILE: /run/secrets/bookorbit.env
+      ROYALBOOKS_BOOKORBIT_VERIFY_IMPORT: ${ROYALBOOKS_BOOKORBIT_VERIFY_IMPORT:-0}
     volumes:
       - "${ROYALBOOKS_DATA_PATH:-./data}:/data"
-      # Set ROYALBOOKS_CWA_INGEST_PATH to the SAME host directory mounted into CWA.
-      # Without it, downloads remain staged on RoyalBooks and cannot reach Calibre.
-      - "${ROYALBOOKS_CWA_INGEST_PATH:-./data/disabled-ingest}:/cwa-ingest"
-      # Strictly read-only bind mount. Never change Calibre's metadata.db.
-      - "${ROYALBOOKS_CWA_LIBRARY_PATH:-./data/disabled-library}:/cwa-library:ro"
+      # Dedicated Book Dock, never a normal BookOrbit library.
+      - "${ROYALBOOKS_BOOKORBIT_INGEST_PATH:-./data/disabled-bookorbit-ingest}:/bookorbit-ingest"
+      - "${ROYALBOOKS_BOOKORBIT_LIBRARY_PATH:-./data/disabled-bookorbit-library}:/bookorbit-library:ro"
+      - "${ROYALBOOKS_SECRETS_PATH:-./secrets}:/run/secrets:ro"
+    group_add:
+      - "${ROYALBOOKS_BOOKORBIT_GID:-1000}"
     read_only: true
     tmpfs:
       - /tmp

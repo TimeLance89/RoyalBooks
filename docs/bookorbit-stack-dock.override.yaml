@@ -1,0 +1,13 @@
+# EXAMPLE for BookOrbit's own stack, not RoyalBooks. Review before applying.
+# Keep the original compose files, appdata/PG volumes, ports and environment.
+# Confirm /data/book-dock is empty first: this mount hides its previous contents.
+services:
+  app:
+    environment:
+      BOOK_DOCK_PATH: /data/book-dock
+    volumes:
+      - type: bind
+        source: /volume2/bookorbit-inbox
+        target: /data/book-dock
+        bind:
+          create_host_path: false

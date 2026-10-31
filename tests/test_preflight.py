@@ -1,7 +1,7 @@
 """Offline container preflight tests: diagnostics never mutate CWA paths."""
 import sqlite3
 
-from royalbooks.preflight import diagnose
+from royalbooks.preflight import diagnose_legacy as diagnose
 
 
 def test_unconfigured_system_reports_review_not_false_success(tmp_path):

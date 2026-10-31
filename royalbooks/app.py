@@ -21,7 +21,7 @@ from royalbooks.jobs import JobStateError, JobStore, require_token, worker
 from royalbooks.gutenberg_catalog import catalog_status
 from royalbooks.gutenberg_formats import format_status, lookup_epub
 from royalbooks.handoff import observe_handoff
-from royalbooks.calibre_verify import verify_library_presence
+from royalbooks.bookorbit import Config as BookOrbitConfig, Client as BookOrbitClient, Handoffs, BookOrbitError
 from royalbooks.preflight import diagnose
 from royalbooks.catalog_admin import CatalogImportService, CatalogImportBusy
 from royalbooks.watchlist import WatchlistStore, WatchlistFull
@@ -49,7 +49,8 @@ from royalbooks.engine_status import read_status as engine_status
 
 
 def downloads_enabled() -> bool:
-    return os.getenv('ROYALBOOKS_DOWNLOADS_ENABLED', '1') != '0'
+    return (os.getenv('ROYALBOOKS_DOWNLOADS_ENABLED', '1') != '0'
+            and os.getenv('ROYALBOOKS_LIBRARY_BACKEND', 'bookorbit') == 'bookorbit')
 
 
 @asynccontextmanager
@@ -66,8 +67,10 @@ async def lifespan(app: FastAPI):
     sources = configured_providers()
     app.state.providers = {p.name: p for p in sources}
     app.state.hoster_jobs = HosterJobs(path)
+    app.state.bookorbit = BookOrbitClient(BookOrbitConfig.environment())
+    app.state.handoffs = Handoffs(path, BookOrbitConfig.environment().ingest)
     data = Path(path).parent
-    ingest_path = os.getenv('ROYALBOOKS_CWA_INGEST_PATH', '').strip()
+    ingest_path = BookOrbitConfig.environment().ingest
     app.state.search_client = httpx.AsyncClient(
         timeout=httpx.Timeout(5.0), follow_redirects=False, trust_env=False,
         limits=httpx.Limits(max_connections=8, max_keepalive_connections=8),
@@ -81,8 +84,9 @@ async def lifespan(app: FastAPI):
     storefront_task = (asyncio.create_task(app.state.storefront.run())
                        if os.getenv('ROYALBOOKS_STORE_REFRESH_ENABLED', '1') != '0' else None)
     task = None
+    reconciliation_task = asyncio.create_task(app.state.handoffs.reconcile(app.state.bookorbit))
     hoster_task = asyncio.create_task(hoster_worker(app.state.hoster_jobs,app.state.providers['byte'],
-        app.state.search_client,Path(ingest_path) if ingest_path else None)) if os.getenv('ROYALBOOKS_HOSTER_ENABLED')=='1' and os.getenv('ROYALBOOKS_API_TOKEN') else None
+        app.state.search_client,Path(ingest_path) if ingest_path else None)) if downloads_enabled() and os.getenv('ROYALBOOKS_HOSTER_ENABLED')=='1' and os.getenv('ROYALBOOKS_API_TOKEN') else None
     if downloads_enabled() and os.getenv('ROYALBOOKS_API_TOKEN'):
         task = asyncio.create_task(worker(app.state.jobs, data,
             Path(ingest_path) if ingest_path else None, app.state.providers.get('gutendex'),
@@ -90,6 +94,8 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        reconciliation_task.cancel()
+        with suppress(asyncio.CancelledError):await reconciliation_task
         if hoster_task is not None:
             hoster_task.cancel()
             with suppress(asyncio.CancelledError):await hoster_task
@@ -101,6 +107,7 @@ async def lifespan(app: FastAPI):
         await app.state.discovery.close()
         await app.state.availability.close()
         await app.state.search_client.aclose()
+        await app.state.bookorbit.close()
         await app.state.catalog_imports.close()
         if task is not None:
             task.cancel()
@@ -396,8 +403,8 @@ class PreferenceUpdate(BaseModel):
 @app.get('/api/settings')
 async def platform_preferences(_admin: None = Depends(admin_access)):
     return {'preferences':await asyncio.to_thread(app.state.preferences.get),
-            'connections':{'library':bool(os.getenv('ROYALBOOKS_CWA_LIBRARY_PATH')),
-                           'ingest':bool(os.getenv('ROYALBOOKS_CWA_INGEST_PATH')),
+            'connections':{'backend':'bookorbit','library':bool(BookOrbitConfig.environment().url),
+                           'ingest':bool(BookOrbitConfig.environment().ingest),
                            'downloads':downloads_enabled()}}
 
 
@@ -437,16 +444,26 @@ async def library_books(q: str = Query(default='', max_length=120),
                         offset: int = Query(default=0, ge=0, le=100000),
                         _admin: None = Depends(admin_access)):
     try:
-        result = await asyncio.to_thread(bookshelf, os.getenv('ROYALBOOKS_CWA_LIBRARY_PATH'),
-                                         q, sort, limit, offset)
+        if os.getenv('ROYALBOOKS_LIBRARY_BACKEND') == 'calibre-readonly':
+            result = await asyncio.to_thread(bookshelf, os.getenv('ROYALBOOKS_CWA_LIBRARY_PATH'), q, sort, limit, offset)
+        else:
+            result = await orbit_client().shelf(q, sort, limit, offset)
         return JSONResponse(result, headers={'Cache-Control':'no-store'})
-    except LibraryUnavailable as exc:
+    except (LibraryUnavailable, BookOrbitError) as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @app.get('/api/library/{book_id}/{kind}')
 async def library_asset(book_id: int = ApiPath(gt=0), kind: Literal['cover', 'epub'] = 'cover',
                         _admin: None = Depends(admin_access)):
+    if os.getenv('ROYALBOOKS_LIBRARY_BACKEND') != 'calibre-readonly':
+        try:
+            payload = await orbit_client().asset(book_id, kind)
+            return Response(payload, media_type='image/jpeg' if kind == 'cover' else 'application/epub+zip',
+                            headers={'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff',
+                                     **({'Content-Disposition':f'attachment; filename="bookorbit-{book_id}.epub"'} if kind=='epub' else {})})
+        except BookOrbitError as exc:
+            raise HTTPException(status_code=404 if str(exc)=='bookorbit_http_404' else 503, detail=str(exc)) from exc
     try:
         file = await asyncio.to_thread(library_file, os.getenv('ROYALBOOKS_CWA_LIBRARY_PATH'), book_id, kind)
     except LibraryUnavailable as exc:
@@ -602,33 +619,59 @@ async def delete_watchlist_item(
     return {"removed": True}
 
 
+def orbit_client():
+    client = getattr(app.state, 'bookorbit', None)
+    if client is None:
+        client = app.state.bookorbit = BookOrbitClient(BookOrbitConfig.environment())
+    return client
+
+
+@app.get('/api/bookorbit/status')
+async def bookorbit_status(_admin: None = Depends(admin_access)):
+    return await orbit_client().connection()
+
+
+@app.post('/api/bookorbit/test')
+async def bookorbit_test(_admin: None = Depends(admin_access)):
+    config = BookOrbitConfig.environment()
+    connection = await orbit_client().connection()
+    storage = await asyncio.to_thread(diagnose,
+        data_path=str(Path(app.state.jobs.path).parent), ingest_path=config.ingest or None,
+        library_path=config.library or None, write_test=True)
+    return {'connection':connection,'storage':storage,
+            'notice':'Prüfdateien enden auf .part und werden entfernt. Kein Buchimport wird ausgelöst.'}
+
+
 @app.get('/api/preflight')
 async def preflight_status(_admin: None = Depends(admin_access)):
-    """Authenticated, read-only NAS/CWA checks; no path or token disclosure."""
+    """Authenticated BookOrbit storage checks; no credentials disclosed."""
     root = str(Path(os.getenv("ROYALBOOKS_DB_PATH", "/data/royalbooks.sqlite3")).parent)
     return await asyncio.to_thread(
         diagnose,
         data_path=root,
-        ingest_path=os.getenv("ROYALBOOKS_CWA_INGEST_PATH") or None,
-        library_path=os.getenv("ROYALBOOKS_CWA_LIBRARY_PATH") or None,
+        ingest_path=BookOrbitConfig.environment().ingest or None,
+        library_path=BookOrbitConfig.environment().library or None,
         api_token=os.getenv("ROYALBOOKS_API_TOKEN") or None,
     )
 
 
 @app.get('/api/jobs')
 async def list_jobs(_admin: None = Depends(admin_access)):
-    ingest_path = os.getenv('ROYALBOOKS_CWA_INGEST_PATH', '').strip()
+    ingest_path = BookOrbitConfig.environment().ingest
     ingest = Path(ingest_path) if ingest_path else None
     staging = Path(app.state.jobs.path).parent / 'staging'
     records = await asyncio.to_thread(app.state.jobs.list)
     records = await asyncio.to_thread(apply_labels,app.state.jobs.path,records)
     for job in records:
-        job['handoff_observation'] = await asyncio.to_thread(observe_handoff, job, staging, ingest)
+        journal = Handoffs(app.state.jobs.path, ingest)
+        job['library_transfer'] = await asyncio.to_thread(journal.describe, job)
+        job['handoff_observation'] = await asyncio.to_thread(observe_handoff, job, staging, ingest) if job['library_transfer']['backend']=='legacy' else None
     return {'jobs': records, 'legacy_worker_enabled': os.getenv('ROYALBOOKS_ENABLE_LEGACY_WORKER') == '1',
             'downloads_enabled': downloads_enabled(),
             'ingest_configured': bool(ingest_path),
-            'library_configured': bool(os.getenv('ROYALBOOKS_CWA_LIBRARY_PATH', '').strip()),
-            'handoff_notice': 'A disappearing ingest file does not confirm a successful Calibre import.'}
+            'library_configured': bool(BookOrbitConfig.environment().url),
+            'library_backend': 'bookorbit',
+            'handoff_notice': 'A disappearing Book Dock file does not confirm a successful BookOrbit import.'}
 
 
 @app.get('/api/hosters/catalog')
@@ -647,7 +690,10 @@ async def hoster_catalog(request:Request,q:str=Query(default='',max_length=140),
 @app.get('/api/hosters')
 async def hoster_status(_admin:None=Depends(admin_access)):
     store=app.state.hoster_jobs
-    return {'configured':store.ready(),'jobs':await asyncio.to_thread(store.list),
+    records=await asyncio.to_thread(store.list)
+    journal=Handoffs(store.path,BookOrbitConfig.environment().ingest)
+    for job in records:job['library_transfer']=await asyncio.to_thread(journal.describe,job)
+    return {'configured':store.ready(),'jobs':records,
             'engine':await asyncio.to_thread(engine_status,store.root),
             'control_url':os.getenv('ROYALBOOKS_HOSTER_CONTROL_URL',''),
             'notice':'Free hosters may require waiting or manual captchas in the download engine.'}
@@ -713,10 +759,9 @@ async def library_check(
     job_id: str = ApiPath(min_length=32, max_length=32, pattern=r'^[0-9a-f]{32}$'),
     _admin: None = Depends(admin_access),
 ):
-    """Check only for an identical file registered in the read-only Calibre DB."""
     job = await asyncio.to_thread(app.state.jobs.get, job_id)
     if job is None:
         raise HTTPException(status_code=404, detail='job_not_found')
-    location = os.getenv('ROYALBOOKS_CWA_LIBRARY_PATH', '').strip()
-    verification = await asyncio.to_thread(verify_library_presence, job, location)
+    journal = Handoffs(app.state.jobs.path, BookOrbitConfig.environment().ingest)
+    verification = await journal.verify(job, orbit_client())
     return {'job_id': job_id, 'verification': verification}

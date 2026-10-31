@@ -1,0 +1,18 @@
+# Existing NAS BookOrbit app-data volume: expose ONLY its Book Dock subfolder.
+# Requires Docker Engine >=26 and Compose support for volume.subpath.
+# Existing volume must already contain book-dock; do not create/replace it.
+services:
+  royalbooks:
+    environment:
+      ROYALBOOKS_BOOKORBIT_INGEST_PATH: /bookorbit-ingest
+    volumes:
+      - type: volume
+        source: bookorbit-appdata
+        target: /bookorbit-ingest
+        volume:
+          nocopy: true
+          subpath: book-dock
+volumes:
+  bookorbit-appdata:
+    external: true
+    name: ${BOOKORBIT_APPDATA_VOLUME:-bookorbit_bookorbit_appdata}

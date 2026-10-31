@@ -1,4 +1,4 @@
-"""Restart-safe, opt-in Gutenberg EPUB ingest; never modifies Calibre metadata.db."""
+"""Restart-safe, authorized EPUB acquisition and BookOrbit Book Dock handoff."""
 from __future__ import annotations
 
 import asyncio
@@ -116,6 +116,12 @@ class JobStore:
                 db.execute("ALTER TABLE jobs ADD COLUMN v2_authorized INTEGER NOT NULL DEFAULT 0")
             if "retry_at" not in columns:
                 db.execute("ALTER TABLE jobs ADD COLUMN retry_at INTEGER")
+            if "library_backend" not in columns:
+                db.execute("ALTER TABLE jobs ADD COLUMN library_backend TEXT NOT NULL DEFAULT 'legacy'")
+                # A validated file prepared for another backend needs review.
+                # Delivered history must never be replayed into BookOrbit.
+                db.execute("UPDATE jobs SET status='needs_review',error='backend_migration_review' WHERE status='staged'")
+                db.execute("UPDATE jobs SET library_backend='bookorbit' WHERE status='queued'")
             # Download attempts are counted on claim, including interrupted attempts.
             db.execute("""UPDATE jobs SET status='failed', error='interrupted_attempt_limit',
                         updated_at=CURRENT_TIMESTAMP
@@ -136,7 +142,7 @@ class JobStore:
         if source not in {"gutendex", "gutenberg_catalog", *SOURCES}:
             raise JobStateError("unsupported_source")
         with self._db() as db:
-            db.execute("INSERT OR IGNORE INTO jobs(id,source,source_id,status,v2_authorized) VALUES (?,?,?,'queued',?)",
+            db.execute("INSERT OR IGNORE INTO jobs(id,source,source_id,status,v2_authorized,library_backend) VALUES (?,?,?,'queued',?,'bookorbit')",
                        (uuid.uuid4().hex, source, source_id, int(v2_authorized)))
             if v2_authorized:
                 db.execute("UPDATE jobs SET v2_authorized=1 WHERE source=? AND source_id=? AND status='queued'",
@@ -332,7 +338,10 @@ async def process_queued(job: dict, store: JobStore, staging: Path, client: http
             size = await download_libgen(client, url, temporary)
         else:
             size = await download_epub(client, url, temporary, source=job["source"])
+        from royalbooks.bookorbit import phase
+        await asyncio.to_thread(phase, store.path, job['id'], 'download_complete')
         digest = validate_epub(temporary)
+        await asyncio.to_thread(phase, store.path, job['id'], 'validated')
         if job['source'] == 'libgen':
             with temporary.open('rb') as downloaded:
                 actual_md5 = hashlib.file_digest(downloaded, 'md5').hexdigest()
@@ -358,38 +367,9 @@ async def process_queued(job: dict, store: JobStore, staging: Path, client: http
 
 
 def deliver_staged(job: dict, store: JobStore, staging: Path, ingest: Path) -> None:
-    """Atomic destination rename, then mark handed off. CWA confirms import separately."""
-    source = staging / (job['id'] + '.epub')
-    dest = ingest / (f"gutenberg-{job['source_id']}-{job['id']}.epub")
-    temporary = ingest / (f".{job['id']}.part")
-    try:
-        if not source.is_file():
-            raise AcquisitionError('staged_file_missing')
-        if not job.get("sha256") or validate_epub(source) != job["sha256"]:
-            raise AcquisitionError("staged_file_hash_mismatch")
-        if dest.exists():
-            raise AcquisitionError("ingest_filename_already_exists")
-        # Never invent an ingest folder: Docker/CWA may be watching a different mount.
-        # A missing directory means the handoff is uncertain and needs manual review.
-        if not ingest.is_dir():
-            raise AcquisitionError("ingest_directory_missing")
-        if ingest.is_symlink():
-            raise AcquisitionError("ingest_symlink_forbidden")
-        # If the directory was misconfigured to overlap our staging, refuse.
-        if ingest.resolve() == staging.resolve() or ingest.resolve().is_relative_to(staging.resolve()):
-            raise AcquisitionError("ingest_overlaps_staging")
-        with source.open('rb') as input_file, temporary.open('xb') as output_file:
-            shutil.copyfileobj(input_file, output_file)
-            output_file.flush()
-            os.fsync(output_file.fileno())
-        os.replace(temporary, dest)
-        store.update(job['id'], 'delivered')
-        source.unlink(missing_ok=True)
-    except Exception as exc:
-        # A crash during delivery goes to needs_review on restart; never auto-repeat blindly.
-        store.update(job['id'], 'needs_review', error=(str(exc) if isinstance(exc, AcquisitionError) else type(exc).__name__)[:120])
-    finally:
-        temporary.unlink(missing_ok=True)
+    """Publish only to BookOrbit Book Dock; never to the legacy CWA backend."""
+    from royalbooks.bookorbit import Handoffs
+    Handoffs(store.path, ingest).deliver(job, store, staging)
 
 
 async def worker(store: JobStore, data_dir: Path, ingest: Path | None,

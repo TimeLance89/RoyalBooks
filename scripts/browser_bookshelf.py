@@ -18,7 +18,7 @@ def main():
         db.close()
         with socket.socket() as sock:sock.bind(('127.0.0.1',0));port=sock.getsockname()[1]
         base=f'http://127.0.0.1:{port}'
-        env={**os.environ,'ROYALBOOKS_DB_PATH':str(root/'royalbooks.sqlite3'),'ROYALBOOKS_CWA_LIBRARY_PATH':str(library),'ROYALBOOKS_API_TOKEN':'fixture-key','ROYALBOOKS_TRUSTED_NETWORKS':'127.0.0.1/32','ROYALBOOKS_STORE_REFRESH_ENABLED':'0','ROYALBOOKS_DOWNLOADS_ENABLED':'0'}
+        env={**os.environ,'ROYALBOOKS_DB_PATH':str(root/'royalbooks.sqlite3'),'ROYALBOOKS_LIBRARY_BACKEND':'calibre-readonly','ROYALBOOKS_CWA_LIBRARY_PATH':str(library),'ROYALBOOKS_API_TOKEN':'fixture-key','ROYALBOOKS_TRUSTED_NETWORKS':'127.0.0.1/32','ROYALBOOKS_STORE_REFRESH_ENABLED':'0','ROYALBOOKS_DOWNLOADS_ENABLED':'0'}
         process=subprocess.Popen([sys.executable,'-m','uvicorn','royalbooks.app:app','--host','127.0.0.1','--port',str(port)],cwd=ROOT,env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
         try:
             for _ in range(100):

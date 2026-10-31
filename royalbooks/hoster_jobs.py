@@ -36,6 +36,9 @@ class HosterJobs:
             if 'attempts' not in columns:db.execute('ALTER TABLE hoster_jobs ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0')
             if 'retry_at' not in columns:db.execute('ALTER TABLE hoster_jobs ADD COLUMN retry_at INTEGER')
             if 'dispatch_sequence' not in columns:db.execute('ALTER TABLE hoster_jobs ADD COLUMN dispatch_sequence INTEGER NOT NULL DEFAULT 0')
+            if 'library_backend' not in columns:
+                db.execute("ALTER TABLE hoster_jobs ADD COLUMN library_backend TEXT NOT NULL DEFAULT 'legacy'")
+                db.execute("UPDATE hoster_jobs SET status='needs_review',error='backend_migration_review' WHERE status='staged'")
             db.execute("UPDATE hoster_jobs SET status='needs_review',error='interrupted_handoff' WHERE status='delivering'")
             db.execute("UPDATE hoster_jobs SET status='needs_review',error='interrupted_dispatch' WHERE status='resolving'")
 
@@ -47,7 +50,7 @@ class HosterJobs:
         if not self.ready():raise ProviderError('hoster_engine_not_configured')
         now=int(time.time())
         with connect(self.path,timeout=10) as db:
-            db.execute("INSERT OR IGNORE INTO hoster_jobs(id,source_id,status,book,created_at,updated_at) VALUES(?,?,'queued',?,?,?)",
+            db.execute("INSERT OR IGNORE INTO hoster_jobs(id,source_id,status,book,created_at,updated_at,library_backend) VALUES(?,?,'queued',?,?,?,'bookorbit')",
                 (uuid.uuid4().hex,book['source_id'],json.dumps(book),now,now))
             db.row_factory=__import__('sqlite3').Row
             row=dict(db.execute('SELECT * FROM hoster_jobs WHERE source_id=?',(book['source_id'],)).fetchone())
@@ -165,6 +168,9 @@ class HosterJobs:
         shutil.copyfile(source,temp)
         if validate_epub(temp)!=digest:temp.unlink(missing_ok=True);raise AcquisitionError('hoster_file_changed')
         os.replace(temp,target)
+        from royalbooks.bookorbit import phase
+        phase(self.path,job['id'],'download_complete')
+        phase(self.path,job['id'],'validated')
         self.update(job['id'],'staged',sha256=digest,file_size=target.stat().st_size)
         return True
 

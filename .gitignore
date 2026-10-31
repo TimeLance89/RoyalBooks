@@ -9,3 +9,5 @@ data/
 backups/
 .codex-*
 *.egg-info/
+
+secrets/

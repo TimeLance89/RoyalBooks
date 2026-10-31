@@ -69,7 +69,8 @@ async def test_actual_background_worker_through_mock_cwa_library(tmp_path, monke
 
     sent = list(ingest.glob("*.epub"))
     assert len(sent) == 1 and sent[0].read_bytes() == ebook
-    assert observe_handoff(store.get(job["id"]), data / "staging", ingest) == "awaiting_ingest"
+    from royalbooks.bookorbit import Handoffs
+    assert Handoffs(store.path,ingest).describe(store.get(job["id"]))["status"] == "dock_present"
     assert verify_library_presence(store.get(job["id"]), str(library))["status"] == "calibre_metadata_missing"
 
     # CWA is simulated: an independent consumer moves the file and registers it.

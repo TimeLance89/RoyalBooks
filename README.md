@@ -7,7 +7,7 @@ API keys are **not required**.
 
 ## What actually works
 
-- Calibre bookshelf as the home screen, with original covers, local title/author
+- BookOrbit bookshelf, with original covers, local title/author
   search, recent/title/author sorting, grid/list view and EPUB downloads to the
   current device. Desktop sidebar and mobile bottom navigation separate library,
   discovery, watchlist and downloads. Light/dark and view preferences persist;
@@ -24,9 +24,9 @@ API keys are **not required**.
   retain every source record and ISBN. Filename/catalog language is never file
   verification. Cover previews and descriptions appear when a source supplies them.
 - Desktop/mobile detail dialog, source diagnostics, persistent watchlist,
-  download center, storage preflight and read-only Calibre presence check.
+  download center, storage preflight and BookOrbit connection, storage and import checks.
 - Source-bound EPUB jobs with persistent attempts, allowlisted redirects,
-  32 MiB cap, ZIP/CRC/EPUB checks, SHA-256 deduplication and guarded CWA handoff.
+  32 MiB cap, ZIP/CRC/EPUB checks, SHA-256 deduplication and journaled BookOrbit Book Dock handoff.
   New jobs require a RoyalBooks administrator token and explicit rights consent.
   Ordinary search requires no token.
 
@@ -42,43 +42,48 @@ bypass is implemented. PDF/AZW3 acquisition is not implemented.
 See [source research](docs/source-research.md), [implementation plan](docs/royalbooks-2-plan.md)
 and [test report](docs/test-report.md) for measured outcomes and limitations.
 
-## Docker / NAS
+## BookOrbit / Docker / NAS
+
+RoyalBooks now uses **BookOrbit**, not Calibre-Web Automated, for new deliveries.
+Book Dock, metadata processing and confirmed library import are separate states.
+The existing sources, SQLite data, queues, watchlist and UI sections remain.
+
+See [the complete NAS migration and verification guide](docs/bookorbit-migration.md).
+It includes the checked BookOrbit v3.6.0 API, secret-file setup, UID permissions,
+existing-volume sharing, rollback and the actual NAS test outcome.
 
 ```sh
+cp .env.example .env
+# Configure the BookOrbit URL and a dedicated shared Book Dock.
+# Keep credentials in secrets/bookorbit.env, owned by UID 10001, mode 0400/0600.
 docker compose build royalbooks
 docker compose up -d royalbooks
 ```
 
-The service runs as UID/GID **10001:10001**, with a read-only application
-filesystem, writable `/data`, no Docker socket and no extra container. Existing
-bind mounts and `.env` settings remain supported. The default bind address is
-`127.0.0.1:8094`; set `ROYALBOOKS_BIND_IP` to your NAS LAN address when needed.
-
-`ROYALBOOKS_DATA_PATH` defaults to `./data`. Its host directory must be writable
-by UID 10001. Do not recursively change permissions on the Calibre library.
-
-Optional settings:
+RoyalBooks runs as UID/GID **10001:10001**, with optional supplementary group 1000,
+a read-only application filesystem, persistent `/data` and no Docker socket.
+Port 8094 defaults to loopback. The NAS needs separate Book Dock and library paths.
+The library bind is optional and read-only; browsing/downloads use BookOrbit's API.
+There is no active `metadata.db` dependency or CWA handoff.
 
 | Variable | Meaning |
 | --- | --- |
-| `ROYALBOOKS_API_TOKEN` | Protects watchlist, queue, catalog imports and NAS diagnostics. Search works without it; downloads remain disabled without a token. Enter once in the administration panel and choose **Dieses Gerät anmelden**. A revocable HttpOnly session lasts seven days; the API token is never persisted in browser storage. |
-| `ROYALBOOKS_CWA_INGEST_PATH` | Actual **host** directory mounted as `/cwa-book-ingest` in CWA. RoyalBooks mounts it as `/cwa-ingest`; UID 10001 needs write access. |
-| `ROYALBOOKS_CWA_LIBRARY_PATH` | Actual **host** Calibre library directory; mounted read-only in RoyalBooks. Supplies the bookshelf, covers, existing EPUB files and optional presence checks. |
-| `ROYALBOOKS_DOWNLOADS_ENABLED=0` | Pauses automatic processing and new/retried jobs. Default is enabled for newly consented v2 jobs. |
-| `ROYALBOOKS_ENABLE_LEGACY_WORKER=1` | Explicitly resumes historic backlog as well. Default 0 preserves it paused. |
-| `GOOGLE_BOOKS_API_KEY` | Optional extra metadata source; never required. |
+| `ROYALBOOKS_LIBRARY_BACKEND` | Default `bookorbit`; Compose fixes this backend. |
+| `ROYALBOOKS_BOOKORBIT_URL` | Reachable server origin; internal container names require a shared network. |
+| `ROYALBOOKS_BOOKORBIT_PUBLIC_URL` | BookOrbit link for users' browsers. |
+| `ROYALBOOKS_BOOKORBIT_INGEST_PATH` | Host folder shared with Book Dock; empty means staging only. Existing named volumes can use the dedicated subpath overlay. |
+| `ROYALBOOKS_BOOKORBIT_LIBRARY_PATH` | Optional read-only host library path for isolation/storage checks. |
+| `ROYALBOOKS_SECRETS_PATH` | Host secrets directory, default `./secrets`; contains `bookorbit.env`. |
+| `ROYALBOOKS_BOOKORBIT_VERIFY_IMPORT` | Default 0. Enable API checks after configuring the dedicated BookOrbit user. |
+| `ROYALBOOKS_API_TOKEN` | RoyalBooks management token; separate from BookOrbit credentials. |
+| `ROYALBOOKS_DOWNLOADS_ENABLED=0` | Pause acquisitions and handoffs. |
+| `ROYALBOOKS_ENABLE_LEGACY_WORKER=1` | Explicit release of historic authorized backlog; default 0. |
 
-The CWA ingest folder and RoyalBooks storage must be separate. A `delivered`
-status means handed to the ingest folder; it does not establish successful
-Calibre import. An identical file found in the read-only library check proves
-presence, not which job caused it. RoyalBooks never writes `metadata.db`.
-
-The authenticated `/api/library` endpoint lists existing Calibre books with
-bounded pagination (`q`, `sort`, `limit`, `offset`). `/api/library/{id}/cover`
-and `/api/library/{id}/epub` resolve only files registered inside that library;
-metadata paths, directory traversal and symlinks cannot expose outside files.
-An EPUB can be downloaded and opened with the device's reading app. An in-browser
-EPUB reader, reading progress sync and Kindle delivery are not implemented.
+`POST /api/bookorbit/test` tests login and temporary `.part` storage probes; it
+never imports a book. `/api/library` and library assets proxy the authenticated
+BookOrbit API without exposing its credentials. Native sessions refresh server-side.
+The settings page explains missing credentials and distinguishes reachable from
+successfully authenticated. A disappeared Book Dock file never means import success.
 
 Search returns 30 records per source by default, with an optional 60-record
 selection. The known author misspelling "Steven King" is normalized to "Stephen
@@ -86,7 +91,7 @@ King" and visibly reported. Other misspellings are not silently rewritten.
 Memory of the World is an independent community library with mostly scholarly,
 English-language material; declared German/English language filters remain
 strict. Only source-listed HTTPS EPUB paths under its pinned `/files/` origin
-are eligible for the normal validated transfer and CWA handoff.
+are eligible for the normal validated transfer and BookOrbit handoff.
 
 Normal search is intended for a LAN. Protect Internet exposure with an
 authenticating reverse proxy. Public search has a per-client quota; personal
@@ -95,7 +100,7 @@ history and management remain token-protected.
 ## Safe upgrade
 
 Back up the SQLite database and current Compose/.env files before upgrading.
-Job migrations add `v2_authorized` and `retry_at` when absent. Existing books,
+Job migrations add authorization/retry/backend columns when absent. Old delivered jobs are never replayed into BookOrbit; old staged files require review. Existing books,
 watchlist and job history are preserved. Historic queued/staged jobs are paused
 unless the legacy flag is explicitly enabled. A newly confirmed request can
 release the corresponding old queued job; retry remains limited to classified
@@ -131,12 +136,14 @@ python -m royalbooks.source_audit --live --download-publisher-epub
 pip install -e '.[browser]'
 python -m playwright install chromium
 python scripts/browser_smoke.py                     # desktop/mobile, explicit fixtures
-python scripts/nas_cwa_audit.py                      # read-only actual Docker mounts
+python scripts/nas_bookorbit_audit.py                # read-only actual Docker mounts
+python scripts/browser_bookorbit.py                  # real UI/API, local protocol fixture
+python scripts/bookorbit_e2e.py                      # dry run; explicit opt-in for live test
 ```
 
 The live audit uses an isolated temporary database. Its optional file checks
 use publisher-listed historical public-domain titles; they do not write to the
-production queue or Calibre library. Network refusals are reported as failures.
+production queue or existing library. Network refusals are reported as failures.
 Reproducing a run later may yield different results as catalogs and hosts change.
 GitHub Actions runs the full Linux suite, real browser checks, image build,
 non-root package checks and actual container startup.
@@ -208,8 +215,7 @@ session is sent to the browser. Store and search previews use these cached cover
 Book details show source descriptions when present; otherwise a selected exact
 ISBN or Open Library work can retrieve a bounded, cached Open Library synopsis.
 Work descriptions are labeled. No synopsis or bestseller rank is fabricated.
-The personal bookshelf also exposes descriptions already present in Calibre's
-comments table, read only.
+The personal bookshelf uses BookOrbit's published API; it never reads PostgreSQL directly.
 
 ## RoyalBooks platform sections
 

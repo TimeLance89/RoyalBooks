@@ -31,7 +31,7 @@ def _directory(path: str, *, writable: bool) -> tuple[Path | None, str]:
         return None, "not_accessible"
 
 
-def diagnose(*, data_path: str, ingest_path: str | None = None, library_path: str | None = None,
+def diagnose_legacy(*, data_path: str, ingest_path: str | None = None, library_path: str | None = None,
              api_token: str | None = None) -> dict[str, Any]:
     checks = []
     data, state = _directory(data_path, writable=True)
@@ -109,14 +109,70 @@ def diagnose(*, data_path: str, ingest_path: str | None = None, library_path: st
             "checks": checks, "changes_made": False}
 
 
+def diagnose(*, data_path: str, ingest_path: str | None = None, library_path: str | None = None,
+             api_token: str | None = None, write_test: bool = False) -> dict:
+    """BookOrbit storage preflight. Writes only explicitly requested .part probes."""
+    checks = []
+    roots = {}
+    for name, value, writable in [('data_mount', data_path, True),
+                                  ('bookorbit_ingest_mount', ingest_path, True),
+                                  ('bookorbit_library_mount', library_path, False)]:
+        if not value:
+            checks.append(_check(name, 'warning', 'Nicht konfiguriert'))
+            continue
+        root, state = _directory(value, writable=writable)
+        roots[name] = root
+        checks.append(_check(name, 'ok' if state == 'ok' else 'error',
+                             'Ordner erreichbar; Berechtigungen ausreichend' if state == 'ok' else state))
+        if root:
+            try:
+                free = shutil.disk_usage(root).free
+                checks.append(_check(name + '_space', 'ok' if free >= 128 * 1024 * 1024 else 'error',
+                                     f'{free // (1024 * 1024)} MiB frei'))
+            except OSError:
+                checks.append(_check(name + '_space', 'error', 'Speicherplatz nicht lesbar'))
+    ingest = roots.get('bookorbit_ingest_mount')
+    if ingest:
+        for name in ['data_mount', 'bookorbit_library_mount']:
+            other = roots.get(name)
+            if other and (ingest == other or ingest.is_relative_to(other) or other.is_relative_to(ingest)):
+                checks.append(_check('bookorbit_isolation', 'error', 'Eingang, Bibliothek und RoyalBooks-Daten müssen getrennt sein'))
+        if Path(ingest_path).is_symlink():
+            checks.append(_check('bookorbit_isolation', 'error', 'Eingangsordner darf kein Symlink sein'))
+    if write_test and ingest and not any(c['status'] == 'error' for c in checks):
+        import uuid
+        path = ingest / ('.royalbooks-probe-' + uuid.uuid4().hex + '.part')
+        published = path.with_name(path.stem + '-link.part')
+        try:
+            with path.open('xb') as stream:
+                stream.write(b'RoyalBooks Book Dock storage test\n')
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.link(path, published, follow_symlinks=False)
+            if published.read_bytes() != path.read_bytes():
+                raise OSError()
+            checks.append(_check('bookorbit_write_probe', 'ok', 'Schreiben, Lesen und atomare Veröffentlichung geprüft'))
+        except OSError:
+            checks.append(_check('bookorbit_write_probe', 'error', 'Schreiben oder atomare Veröffentlichung fehlgeschlagen'))
+        finally:
+            for probe in [path, published]:
+                try:
+                    probe.unlink(missing_ok=True)
+                except OSError:
+                    checks.append(_check('bookorbit_probe_cleanup', 'error', 'Prüfdatei konnte nicht entfernt werden'))
+    checks.append(_check('bookorbit_import', 'warning', 'Ordnerprüfung bestätigt weder Book-Dock-Verarbeitung noch Bibliotheksimport'))
+    return {'status': 'error' if any(c['status'] == 'error' for c in checks) else 'review_required',
+            'checks': checks, 'changes_made': False, 'write_probe_requested': write_test}
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Read-only RoyalBooks NAS/CWA preflight")
+    parser = argparse.ArgumentParser(description="RoyalBooks BookOrbit storage preflight")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
     report = diagnose(
         data_path=str(Path(os.getenv("ROYALBOOKS_DB_PATH", "/data/royalbooks.sqlite3")).parent),
-        ingest_path=os.getenv("ROYALBOOKS_CWA_INGEST_PATH") or None,
-        library_path=os.getenv("ROYALBOOKS_CWA_LIBRARY_PATH") or None,
+        ingest_path=os.getenv("ROYALBOOKS_BOOKORBIT_INGEST_PATH") or None,
+        library_path=os.getenv("ROYALBOOKS_BOOKORBIT_LIBRARY_PATH") or None,
         api_token=os.getenv("ROYALBOOKS_API_TOKEN") or None,
     )
     if args.json:
