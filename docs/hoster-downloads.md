@@ -128,3 +128,39 @@ References:
 - https://github.com/FlareSolverr/FlareSolverr/blob/master/README.md
 - https://github.com/ThePhaseless/Byparr/blob/main/README.md
 - https://github.com/mirror/jdownloader/blob/master/src/jd/plugins/decrypter/FileCryptCc.java
+
+
+## Solverr installation and live test (2026-10-31)
+
+The optional `compose.solverr.yaml` now starts Solverr 1.9.1 independently of
+RoyalBooks, JDownloader and Calibre. The downloaded image is pinned by digest;
+its OCI revision matches `36294f132b7020d2210be1a8965df9658023b82c`. There are no
+published ports or NAS bind mounts. The process is non-root, limited to 2 GiB RAM,
+2 CPUs and 512 PIDs. Both free browser engines are enabled; paid providers and
+API keys are explicitly disabled. Only the new service was started.
+
+Use the normal Compose files plus `-f compose.solverr.yaml` and start only
+`book-solverr` with `up -d --no-deps book-solverr`. Containers in the same Compose
+network reach it at `http://book-solverr:8191`. To stop this optional component,
+use the same Compose files with `stop book-solverr`; existing downloads remain
+independent. Keep port 8191 unpublished because the service has no authentication.
+
+Live evidence:
+- `/health` and `/` returned HTTP 200; the API reported version 1.9.1.
+- The user's exact Filecrypt container was tested with a shared 120-second
+  budget. Chrome timed out after about 60 seconds. Solverr automatically fell
+  back to Camoufox, which ended with "Challenge still present after solving
+  attempts". The service returned HTTP 500. The first report writer failed to
+  save its response due to directory permissions; the result is established
+  from the service log instead. No cookies or response HTML are committed.
+- A separate Byte.to category control returned actual HTTP-200 HTML with 200
+  ebook records in 5.83 seconds. This confirms browser transport, not Filecrypt
+  or a downloadable EPUB.
+- Runtime inspection confirmed no published ports, no paid provider and no OOM.
+  RAM observed during the test was approximately 826 MiB under the 2 GiB limit.
+
+The free Filecrypt path therefore remains unverified/blocked. Solverr is
+installed as a diagnostic component; it has **not** been connected as an automatic
+successful resolver in the acquisition worker. Existing failed/blocked job
+counters and state were not reset. The application was not restarted for this
+installation. Structured evidence: [test report](solverr-test-2026-10-31.json).
