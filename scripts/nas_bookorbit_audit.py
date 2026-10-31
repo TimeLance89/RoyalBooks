@@ -12,8 +12,12 @@ def mapped(container, destination):
         return None
     mount = max(mounts, key=lambda m: len(m['Destination']))
     suffix = destination[len(mount['Destination']):].lstrip('/')
-    # Docker's Mounts.Source is the resolved subdirectory on current engines.
-    return {'host': posixpath.normpath(posixpath.join(mount['Source'], suffix)),
+    # Docker inspect reports the volume root; Subpath is stored separately in
+    # HostConfig.Mounts, even though the container sees only that subdirectory.
+    options = next((m for m in container.get('HostConfig', {}).get('Mounts', [])
+                    if m.get('Target') == mount['Destination']), {})
+    subpath = options.get('VolumeOptions', {}).get('Subpath', '')
+    return {'host': posixpath.normpath(posixpath.join(mount['Source'], subpath, suffix)),
             'writable': mount.get('RW', False), 'type': mount['Type']}
 
 

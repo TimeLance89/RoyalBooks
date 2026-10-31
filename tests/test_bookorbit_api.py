@@ -48,5 +48,8 @@ def test_nas_audit_distinguishes_real_shared_paths():
     report=audit(orbit,royal)
     assert all(c['status']=='ok' for c in report['checks'])
     assert 'never-print' not in str(report)
+    royal['Mounts'][0]['Source']='/vol/data'
+    royal['HostConfig']={'Mounts':[{'Target':'/bookorbit-ingest','VolumeOptions':{'Subpath':'book-dock'}}]}
+    assert all(c['status']=='ok' for c in audit(orbit,royal)['checks'])
     royal['Mounts'][0]['Source']='/wrong'
     assert audit(orbit,royal)['status']=='error'
