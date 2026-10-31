@@ -39,6 +39,12 @@ def test_catalog_ignores_ads_other_categories_and_duplicates():
     assert parse_catalog(html)==[ITEM]
     with pytest.raises(ProviderError,match='unrecognized'):parse_catalog('<title>Just a moment...</title>')
 
+
+def test_provider_registration_needs_no_writable_data_directory(tmp_path):
+    folder=tmp_path/'missing'
+    ByteTo(str(folder/'catalog.sqlite3'))
+    assert not folder.exists()
+
 @pytest.mark.parametrize('url',[
     'https://byte.to.evil.org/category/Ebooks/Test-12.html','http://byte.to/category/Ebooks/Test-12.html',
     'https://byte.to:444/category/Ebooks/Test-12.html','https://x:y@byte.to/category/Ebooks/Test-12.html',

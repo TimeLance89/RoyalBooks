@@ -91,7 +91,7 @@ was pinned to the pulled digest; no paid service was provisioned.
   bytes, SHA-256 `6e0ca94e1a76c247983f5e680c17f15763ace9dfade35714aa1b58e1788877ea`.
   RoyalBooks full EPUB validation passed. This diagnostic file was not imported
   into the user's Calibre library.
-- Windows: 297 tests passed, two existing symlink permission skips. New tests cover
+- Windows: 298 tests passed, two existing symlink permission skips. New tests cover
   source parsing/pagination, URL boundaries, queue consent, bounded retry,
   duplicate dispatch, title/partial-file protection, engine error classification,
   stale observations and manual recovery. Chromium covers source browsing,

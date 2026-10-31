@@ -4,7 +4,9 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import sqlite3
 import time
+from pathlib import Path
 from html.parser import HTMLParser
 from urllib.parse import parse_qs, urljoin, urlsplit
 
@@ -88,8 +90,6 @@ class ByteTo(Provider):
 
     def __init__(self,path):
         super().__init__();self.path=path
-        with connect(path,timeout=5) as db:
-            db.execute('CREATE TABLE IF NOT EXISTS byte_catalog(id INTEGER PRIMARY KEY,payload TEXT NOT NULL,touched INTEGER NOT NULL)')
         self.pages={}
 
     async def html(self,client,url,kind='detail'):
@@ -109,14 +109,19 @@ class ByteTo(Provider):
         return data.decode('utf-8',errors='replace')
 
     def remember(self,records):
+        Path(self.path).parent.mkdir(parents=True,exist_ok=True)
         with connect(self.path,timeout=5) as db:
+            db.execute('CREATE TABLE IF NOT EXISTS byte_catalog(id INTEGER PRIMARY KEY,payload TEXT NOT NULL,touched INTEGER NOT NULL)')
             for item in records:
                 db.execute('INSERT INTO byte_catalog VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload,touched=excluded.touched',
                            (item['source_id'],json.dumps(item),int(time.time())))
 
     def lookup(self,record):
-        with connect(self.path,timeout=5) as db:
-            row=db.execute('SELECT payload FROM byte_catalog WHERE id=?',(record,)).fetchone()
+        try:
+            with connect(self.path,timeout=5) as db:
+                row=db.execute('SELECT payload FROM byte_catalog WHERE id=?',(record,)).fetchone()
+        except sqlite3.OperationalError:
+            raise ProviderError('byte_unknown_record') from None
         if not row:raise ProviderError('byte_unknown_record')
         item=json.loads(row[0])
         if not source_url(item['info_url']):raise ProviderError('byte_untrusted_url')

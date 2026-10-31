@@ -350,8 +350,8 @@ commit 5688761 passed all checks, including all four Chromium suites and Docker.
 
 ## Byte.to source, independent hoster engine and truthful status (2026-10-31)
 
-Windows: 297 passed, two existing symlink permission skips. Linux candidate:
-299 passed. The storefront refresh test now checks the multiset of concurrently
+Windows: 298 passed, two existing symlink permission skips. Linux candidate:
+300 passed. The storefront refresh test now checks the multiset of concurrently
 requested topics rather than an unspecified scheduling order. Platform Chromium
 checks include Byte.to catalog, first-load authentication, blocked-container
 messaging, manual-link submission and mobile layout at 1440/390/320 widths.
@@ -373,3 +373,7 @@ separate credentials and HTTPS. Engine API port 3128 is localhost-only, unpublis
 and observed by a sidecar sharing only the engine network namespace. Snapshots
 omit URLs, cookies, credentials and unrelated packages. Prior image, SQLite and
 private environment backups are retained. Details: docs/hoster-downloads.md.
+
+Provider registration is now side-effect free: Byte.to creates its catalog only
+when actual source results are persisted. The offline benchmark therefore runs
+without a pre-existing writable /data directory; a regression test covers this.
