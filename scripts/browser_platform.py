@@ -122,6 +122,41 @@ def main():
                     assert 'Automatischer nächster Versuch um' in page.locator('#job-rows').inner_text()
                     assert page.get_by_role('button',name='Erneut versuchen',exact=True).count()==0
                     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+                    hoster_posts=[]
+                    page.route('**/api/hosters/catalog?*',lambda route:route.fulfill(json={
+                        'items':[{'source_id':12345,'title':'Faust','authors':['Goethe'],
+                            'info_url':'https://byte.to/category/Ebooks/Faust-Goethe-12345.html'}],
+                        'has_more':False}))
+                    page.route('**/api/hosters',lambda route:route.fulfill(json={
+                        'configured':True,'engine':{'reachable':True},'control_url':'https://192.168.178.47:8095','jobs':[{'id':'b'*32,'status':'needs_review','error':'engine_cloudflare_blocked','book':{'title':'Faust','info_url':'https://byte.to/category/Ebooks/Faust-Goethe-12345.html'}}]}))
+                    def hoster_job(route):
+                        hoster_posts.append(route.request.post_data_json)
+                        route.fulfill(status=202,json={'job':{'status':'queued'}})
+                    page.route('**/api/hosters/jobs',hoster_job)
+                    page.goto(base+'/hosters');page.wait_for_selector('#hoster-books .book')
+                    assert page.locator('#hosters').is_visible()
+                    assert 'noch nicht geprüft' in page.locator('#hoster-catalog-message').inner_text()
+                    page.once('dialog',lambda d:d.accept())
+                    page.get_by_role('button',name='Über Hoster laden',exact=True).click()
+                    page.wait_for_function("document.querySelector('#hoster-engine-message').textContent.includes('eingerichtet')")
+                    assert hoster_posts==[{'source_id':12345,'rights_confirmed':True}]
+                    assert page.locator('#hoster-control').is_visible()
+                    assert 'Cloudflare' in page.locator('#hoster-jobs').inner_text()
+                    recovered=[]
+                    def recover_link(route):
+                        recovered.append(route.request.post_data_json);route.fulfill(status=202,json={'accepted':True})
+                    page.route('**/api/hosters/jobs/*/links',recover_link)
+                    page.get_by_role('textbox',name='Hoster-Dateilinks für Faust').fill('https://ddownload.com/abcdefghijkl')
+                    with page.expect_request(lambda req:req.url.endswith('/links') and req.method=='POST'):
+                        page.get_by_role('button',name='Mit Hosterlink fortsetzen').click()
+                    assert recovered==[{'links':['https://ddownload.com/abcdefghijkl'],'rights_confirmed':True}]
+                    assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+                    fresh=browser.new_page(viewport={'width':width,'height':height})
+                    fresh.route('**/api/hosters/catalog?*',lambda route:route.fulfill(json={'items':[],'has_more':False}))
+                    fresh.route('**/api/hosters',lambda route:route.fulfill(json={'configured':True,'control_url':'https://192.168.178.47:8095','jobs':[]}))
+                    fresh.goto(base+'/hosters')
+                    fresh.wait_for_function("document.querySelector('#hoster-engine-message').textContent.includes('eingerichtet')")
+                    fresh.close()
                     assert not errors,errors
                     page.close();print(name+': author pages/paging, file-only offers, unavailable-download gating, settings persistence, separate routes, ISBN validation and browser history OK')
                 browser.close()

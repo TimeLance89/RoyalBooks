@@ -276,3 +276,13 @@ a previous successful range probe must not keep a failed file advertised.
 Additional acquisition providers are enabled only after successful source/file
 tests. An NAS audit of Anna's Archive `.gl`, `.pk` and `.gd` returned HTTP 403 on
 all three searches after their normal redirects; no automatic provider was added.
+
+
+## Byte.to and free hosters
+
+The new `/hosters` area browses Byte.to and uses a separate optional JDownloader
+engine for source-listed link containers, with persistent job state, live engine
+observations, validated EPUB handoff and manual recovery after normal browser
+verification. No premium or MyJDownloader account is required. Cloudflare/captcha
+checks can still require human interaction; they are not bypassed. See
+[setup, verified behavior and current limits](docs/hoster-downloads.md).

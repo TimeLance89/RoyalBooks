@@ -36,7 +36,7 @@ async def test_refresh_persists_real_shelves_and_retains_last_good_on_error(tmp_
         store=Storefront(str(tmp_path/'db.sqlite3'),client);store.libgen=Source()
         await store.refresh();snap=store.snapshot()
         assert len(snap['shelves'])==len(SHELVES) and all(s['status']=='ready' for s in snap['shelves'])
-        assert calls==['lf','lf','f','l']
+        assert sorted(calls)==['f','l','lf','lf']  # Shelves are refreshed concurrently.
         restarted=Storefront(store.path,client)
         assert restarted.snapshot()==snap
         async def fail(*args,**kwargs):raise RuntimeError('secret URL must not leak')

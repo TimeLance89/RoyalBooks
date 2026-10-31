@@ -2,7 +2,7 @@
 import json
 from royalbooks.database import connect
 
-DEFAULTS={'language':'de','available_only':True,'result_limit':30,'sources':['libgen','memoryoftheworld','dnb','openlibrary','wikisource','standardebooks','gutendex','gutenberg_catalog']}
+DEFAULTS={'language':'de','available_only':True,'result_limit':30,'sources':['byte','libgen','memoryoftheworld','dnb','openlibrary','wikisource','standardebooks','gutendex','gutenberg_catalog']}
 
 class PlatformSettings:
     def __init__(self,path):

@@ -29,6 +29,8 @@ class SourceProfile:
 
 
 PROFILES = {
+    'byte': SourceProfile('byte','Byte.to','hoster_catalog','release','unknown_until_file_check',(),False,
+                          'Source-listed link containers; separate downloader, hoster waits and captchas may apply'),
     'memoryoftheworld': SourceProfile('memoryoftheworld', 'Memory of the World',
                            'file_listing', 'edition', 'multilingual', ('EPUB',), True,
                            'Independent community library; source-listed EPUBs, no account required'),

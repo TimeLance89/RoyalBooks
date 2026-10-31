@@ -346,3 +346,30 @@ confirms this import separately. No attempt counter was reset and the exhausted
 Freida McFadden job remains failed. The provider outage observed earlier was
 therefore temporary for at least this recovered file. Pull-request CI at runtime
 commit 5688761 passed all checks, including all four Chromium suites and Docker.
+
+
+## Byte.to source, independent hoster engine and truthful status (2026-10-31)
+
+Windows: 297 passed, two existing symlink permission skips. Linux candidate:
+299 passed. The storefront refresh test now checks the multiset of concurrently
+requested topics rather than an unspecified scheduling order. Platform Chromium
+checks include Byte.to catalog, first-load authentication, blocked-container
+messaging, manual-link submission and mobile layout at 1440/390/320 widths.
+
+Live NAS source: 25 actual Byte.to rows per page rendered at all three widths
+with no JS errors or horizontal overflow. Two published widget redirects became
+Filecrypt containers. The sampled source-indexed request was dispatched once to
+JDownloader, and both links stopped at Cloudflare. The engine observer reported
+blocked with zero bytes; the RoyalBooks job transitioned to needs_review with
+engine_cloudflare_blocked, exposing a same-job manual hoster-link recovery form.
+No book was imported from this failed Filecrypt request. A completed downloader
+package with an error is covered as a regression against false success.
+
+The independent engine downloaded a first-party Gutenberg EPUB, 191,405 bytes;
+RoyalBooks full ZIP/CRC/package validation passed. The diagnostic file remained
+outside Calibre. This proves the engine's direct-file transport, not a working
+Filecrypt bypass. There is no premium or MyJDownloader account. GUI access uses
+separate credentials and HTTPS. Engine API port 3128 is localhost-only, unpublished,
+and observed by a sidecar sharing only the engine network namespace. Snapshots
+omit URLs, cookies, credentials and unrelated packages. Prior image, SQLite and
+private environment backups are retained. Details: docs/hoster-downloads.md.

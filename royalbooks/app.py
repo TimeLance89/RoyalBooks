@@ -26,7 +26,7 @@ from royalbooks.preflight import diagnose
 from royalbooks.catalog_admin import CatalogImportService, CatalogImportBusy
 from royalbooks.watchlist import WatchlistStore, WatchlistFull
 from typing import Literal
-from royalbooks.providers import Book, GoogleBooks, Gutendex, OpenLibrary, Provider
+from royalbooks.providers import Book, GoogleBooks, Gutendex, OpenLibrary, Provider, ProviderError
 from royalbooks.source_registry import configured_providers
 from royalbooks.indexer_search import search_indexers
 from royalbooks.discovery import SearchCoordinator, analyze_query, bounded_response
@@ -44,6 +44,8 @@ from royalbooks.settings import PlatformSettings
 from royalbooks.availability import Availability
 from royalbooks.providers import canonical_isbn
 from royalbooks.catalog_labels import remember, apply_labels
+from royalbooks.hoster_jobs import HosterJobs, worker as hoster_worker
+from royalbooks.engine_status import read_status as engine_status
 
 
 def downloads_enabled() -> bool:
@@ -63,6 +65,7 @@ async def lifespan(app: FastAPI):
     await app.state.availability.start()
     sources = configured_providers()
     app.state.providers = {p.name: p for p in sources}
+    app.state.hoster_jobs = HosterJobs(path)
     data = Path(path).parent
     ingest_path = os.getenv('ROYALBOOKS_CWA_INGEST_PATH', '').strip()
     app.state.search_client = httpx.AsyncClient(
@@ -78,6 +81,8 @@ async def lifespan(app: FastAPI):
     storefront_task = (asyncio.create_task(app.state.storefront.run())
                        if os.getenv('ROYALBOOKS_STORE_REFRESH_ENABLED', '1') != '0' else None)
     task = None
+    hoster_task = asyncio.create_task(hoster_worker(app.state.hoster_jobs,app.state.providers['byte'],
+        app.state.search_client,Path(ingest_path) if ingest_path else None)) if os.getenv('ROYALBOOKS_HOSTER_ENABLED')=='1' and os.getenv('ROYALBOOKS_API_TOKEN') else None
     if downloads_enabled() and os.getenv('ROYALBOOKS_API_TOKEN'):
         task = asyncio.create_task(worker(app.state.jobs, data,
             Path(ingest_path) if ingest_path else None, app.state.providers.get('gutendex'),
@@ -85,6 +90,9 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        if hoster_task is not None:
+            hoster_task.cancel()
+            with suppress(asyncio.CancelledError):await hoster_task
         if storefront_task is not None:
             storefront_task.cancel()
             with suppress(asyncio.CancelledError):
@@ -131,6 +139,7 @@ async def _limit_public_search(client_ip: str) -> None:
 @app.get('/authors')
 @app.get('/genres')
 @app.get('/downloads')
+@app.get('/hosters')
 @app.get('/watchlist')
 @app.get('/settings')
 @app.get('/settings/{tab}')
@@ -374,7 +383,7 @@ class PreferenceUpdate(BaseModel):
     language: Literal['de','en','all'] | None = None
     available_only: bool | None = None
     result_limit: Literal[25,30,60] | None = None
-    sources: list[str] | None = Field(default=None,min_length=1,max_length=9)
+    sources: list[str] | None = Field(default=None,min_length=1,max_length=10)
 
     @field_validator('sources')
     @classmethod
@@ -548,7 +557,7 @@ async def request_catalog_import(
 
 
 class WatchlistRequest(BaseModel):
-    source: Literal["gutendex", "gutenberg_catalog", "openlibrary", "dnb", "google_books", "libgen", "wikisource", "standardebooks", "memoryoftheworld"]
+    source: Literal["byte", "gutendex", "gutenberg_catalog", "openlibrary", "dnb", "google_books", "libgen", "wikisource", "standardebooks", "memoryoftheworld"]
     source_id: str = Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_-]+$")
     title: str = Field(min_length=2, max_length=250)
     authors: list[str] = Field(default_factory=list, max_length=8)
@@ -616,6 +625,61 @@ async def list_jobs(_admin: None = Depends(admin_access)):
             'ingest_configured': bool(ingest_path),
             'library_configured': bool(os.getenv('ROYALBOOKS_CWA_LIBRARY_PATH', '').strip()),
             'handoff_notice': 'A disappearing ingest file does not confirm a successful Calibre import.'}
+
+
+@app.get('/api/hosters/catalog')
+async def hoster_catalog(request:Request,q:str=Query(default='',max_length=140),page:int=Query(default=1,ge=1,le=2000)):
+    await _limit_public_search(request.client.host if request.client else 'unknown')
+    provider=app.state.providers.get('byte')
+    if not provider:raise HTTPException(status_code=503,detail='byte_not_configured')
+    try:
+        items,more=await provider.catalog(app.state.search_client,q.strip(),page)
+        return {'items':items,'has_more':more,'page':page,
+                'notice':'Source listings; EPUB format, language and hoster availability are not verified.'}
+    except ProviderError as exc:
+        raise HTTPException(status_code=502,detail=str(exc)) from exc
+
+
+@app.get('/api/hosters')
+async def hoster_status(_admin:None=Depends(admin_access)):
+    store=app.state.hoster_jobs
+    return {'configured':store.ready(),'jobs':await asyncio.to_thread(store.list),
+            'engine':await asyncio.to_thread(engine_status,store.root),
+            'control_url':os.getenv('ROYALBOOKS_HOSTER_CONTROL_URL',''),
+            'notice':'Free hosters may require waiting or manual captchas in the download engine.'}
+
+
+class HosterRequest(BaseModel):
+    source_id:int=Field(gt=0,le=9999999999)
+    rights_confirmed:bool=False
+
+
+@app.post('/api/hosters/jobs',status_code=202)
+async def enqueue_hoster(body:HosterRequest,_admin:None=Depends(admin_access)):
+    if not downloads_enabled():raise HTTPException(status_code=503,detail='downloads_disabled')
+    if not body.rights_confirmed:raise HTTPException(status_code=400,detail='local_rights_confirmation_required')
+    try:
+        item=await asyncio.to_thread(app.state.providers['byte'].lookup,body.source_id)
+        return {'job':await asyncio.to_thread(app.state.hoster_jobs.add,item)}
+    except ProviderError as exc:
+        raise HTTPException(status_code=409,detail=str(exc)) from exc
+
+
+class ManualHosterLinks(BaseModel):
+    links:list[str]=Field(min_length=1,max_length=8)
+    rights_confirmed:bool=False
+
+
+@app.post('/api/hosters/jobs/{job_id}/links',status_code=202)
+async def hoster_manual_links(body:ManualHosterLinks,
+    job_id:str=ApiPath(pattern=r'^[a-f0-9]{32}$'),_admin:None=Depends(admin_access)):
+    if not downloads_enabled():raise HTTPException(status_code=503,detail='downloads_disabled')
+    if not body.rights_confirmed:raise HTTPException(status_code=400,detail='local_rights_confirmation_required')
+    try:
+        await asyncio.to_thread(app.state.hoster_jobs.manual_links,job_id,body.links)
+        return {'accepted':True}
+    except ProviderError as exc:
+        raise HTTPException(status_code=409,detail=str(exc)) from exc
 
 
 class RetryRequest(BaseModel):
